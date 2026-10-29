@@ -278,9 +278,9 @@ async function deleteUser(userId) {
 }
 
 // --- GESTION DE L'ABONNEMENT NOTIFICATIONS PUSH (PROFIL) ---
-async function askForNotifications() {
+async function askForNotifications(silent = false) {
   if (!("Notification" in window) || !('serviceWorker' in navigator)) {
-    alert("Ton navigateur ne supporte pas les notifications push.");
+    if (!silent) alert("Ton navigateur ne supporte pas les notifications push.");
     return;
   }
 
@@ -290,20 +290,16 @@ async function askForNotifications() {
     try {
       await navigator.serviceWorker.register('./sw.js');
       const registration = await navigator.serviceWorker.ready;
-      
-      // ⚠️ AJOUT : On récupère et supprime l'ancien abonnement du navigateur s'il existe
-      const existingSubscription = await registration.pushManager.getSubscription();
-      if (existingSubscription) {
-        await existingSubscription.unsubscribe();
-      }
-      
-      const subscription = await registration.pushManager.subscribe({
+
+      const subscription = (await registration.pushManager.getSubscription()) || await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array('BPsir4XP8frRCjKIWrnNcXKEe48Zwe5GnNoSQbJcOwe1QORyaO7Opu8xHjMOHiavPm85OFKXlFBWBqbX-KgttbI')
       });
 
       if (currentUser) {
-        await supabaseClient.from('nvg_subscriptions').delete().eq('user_id', currentUser.id);
+        await supabaseClient.from('nvg_subscriptions').delete()
+          .eq('user_id', currentUser.id)
+          .filter('subscription->>endpoint', 'eq', subscription.endpoint);
 
         await supabaseClient.from('nvg_subscriptions').insert([{
           user_id: currentUser.id,
@@ -311,14 +307,55 @@ async function askForNotifications() {
         }]);
       }
 
-      alert("✅ Parfait ! Les notifications push sont activées sur cet appareil.");
+      if (!silent) alert("✅ Parfait ! Les notifications push sont activées sur cet appareil.");
     } catch (err) {
       console.error("Erreur lors de l'abonnement push :", err);
-      alert("❌ Erreur lors de l'activation des notifications : " + err.message);
+      if (!silent) alert("❌ Erreur lors de l'activation des notifications : " + err.message);
     }
-  } else if (permission === "denied") {
+  } else if (permission === "denied" && !silent) {
     alert("❌ Les notifications sont bloquées par le navigateur.");
   }
+}
+
+function showNotifPrompt() {
+  if (!currentUser || !("Notification" in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+  if (Notification.permission === 'granted') {
+    askForNotifications(true);
+    return;
+  }
+
+  if (Notification.permission !== 'default' || document.getElementById('notifPrompt')) return;
+
+  const reportee = localStorage.getItem('nvg_notif_prompt_reporte');
+  if (reportee && Date.now() - Number(reportee) < 7 * 24 * 3600 * 1000) return;
+
+  const prompt = document.createElement('div');
+  prompt.id = 'notifPrompt';
+  prompt.className = 'fixed bottom-4 left-4 right-4 md:left-auto md:w-96 z-40 bg-[#121722] border border-amber-500/40 rounded-2xl p-4 shadow-2xl flex flex-col gap-3';
+  prompt.innerHTML = `
+    <div class="flex items-start gap-3">
+      <span class="text-xl">🔔</span>
+      <div class="text-xs text-gray-300">
+        <p class="font-bold text-white">Activer les notifications ?</p>
+        <p>Reçois les annonces de la communauté directement sur cet appareil.</p>
+      </div>
+    </div>
+    <div class="flex justify-end gap-2">
+      <button id="notifPromptLater" class="px-3 py-2 text-xs text-gray-400 hover:text-white transition">Plus tard</button>
+      <button id="notifPromptYes" class="px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs transition">Activer</button>
+    </div>
+  `;
+  document.body.appendChild(prompt);
+
+  document.getElementById('notifPromptLater').onclick = () => {
+    localStorage.setItem('nvg_notif_prompt_reporte', String(Date.now()));
+    prompt.remove();
+  };
+  document.getElementById('notifPromptYes').onclick = async () => {
+    prompt.remove();
+    await askForNotifications();
+  };
 }
 
 function urlBase64ToUint8Array(base64String) {

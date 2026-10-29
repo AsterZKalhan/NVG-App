@@ -157,6 +157,7 @@ async function handleSuccessfulAuth(authUser) {
   }
 
   loadNotifications();
+  showNotifPrompt();
 
   const authModal = document.getElementById('authModal');
   if (authModal) authModal.classList.add('hidden');
