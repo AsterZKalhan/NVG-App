@@ -115,7 +115,7 @@ function renderPublicEvents() {
             <h4 class="text-xl md:text-2xl font-black text-white mt-1">${ev.title.replace(/^\[NVG (Spring|Summer|Autumn|Winter)\]/, '[NVG]')}</h4>
             <p class="text-xs text-gray-400 mt-1">📍 ${ev.location}</p>
           </div>
-          <img src="${logoSrc}" alt="${ev.category}" onerror="this.onerror=null;this.src='./Logos/logo-nvg.png'" class="w-40 h-40 object-contain shrink-0 bg-black/40 p-1 rounded-lg border border-[#1f293d]">
+          <img src="${logoSrc}" alt="${ev.category}" onerror="this.onerror=null;this.src='./Logos/logo-nvg.png'" class="w-24 h-24 xl:w-40 xl:h-40 object-contain shrink-0 bg-black/40 p-1 rounded-lg border border-[#1f293d]">
         </div>
         <p class="text-xs md:text-sm text-gray-300 mt-3">${ev.description}</p>
         
