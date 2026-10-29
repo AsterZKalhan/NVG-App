@@ -196,12 +196,12 @@ function openAttendanceModal(evId) {
   const attendance = ev.attendance || [];
   const userAttendance = attendance.find(a => a.userId === currentUser.id) || {
     arrivalTime: '',
-    carpool: 'solo',
+    soiree: 'jeu',
     gearItems: []
   };
 
   document.getElementById('modalArrivalTime').value = userAttendance.arrivalTime || '';
-  document.getElementById('modalCarpoolStatus').value = userAttendance.carpool || 'solo';
+  document.getElementById('modalCarpoolStatus').value = userAttendance.soiree || 'jeu';
 
   const modalFooterAction = document.getElementById('modalFooterActions');
   if (modalFooterAction) {
@@ -286,7 +286,7 @@ async function cancelAttendance(evId) {
 async function saveAttendanceModal() {
   const evId = document.getElementById('modalEventId').value;
   const arrivalTime = document.getElementById('modalArrivalTime').value;
-  const carpool = document.getElementById('modalCarpoolStatus').value;
+  const soiree = document.getElementById('modalCarpoolStatus').value;
 
   const checkboxes = document.querySelectorAll('.catalog-gear-checkbox:checked');
   const gearItems = Array.from(checkboxes).map(cb => {
@@ -309,7 +309,7 @@ async function saveAttendanceModal() {
     userId: currentUser.id,
     userName: currentUser.name,
     arrivalTime,
-    carpool,
+    soiree,
     gearItems
   };
 
@@ -347,10 +347,9 @@ function renderAdminLogisticsDetails() {
     return;
   }
 
-  const carpoolLabels = {
-    solo: '🚗 Vient seul(e)',
-    seats_available: '🟢 Places libres dans le véhicule',
-    looking_for_seat: '🙋‍♂️ Cherche une place'
+  const soireeLabels = {
+    stream: '🎥 Stream sur sa chaîne',
+    jeu: '🎮 Joue uniquement'
   };
 
   container.innerHTML = `
@@ -364,7 +363,7 @@ function renderAdminLogisticsDetails() {
                 👤 ${a.userName} 
                 <span class="text-[10px] text-red-500 font-bold bg-red-500/10 px-2 py-0.5 rounded">Arrivée : ${a.arrivalTime || 'Non précisée'}</span>
               </div>
-              <div class="text-[11px] text-amber-400 font-bold mt-1">${carpoolLabels[a.carpool] || ''}</div>
+              <div class="text-[11px] text-amber-400 font-bold mt-1">${soireeLabels[a.soiree] || ''}</div>
             </div>
           </div>
           
