@@ -37,6 +37,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Afficher l'onglet par défaut au démarrage
   refreshLiveStatus();
   setInterval(refreshLiveStatus, 60000);
+  if (/iphone|ipad|ipod/i.test(navigator.userAgent)) showInstallBanner(false);
 
   history.replaceState({ tab: 'calendar' }, '');
   showTab('calendar');
@@ -53,6 +54,61 @@ window.addEventListener('popstate', (e) => {
     suppressHistory = false;
   }
 });
+
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  showInstallBanner(true);
+});
+
+function showInstallBanner(canInstall) {
+  if (document.getElementById('installBanner')) return;
+  if (window.innerWidth >= 768) return;
+  if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) return;
+  const reportee = localStorage.getItem('nvg_install_reporte');
+  if (reportee && Date.now() - Number(reportee) < 7 * 24 * 3600 * 1000) return;
+
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if (!canInstall && !isIOS) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'installBanner';
+  banner.className = 'fixed top-3 left-3 right-3 z-40 bg-[#121722] border border-red-600/50 rounded-2xl p-4 shadow-2xl flex flex-col gap-3';
+  banner.innerHTML = `
+    <div class="flex items-start gap-3">
+      <img src="./Logos/icon-192.png" alt="" class="w-10 h-10 rounded-lg shrink-0">
+      <div class="text-xs text-gray-300">
+        <p class="font-bold text-white">Installer NVG Companion</p>
+        ${canInstall
+          ? '<p>Accède à l\'application directement depuis ton écran d\'accueil.</p>'
+          : '<p>Touche le bouton Partager <span class="font-bold">⬆️</span> de Safari, puis « Sur l\'écran d\'accueil ».</p>'}
+      </div>
+    </div>
+    <div class="flex justify-end gap-2">
+      <button id="installLater" class="px-3 py-2 text-xs text-gray-400 hover:text-white transition">Plus tard</button>
+      ${canInstall ? '<button id="installYes" class="px-3 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-xs transition">Installer</button>' : ''}
+    </div>
+  `;
+  document.body.appendChild(banner);
+
+  document.getElementById('installLater').onclick = () => {
+    localStorage.setItem('nvg_install_reporte', String(Date.now()));
+    banner.remove();
+  };
+  const yes = document.getElementById('installYes');
+  if (yes) {
+    yes.onclick = async () => {
+      banner.remove();
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+      }
+    };
+  }
+}
 
 function toggleMobileMenu() {
   document.getElementById('mainNav').classList.toggle('hidden');
