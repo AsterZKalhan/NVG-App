@@ -19,26 +19,21 @@ async function loadNotifications() {
 
   window.notifCache = notifications || [];
 
-  let readIds = getReadNotifIds();
-  if (readIds === null) {
-    readIds = window.notifCache.map(notif => notif.id);
-    saveReadNotifIds(readIds);
-  }
-  const unreadCount = window.notifCache.filter(notif => !readIds.includes(notif.id)).length;
-  updateNotifDot(unreadCount);
+  const readIds = await fetchReadNotifIds();
+  updateNotifDot(window.notifCache.filter(notif => isNotifUnread(notif, readIds)).length);
 
   if (containers.length === 0) return;
 
   const htmlContent = (!notifications || notifications.length === 0)
     ? `<div class="p-4 text-center text-xs text-gray-400 bg-[#07090e] border border-[#1f293d] rounded-xl">Aucune notification pour le moment.</div>`
     : notifications.map(notif => {
-      const isUnread = !readIds.includes(notif.id);
+      const unread = isNotifUnread(notif, readIds);
       return `
-      <div class="p-4 bg-[#07090e] border ${isUnread ? 'border-red-600/50' : 'border-[#1f293d]'} rounded-xl flex flex-col gap-2 hover:border-red-600/50 transition">
+      <div class="p-4 bg-[#07090e] border ${unread ? 'border-red-600/50' : 'border-[#1f293d]'} rounded-xl flex flex-col gap-2 hover:border-red-600/50 transition">
         <div onclick="openNotification('${notif.id}')" class="cursor-pointer flex flex-col gap-2">
           <div class="flex items-center justify-between gap-2">
             <span class="text-xs font-bold text-white flex items-center gap-2">
-              ${isUnread ? '<span class="w-2 h-2 rounded-full bg-red-500 inline-block shrink-0"></span>' : ''}
+              ${unread ? '<span class="w-2 h-2 rounded-full bg-red-500 inline-block shrink-0"></span>' : ''}
               ${escapeHtmlSafe(notif.title)}
             </span>
             <span class="text-[10px] text-gray-400 shrink-0">${formatDate(notif.time)}</span>
@@ -127,20 +122,33 @@ async function deleteNotification(notifId) {
   else loadNotifications();
 }
 
-function getReadNotifKey() {
-  return 'nvg_notifs_lues_' + (currentUser ? currentUser.id : 'invite');
-}
+async function fetchReadNotifIds() {
+  if (!currentUser) return [];
+  const { data, error } = await supabaseClient
+    .from('nvg_notification_reads')
+    .select('notification_id')
+    .eq('user_id', currentUser.id);
 
-function getReadNotifIds() {
-  try {
-    return JSON.parse(localStorage.getItem(getReadNotifKey())) || null;
-  } catch (e) {
-    return null;
+  if (error) {
+    console.error("Erreur chargement des lectures :", error);
+    return [];
   }
+  return data.map(row => row.notification_id);
 }
 
-function saveReadNotifIds(ids) {
-  localStorage.setItem(getReadNotifKey(), JSON.stringify(ids));
+async function markNotificationRead(notifId) {
+  if (!currentUser) return;
+  const { error } = await supabaseClient
+    .from('nvg_notification_reads')
+    .upsert([{ notification_id: notifId, user_id: currentUser.id }], { onConflict: 'notification_id,user_id', ignoreDuplicates: true });
+
+  if (error) console.error("Erreur marquage lu :", error);
+}
+
+function isNotifUnread(notif, readIds) {
+  if (!currentUser || readIds.includes(notif.id)) return false;
+  const baseline = currentUser.notif_baseline ? new Date(String(currentUser.notif_baseline).replace(/(\.\d{3})\d+/, '$1')) : null;
+  return !baseline || new Date(notif.time) > baseline;
 }
 
 function updateNotifDot(unreadCount) {
@@ -148,15 +156,11 @@ function updateNotifDot(unreadCount) {
   if (dot) dot.classList.toggle('hidden', unreadCount === 0);
 }
 
-function openNotification(notifId) {
+async function openNotification(notifId) {
   const notif = (window.notifCache || []).find(n => n.id === notifId);
   if (!notif) return;
 
-  const readIds = getReadNotifIds() || [];
-  if (!readIds.includes(notifId)) {
-    readIds.push(notifId);
-    saveReadNotifIds(readIds);
-  }
+  await markNotificationRead(notifId);
 
   document.getElementById('notifModalTitle').textContent = notif.title || '';
   document.getElementById('notifModalDate').textContent = formatDate(notif.time);

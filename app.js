@@ -140,7 +140,8 @@ async function handleSuccessfulAuth(authUser) {
     role: role,
     rank: rank,
     verified: isVerifiedInDb,
-    avatar_url: avatarUrl
+    avatar_url: avatarUrl,
+    notif_baseline: userProfile ? userProfile.notif_baseline : null
   };
 
   if (!userProfile) {
