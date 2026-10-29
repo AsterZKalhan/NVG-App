@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.nvgtv.companion",
+        "sha256_cert_fingerprints": ["63:38:C3:ED:2A:BB:D1:55:0F:3A:15:05:47:8A:89:25:68:A5:BB:96:E6:A5:A9:BF:D5:08:9D:3B:9E:5F:E7:7D"]
+      }
+    }]

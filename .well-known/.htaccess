@@ -1,0 +1,16 @@
+# Vérification du domaine pour le TWA (com.nvg.companion)
+# Objectif : que https://app.nvg-tv.com/.well-known/assetlinks.json
+# réponde 200 + Content-Type: application/json
+
+<IfModule mod_mime.c>
+  AddType application/json .json
+  ForceType application/json
+</IfModule>
+
+# Désactive la négociation de contenu qui renvoie actuellement
+# "300 Multiple Choices" sur ce dossier (Apache MultiViews).
+# Si cette directive provoque une erreur 500, la supprimer :
+# l'hébergeur n'autorise pas Options dans .htaccess.
+<IfModule mod_negotiation.c>
+  Options -MultiViews
+</IfModule>
