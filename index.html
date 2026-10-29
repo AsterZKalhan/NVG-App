@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Normandy Viking Gaming - Event Companion</title>
+  
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="./Logos/favicon.png">
+  <link rel="apple-touch-icon" href="./Logos/favicon.png">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              dark: '#07090e',
+              card: '#121722',
+              border: '#1f293d',
+              red: '#dc2626'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- 1. SDK Supabase & Configuration -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+</head>
+<body class="bg-[#07090e] text-gray-100 font-sans min-h-screen flex flex-col md:flex-row">
+
+  <!-- MODALE D'AUTHENTIFICATION (Connexion / Inscription séparées + Captcha) -->
+  <div id="authModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
+      <div class="text-center mb-6">
+        <img src="./Logos/logo-nvg.png" alt="NVG Logo" class="w-16 h-16 mx-auto object-contain mb-3 bg-black/40 p-2 rounded-xl border border-[#1f293d]">
+        <h2 class="text-xl font-black text-white uppercase tracking-wider">Normandy Viking Gaming</h2>
+        <p class="text-xs text-gray-400 mt-1">Event companion</p>
+      </div>
+
+      <!-- Boutons d'onglets pour basculer -->
+      <div class="flex bg-[#07090e] border border-[#1f293d] rounded-xl p-1 mb-6">
+        <button id="tabConnexionBtn" onclick="switchAuthTab('connexion')" class="flex-1 py-2 rounded-lg text-xs font-bold text-white bg-red-600 shadow transition">Connexion</button>
+        <button id="tabInscriptionBtn" onclick="switchAuthTab('inscription')" class="flex-1 py-2 rounded-lg text-xs font-bold text-gray-400 hover:text-white transition">Inscription</button>
+      </div>
+
+      <!-- FORMULAIRE DE CONNEXION -->
+      <form id="loginForm" onsubmit="event.preventDefault(); handleLoginSubmit();" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-gray-300 uppercase mb-1">E-mail</label>
+          <input type="email" id="loginEmail" placeholder="nom@exemple.com" autocomplete="username" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Mot de passe</label>
+          <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+        </div>
+        <button type="submit" class="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider shadow-lg transition">
+          Se connecter ⚔️
+        </button>
+      </form>
+
+      <!-- FORMULAIRE D'INSCRIPTION (Masqué par défaut) -->
+      <form id="registerForm" onsubmit="event.preventDefault(); handleRegisterSubmit();" class="space-y-4 hidden">
+        <div>
+          <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Pseudo</label>
+          <input type="text" id="registerPseudo" placeholder="Ex: Astèrz" autocomplete="off" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-300 uppercase mb-1">E-mail</label>
+          <input type="email" id="registerEmail" placeholder="nom@exemple.com" autocomplete="off" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Mot de passe</label>
+          <input type="password" id="registerPassword" placeholder="••••••••" autocomplete="new-password" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+        </div>
+
+        <!-- Captcha Simple anti-spam -->
+        <div class="bg-[#07090e] border border-[#1f293d] rounded-xl p-3 space-y-2">
+          <label class="block text-[11px] font-bold text-gray-300 uppercase">Anti-Spam : Combien font <span id="captchaQuestion" class="text-red-500 font-black">?</span> ?</label>
+          <input type="number" id="captchaAnswer" placeholder="Votre réponse" autocomplete="off" class="w-full bg-[#121722] border border-[#1f293d] rounded-lg px-3 py-2 text-xs text-white focus:border-red-600 focus:outline-none">
+        </div>
+
+        <button type="submit" class="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider shadow-lg transition">
+          S'inscrire 🚀
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODALE DE GESTION DE PRÉSENCE & MATÉRIEL -->
+  <div id="attendanceModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-6 w-full max-w-2xl shadow-2xl relative space-y-5">
+      <div class="flex items-center justify-between border-b border-[#1f293d] pb-3">
+        <h3 class="text-sm font-black text-white uppercase tracking-wider">🚀 Gérer ma présence & mon matériel</h3>
+        <button onclick="closeAttendanceModal()" class="text-gray-400 hover:text-white font-bold text-xs">✕</button>
+      </div>
+
+      <input type="hidden" id="modalEventId">
+
+      <div>
+        <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Heure d'arrivée prévue</label>
+        <select id="modalArrivalTime" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+          <option value="">-- Choisir une heure --</option>
+          <option value="08:00">08:00</option>
+          <option value="08:30">08:30</option>
+          <option value="09:00">09:00</option>
+          <option value="09:30">09:30</option>
+          <option value="10:00">10:00</option>
+          <option value="10:30">10:30</option>
+          <option value="11:00">11:00</option>
+          <option value="11:30">11:30</option>
+          <option value="12:00">12:00</option>
+          <option value="12:30">12:30</option>
+          <option value="13:00">13:00</option>
+          <option value="13:30">13:30</option>
+          <option value="14:00">14:00</option>
+          <option value="14:30">14:30</option>
+          <option value="15:00">15:00</option>
+          <option value="15:30">15:30</option>
+          <option value="16:00">16:00</option>
+          <option value="16:30">16:30</option>
+          <option value="17:00">17:00</option>
+          <option value="17:30">17:30</option>
+          <option value="18:00">18:00</option>
+          <option value="18:30">18:30</option>
+          <option value="19:00">19:00</option>
+          <option value="19:30">19:30</option>
+          <option value="20:00">20:00</option>
+          <option value="20:30">20:30</option>
+          <option value="21:00">21:00</option>
+          <option value="21:30">21:30</option>
+          <option value="22:00">22:00</option>
+          <option value="22:30">22:30</option>
+          <option value="23:00">23:00</option>
+          <option value="23:30">23:30</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Covoiturage / Transport</label>
+        <select id="modalCarpoolStatus" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+          <option value="solo">Je viens seul(e)</option>
+          <option value="seats_available">J'ai des places de libre dans mon véhicule 🚗</option>
+          <option value="looking_for_seat">Je cherche une place en covoiturage 🙋‍♂️</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-gray-300 uppercase mb-2">Matériel apporté & Quantités</label>
+        <div id="modalCatalogCheckboxes" class="space-y-2.5 bg-[#07090e] border border-[#1f293d] rounded-xl p-3">
+          <!-- Rendu dynamique -->
+        </div>
+      </div>
+
+      <div id="modalFooterActions" class="flex gap-3 pt-2">
+        <button onclick="closeAttendanceModal()" class="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs uppercase transition">Annuler</button>
+        <button onclick="saveAttendanceModal()" class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase shadow-lg transition">Enregistrer 💾</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR / MENU DE NAVIGATION -->
+  <aside class="w-full md:w-64 bg-[#121722] border-b md:border-b-0 md:border-r border-[#1f293d] p-5 flex flex-col justify-between shrink-0">
+    <div>
+      <div class="flex items-center gap-3 mb-8">
+        <img src="./Logos/logo-nvg.png" alt="Logo" class="w-10 h-10 object-contain bg-black/40 p-1 rounded-lg border border-[#1f293d]">
+        <div>
+          <h1 class="text-sm font-black uppercase text-white">Normandy Viking Gaming</h1>
+          <span class="text-[10px] text-red-500 font-bold">event companion</span>
+        </div>
+      </div>
+
+      <nav class="flex md:flex-col gap-2 overflow-x-auto pb-2 md:pb-0">
+		<button onclick="showTab('live')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap text-red-500">
+		<span id="liveIndicator" class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span> NVG en Live
+		</button>
+        <button onclick="showTab('calendar')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap">
+          📅 Calendrier
+        </button>
+        <button id="navLogisticsBtn" onclick="showTab('logistics')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap hidden">
+          🎒 Logistique (Admin)
+        </button>
+        <button id="navGamesBtn" onclick="showTab('games')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap text-white bg-white/10 hidden">
+          🎮 Jeux
+        </button>
+        <button onclick="showTab('notifications')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap">
+          🔔 Notifs
+        </button>
+        <button id="navAdminBtn" onclick="showTab('admin')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap text-amber-400 hidden">
+          ⚙️ Administration
+        </button>
+      </nav>
+    </div>
+
+    <!-- ZONE PROFIL & COMPTE UTILISATEUR CONNECTÉ (EN BAS) -->
+    <div id="userProfileBadge" class="hidden pt-4 border-t border-[#1f293d] space-y-2">
+      <!-- Petit bouclier cliquable au-dessus du profil -->
+      <div onclick="showTab('account')" class="flex items-center gap-2 px-2 text-xs text-gray-400 hover:text-white cursor-pointer transition">
+        <span>🛡️</span> <span class="font-bold uppercase tracking-wider text-[10px]">Espace Viking</span>
+      </div>
+
+      <!-- Bloc du profil avec l'avatar réel -->
+      <div onclick="showTab('account')" class="flex items-center gap-3 p-2 rounded-xl bg-white/5 hover:bg-white/10 cursor-pointer transition overflow-hidden">
+        <div id="sidebarUserAvatar" class="w-10 h-10 rounded-xl bg-[#07090e] border border-[#1f293d] overflow-hidden flex items-center justify-center text-gray-500 font-bold shrink-0">
+          👤
+        </div>
+        <div class="truncate flex-1">
+          <div id="sidebarUserName" class="text-xs font-black text-white truncate">Nom</div>
+          <div class="flex items-center justify-between">
+            <span id="sidebarUserRank" class="text-[10px] text-amber-400 font-bold uppercase truncate">Rang</span>
+            <span class="text-[9px] text-gray-400 underline lowercase">mon compte</span>
+          </div>
+        </div>
+      </div>
+      <button onclick="handleLogout()" class="w-full py-2 rounded-xl bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-[11px] font-bold transition flex items-center justify-center gap-2">
+        <span>🚪</span> Déconnexion
+      </button>
+    </div>
+  </aside>
+
+  <!-- CONTENU PRINCIPAL -->
+  <main class="flex-1 p-6 md:p-10 overflow-y-auto space-y-6">
+
+    <!-- Bannière de Notification In-App Live -->
+    <div id="inAppNotificationBanner" class="hidden"></div>
+
+    <!-- ONGLET LIVE -->
+    <section id="live" class="tab-content hidden space-y-6">
+      <div id="liveContainer" class="bg-[#121722] border border-[#1f293d] rounded-2xl p-6">
+        <p class="text-xs text-gray-400">Chargement du lecteur Twitch...</p>
+      </div>
+    </section>
+
+    <!-- ONGLET CALENDRIER -->
+    <section id="calendar" class="tab-content space-y-6">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-black text-white uppercase">Calendrier des Événements</h2>
+        <div class="flex gap-2">
+          <button id="filterBtnUpcoming" onclick="switchEventFilter('upcoming')" class="px-4 py-2 rounded-xl text-xs font-bold bg-red-600 text-white shadow transition">À venir</button>
+          <button id="filterBtnPast" onclick="switchEventFilter('past')" class="px-4 py-2 rounded-xl text-xs font-bold bg-[#121722] text-gray-400 border border-[#1f293d] hover:text-white transition">Passés</button>
+        </div>
+      </div>
+      <div id="publicEventsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Rendu dynamique -->
+      </div>
+    </section>
+
+    <!-- ONGLET LOGISTIQUE (ADMIN) -->
+    <section id="logistics" class="tab-content hidden space-y-6">
+      <div class="border-b border-[#1f293d] pb-4">
+        <h2 class="text-xl font-black text-white uppercase">Récapitulatif Logistique & Présences</h2>
+        <p class="text-xs text-gray-400 mt-1">Vue administrateur : ce que chaque Viking apporte par événement.</p>
+      </div>
+
+      <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-6 space-y-4">
+        <label class="block text-xs font-bold text-gray-300 uppercase">Sélectionner un événement</label>
+        <select id="adminLogisticsEventSelector" onchange="renderAdminLogisticsDetails()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none"></select>
+        
+        <div id="adminLogisticsContent" class="space-y-4 pt-4 border-t border-[#1f293d]">
+          <!-- Rendu dynamique -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ONGLET JEUX -->
+    <section id="games" class="tab-content hidden space-y-6">
+      <h2 class="text-xl font-black text-white uppercase">Propositions de Jeux & Votes</h2>
+      <div class="bg-[#121722] border border-[#1f293d] rounded-xl p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <input type="text" id="gameTitle" placeholder="Nom du jeu (ex: It Takes Two)" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+        <input type="text" id="gameLink" placeholder="Lien Steam / Web" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+        <input type="text" id="gameImg" placeholder="URL de l'image (optionnel)" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+        <button onclick="addGameProposal()" class="py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs uppercase shadow transition md:col-span-3">Proposer ce jeu</button>
+      </div>
+      <div id="gamesList" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Rendu dynamique -->
+      </div>
+    </section>
+
+    <!-- ONGLET NOTIFICATIONS -->
+    <section id="notifications" class="tab-content hidden space-y-6">
+      <h2 class="text-xl font-black text-white uppercase">Historique des Notifications</h2>
+      <div id="notificationsContainer" class="space-y-3">
+        <!-- Rendu dynamique -->
+      </div>
+    </section>
+
+    <!-- ONGLET MON COMPTE -->
+    <section id="account" class="tab-content hidden space-y-6">
+      <h2 class="text-xl font-black text-white uppercase">Mon Compte & Paramètres</h2>
+      
+      <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-6 max-w-2xl space-y-6">
+        <div class="flex items-center gap-4">
+          <div id="accountAvatarPreview" class="w-16 h-16 rounded-xl bg-[#07090e] border border-[#1f293d] overflow-hidden flex items-center justify-center text-gray-500 font-bold shrink-0">
+            👤
+          </div>
+          <div>
+            <h3 id="accountProfileName" class="text-sm font-black text-white uppercase">Pseudo</h3>
+            <p id="accountProfileRank" class="text-xs text-amber-400 font-bold">Rang</p>
+          </div>
+        </div>
+
+        <div class="space-y-4 border-t border-[#1f293d] pt-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Pseudo</label>
+            <input type="text" id="accPseudoInput" autocomplete="nickname" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-300 uppercase mb-1">E-mail</label>
+            <input type="email" id="accEmailInput" autocomplete="username" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Nouveau mot de passe</label>
+            <input type="password" id="accPasswordInput" placeholder="••••••••" autocomplete="new-password" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Avatar (Lien Web ou Fichier)</label>
+            <div class="flex gap-2">
+              <input type="text" id="accAvatarInput" placeholder="https://exemple.com/avatar.png" autocomplete="off" class="flex-1 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+              <input type="file" id="accAvatarFile" accept="image/*" class="hidden" onchange="handleAvatarUpload(this)">
+              <button type="button" onclick="document.getElementById('accAvatarFile').click()" class="px-4 py-2 bg-[#1f293d] hover:bg-gray-700 text-white rounded-xl text-xs font-bold transition shrink-0">📁 Uploader</button>
+            </div>
+          </div>
+		  
+		  <!-- Bloc Notifications Push -->
+		  <div class="space-y-2 border-t border-[#1f293d] pt-4">
+		    <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Notifications Push</label>
+		    <button type="button" onclick="askForNotifications()" class="w-full py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-black font-bold text-xs uppercase transition border border-amber-500/30">
+		  	  🔔 Activer les notifications
+		    </button>
+		  </div>
+		  
+          <button onclick="saveAccountChanges()" class="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider shadow-lg transition">
+            Enregistrer les modifications 💾
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ONGLET ADMINISTRATION -->
+    <section id="admin" class="tab-content hidden space-y-8">
+      <div class="border-b border-[#1f293d] pb-4">
+        <h2 class="text-xl font-black text-white uppercase">Administration Générale NVG</h2>
+        <p class="text-xs text-gray-400 mt-1">Gérez les rôles, les événements et le catalogue matériel.</p>
+      </div>
+
+      <div class="space-y-4">
+        <h3 class="text-sm font-bold text-white uppercase tracking-wider">👥 Gestion des Membres & Rôles</h3>
+        <div class="bg-[#121722] border border-[#1f293d] rounded-xl overflow-hidden">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-[#1f293d] text-[10px] text-gray-400 uppercase bg-[#07090e]">
+                <th class="p-3">Utilisateur</th>
+                <th class="p-3">Vérification</th>
+                <th class="p-3">Rang</th>
+                <th class="p-3">Rôle</th>
+                <th class="p-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminUsersTable">
+              <!-- Rendu dynamique -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <h3 class="text-sm font-bold text-white uppercase tracking-wider">📅 Créer / Gérer les Événements</h3>
+        <div class="bg-[#121722] border border-[#1f293d] rounded-xl p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input type="text" id="adminNewEvTitle" placeholder="Titre de l'événement" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white md:col-span-2">
+          
+          <div class="space-y-1">
+            <label class="block text-[10px] text-gray-400 uppercase font-bold">Début (Date & Heure)</label>
+            <div class="flex gap-2">
+              <input type="date" id="adminNewEvStartDate" class="flex-1 bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+              <select id="adminNewEvStartTime" class="w-28 bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+                <option value="">Heure</option>
+                <option value="08:00">08:00</option>
+                <option value="09:00">09:00</option>
+                <option value="10:00">10:00</option>
+                <option value="11:00">11:00</option>
+                <option value="12:00">12:00</option>
+                <option value="13:00">13:00</option>
+                <option value="14:00">14:00</option>
+                <option value="15:00">15:00</option>
+                <option value="16:00">16:00</option>
+                <option value="17:00">17:00</option>
+                <option value="18:00">18:00</option>
+                <option value="19:00">19:00</option>
+                <option value="20:00">20:00</option>
+                <option value="21:00">21:00</option>
+                <option value="22:00">22:00</option>
+                <option value="23:00">23:00</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <label class="block text-[10px] text-gray-400 uppercase font-bold">Fin (Date & Heure)</label>
+            <div class="flex gap-2">
+              <input type="date" id="adminNewEvEndDate" class="flex-1 bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+              <select id="adminNewEvEndTime" class="w-28 bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+                <option value="">Heure</option>
+                <option value="08:00">08:00</option>
+                <option value="09:00">09:00</option>
+                <option value="10:00">10:00</option>
+                <option value="11:00">11:00</option>
+                <option value="12:00">12:00</option>
+                <option value="13:00">13:00</option>
+                <option value="14:00">14:00</option>
+                <option value="15:00">15:00</option>
+                <option value="16:00">16:00</option>
+                <option value="17:00">17:00</option>
+                <option value="18:00">18:00</option>
+                <option value="19:00">19:00</option>
+                <option value="20:00">20:00</option>
+                <option value="21:00">21:00</option>
+                <option value="22:00">22:00</option>
+                <option value="23:00">23:00</option>
+              </select>
+            </div>
+          </div>
+
+          <select id="adminNewEvCategory" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            <option value="NVG">NVG</option>
+            <option value="Nieuwheim">Nieuwheim</option>
+          </select>
+          <input type="text" id="adminNewEvLoc" placeholder="Lieu (ex: Briouze / En ligne)" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <input type="text" id="adminNewEvDropbox" placeholder="Lien Drive / Dropbox" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white md:col-span-2">
+          <textarea id="adminNewEvDesc" placeholder="Description de l'événement..." class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white md:col-span-2" rows="2"></textarea>
+          <button id="adminEventSubmitBtn" onclick="adminSaveEventForm()" class="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-lg hover:bg-amber-400 transition md:col-span-2">Créer l'événement</button>
+        </div>
+        <div id="adminEventsList" class="space-y-2">
+          <!-- Rendu dynamique -->
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <h3 class="text-sm font-bold text-white uppercase tracking-wider">🔔 Envoyer une Notification</h3>
+        <div class="bg-[#121722] border border-[#1f293d] rounded-xl p-6 space-y-4">
+          <input type="text" id="adminNotifTitle" placeholder="Titre de la notification" autocomplete="off" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <textarea id="adminNotifMessage" placeholder="Message de la notification..." class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white" rows="2"></textarea>
+          
+          <div>
+            <label class="block text-xs font-bold text-gray-300 uppercase mb-2">Rôles ciblés</label>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-[#07090e] border border-[#1f293d] rounded-xl p-3">
+              <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-300">
+                <input type="checkbox" name="targetRole" value="Divinité" class="rounded bg-[#121722] border-[#1f293d] text-red-600 focus:ring-0"> Divinité
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-300">
+                <input type="checkbox" name="targetRole" value="Viking" class="rounded bg-[#121722] border-[#1f293d] text-red-600 focus:ring-0"> Viking
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-300">
+                <input type="checkbox" name="targetRole" value="Membre" class="rounded bg-[#121722] border-[#1f293d] text-red-600 focus:ring-0"> Membre
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-300">
+                <input type="checkbox" name="targetRole" value="Tous" class="rounded bg-[#121722] border-[#1f293d] text-red-600 focus:ring-0"> Tous
+              </label>
+            </div>
+          </div>
+
+          <button onclick="adminSendNotification()" class="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-lg hover:bg-amber-400 transition">Diffuser la notification 🚀</button>
+        </div>
+
+        <div id="adminNotificationsList" class="space-y-2 pt-2">
+          <!-- Rendu dynamique -->
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <h3 class="text-sm font-bold text-white uppercase tracking-wider">🎒 Catalogue de Matériel de Référence</h3>
+        <div class="bg-[#121722] border border-[#1f293d] rounded-xl p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <input type="text" id="adminCatName" placeholder="Nom (ex: Focusrite)" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <input type="text" id="adminCatDesc" placeholder="Description courte" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <input type="text" id="adminCatImg" placeholder="URL Image" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <button id="adminCatalogSubmitBtn" onclick="adminSaveCatalogItem()" class="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-lg hover:bg-amber-400 transition md:col-span-3">Ajouter au catalogue</button>
+        </div>
+        <div id="adminCatalogList" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <!-- Rendu dynamique -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 2. SCRIPTS MÉTIER -->
+  <script src="events.js"></script>
+  <script src="catalog.js"></script>
+  <script src="games.js"></script>
+  <script src="notifications.js"></script>
+  <script src="users.js"></script>
+  <script src="app.js"></script>
+
+</body>
+</html>

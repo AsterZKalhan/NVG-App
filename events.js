@@ -1,0 +1,470 @@
+// --- GESTION DES ÉVÉNEMENTS & LOGISTIQUE (SUPABASE) ---
+
+let editingEventId = null;
+let currentEventFilter = 'upcoming';
+
+function switchEventFilter(filter) {
+  currentEventFilter = filter;
+  const btnUpcoming = document.getElementById('filterBtnUpcoming');
+  const btnPast = document.getElementById('filterBtnPast');
+
+  if (filter === 'upcoming') {
+    if (btnUpcoming) btnUpcoming.className = "px-4 py-2 rounded-xl text-xs font-bold bg-red-600 text-white shadow transition";
+    if (btnPast) btnPast.className = "px-4 py-2 rounded-xl text-xs font-bold bg-[#121722] text-gray-400 border border-[#1f293d] hover:text-white transition";
+  } else {
+    if (btnPast) btnPast.className = "px-4 py-2 rounded-xl text-xs font-bold bg-red-600 text-white shadow transition";
+    if (btnUpcoming) btnUpcoming.className = "px-4 py-2 rounded-xl text-xs font-bold bg-[#121722] text-gray-400 border border-[#1f293d] hover:text-white transition";
+  }
+  renderPublicEvents();
+}
+
+async function loadEvents() {
+  const { data, error } = await supabaseClient.from('nvg_events').select('*');
+  if (error) {
+    console.error("Erreur chargement événements :", error.message);
+    return;
+  }
+  db.events = data || [];
+  renderPublicEvents();
+  if (typeof renderEventsAdmin === 'function') renderEventsAdmin();
+  updateAdminLogisticsSelector();
+}
+
+function updateAdminLogisticsSelector() {
+  const sel = document.getElementById('adminLogisticsEventSelector');
+  if (sel) {
+    sel.innerHTML = db.events.map(e => `<option value="${e.id}">${e.title} (${e.date_debut || ''})</option>`).join('');
+    renderAdminLogisticsDetails();
+  }
+}
+
+// Fonction utilitaire pour formater l'affichage des périodes (ex: Du 31 Oct au 01 Nov 2026 ou Du 04 au 07 Nov)
+function formatEventDateRange(startDateStr, endDateStr) {
+  if (!startDateStr) return '';
+  if (!endDateStr || startDateStr === endDateStr) {
+    const d = new Date(startDateStr);
+    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  const start = new Date(startDateStr);
+  const end = new Date(endDateStr);
+
+  const startDay = start.getDate();
+  const startMonth = start.toLocaleDateString('fr-FR', { month: 'short' });
+  const startYear = start.getFullYear();
+
+  const endDay = end.getDate();
+  const endMonth = end.toLocaleDateString('fr-FR', { month: 'short' });
+  const endYear = end.getFullYear();
+
+  const padDay = (d) => d < 10 ? '0' + d : d;
+
+  if (startMonth === endMonth && startYear === endYear) {
+    return `Du ${padDay(startDay)} au ${padDay(endDay)} ${startMonth} ${startYear}`;
+  } else if (startYear === endYear) {
+    return `Du ${padDay(startDay)} ${startMonth} au ${padDay(endDay)} ${endMonth} ${startYear}`;
+  } else {
+    return `Du ${padDay(startDay)} ${startMonth} ${startYear} au ${padDay(endDay)} ${endMonth} ${endYear}`;
+  }
+}
+
+function renderPublicEvents() {
+  const container = document.getElementById('publicEventsList');
+  if (!container) return;
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const filteredEvents = db.events.filter(ev => {
+    const evDate = ev.date_debut || todayStr;
+    const isUpcoming = evDate >= todayStr;
+    return currentEventFilter === 'upcoming' ? isUpcoming : !isUpcoming;
+  });
+
+  filteredEvents.sort((a, b) => {
+    const dateA = a.date_debut || '';
+    const dateB = b.date_debut || '';
+    return currentEventFilter === 'upcoming' ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
+  });
+
+  if (filteredEvents.length === 0) {
+    container.innerHTML = `<div class="col-span-full p-8 text-center text-gray-500 text-xs italic bg-[#121722]/90 border border-[#1f293d] rounded-xl">Aucun événement dans cette catégorie pour le moment.</div>`;
+    return;
+  }
+
+  container.innerHTML = filteredEvents.map(ev => {
+    const logoSrc = ev.category === 'Nieuwheim' ? './Logos/logo-nieuwheim.png' : './Logos/logo-nvg.png';
+    const dateDisplay = formatEventDateRange(ev.date_debut, ev.date_fin);
+    
+    const attendance = ev.attendance || [];
+    const userAttendance = currentUser ? attendance.find(a => a.userId === currentUser.id) : null;
+    const isParticipating = !!userAttendance;
+
+    return `
+      <div class="bg-[#121722]/90 backdrop-blur-md border border-[#1f293d] rounded-xl p-5 flex flex-col justify-between shadow relative overflow-hidden">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <span class="text-[11px] font-black uppercase text-red-500">${dateDisplay}</span>
+            <h4 class="text-base md:text-lg font-bold text-white mt-1">${ev.title}</h4>
+            <p class="text-xs text-gray-400 mt-1">📍 ${ev.location}</p>
+          </div>
+          <img src="${logoSrc}" alt="${ev.category}" class="w-10 h-10 object-contain shrink-0 bg-black/40 p-1 rounded-lg border border-[#1f293d]">
+        </div>
+        <p class="text-xs md:text-sm text-gray-300 mt-3">${ev.description}</p>
+        
+        <div class="mt-4 pt-3 border-t border-[#1f293d] flex items-center justify-between">
+          <span class="text-[11px] text-gray-400 font-bold">Participants : ${attendance.length}</span>
+          <button onclick="openAttendanceModal('${ev.id}')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${isParticipating ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-600/30 hover:bg-emerald-600 hover:text-white' : 'bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600 hover:text-white'}">
+            ${isParticipating ? '✅ Je participe (Modifier)' : '🚀 Gérer ma présence'}
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Ouvrir la modale de présence
+function openAttendanceModal(evId) {
+  if (!currentUser) return;
+  const ev = db.events.find(e => e.id === evId);
+  if (!ev) return;
+
+  document.getElementById('modalEventId').value = evId;
+
+  const attendance = ev.attendance || [];
+  const userAttendance = attendance.find(a => a.userId === currentUser.id) || {
+    arrivalTime: '',
+    carpool: 'solo',
+    gearItems: []
+  };
+
+  document.getElementById('modalArrivalTime').value = userAttendance.arrivalTime || '';
+  document.getElementById('modalCarpoolStatus').value = userAttendance.carpool || 'solo';
+
+  const modalFooterAction = document.getElementById('modalFooterActions');
+  if (modalFooterAction) {
+    const isParticipating = !!attendance.find(a => a.userId === currentUser.id);
+    modalFooterAction.innerHTML = `
+      ${isParticipating ? `<button type="button" onclick="cancelAttendance('${evId}')" class="py-2.5 px-4 rounded-xl bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600 hover:text-white font-bold text-xs uppercase transition">Se désinscrire</button>` : ''}
+      <button type="button" onclick="closeAttendanceModal()" class="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs uppercase transition">Annuler</button>
+      <button type="button" onclick="saveAttendanceModal()" class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase shadow-lg transition">Enregistrer 💾</button>
+    `;
+  }
+
+  const catalogContainer = document.getElementById('modalCatalogCheckboxes');
+  const catalog = [...(db.equipmentCatalog || [])].sort((a, b) => a.name.localeCompare(b.name));
+
+  if (catalog.length === 0) {
+    catalogContainer.className = "space-y-2.5 bg-[#07090e] border border-[#1f293d] rounded-xl p-3";
+    catalogContainer.innerHTML = `<p class="text-xs text-gray-500 italic">Aucun matériel de référence dans le catalogue.</p>`;
+  } else {
+    catalogContainer.className = "max-h-80 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-[#07090e] border border-[#1f293d] rounded-xl p-3";
+    
+    catalogContainer.innerHTML = catalog.map(item => {
+      const existingGear = userAttendance.gearItems ? userAttendance.gearItems.find(g => g.name === item.name) : null;
+      const isChecked = !!existingGear;
+      const quantity = existingGear ? existingGear.quantity : 1;
+
+      return `
+        <div class="flex items-center justify-between gap-2 p-2 rounded-lg bg-[#121722] border border-[#1f293d]">
+          <label class="flex items-center gap-2.5 cursor-pointer flex-1 overflow-hidden">
+            <input type="checkbox" value="${item.name}" data-img="${item.img || ''}" ${isChecked ? 'checked' : ''} class="catalog-gear-checkbox rounded bg-[#07090e] border-[#1f293d] text-red-600 focus:ring-0 shrink-0">
+            <div class="w-7 h-7 rounded bg-[#07090e] border border-[#1f293d] overflow-hidden flex items-center justify-center shrink-0">
+              ${item.img ? `<img src="${item.img}" class="w-full h-full object-contain">` : '📦'}
+            </div>
+            <div class="truncate">
+              <span class="font-bold text-white text-[11px] block truncate">${item.name}</span>
+            </div>
+          </label>
+          <div class="flex items-center gap-1 shrink-0">
+            <span class="text-[9px] text-gray-400 font-bold uppercase">Qté:</span>
+            <input type="number" min="1" value="${quantity}" class="catalog-gear-qty w-12 bg-[#07090e] border border-[#1f293d] rounded px-1.5 py-1 text-xs text-white text-center focus:outline-none focus:border-red-600" data-name="${item.name}">
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  document.getElementById('attendanceModal').classList.remove('hidden');
+}
+
+function closeAttendanceModal() {
+  document.getElementById('attendanceModal').classList.add('hidden');
+}
+
+async function cancelAttendance(evId) {
+  if (!confirm("Veux-tu vraiment te désinscrire de cet événement ?")) return;
+
+  const ev = db.events.find(e => e.id === evId);
+  if (!ev) return;
+
+  let attendance = ev.attendance || [];
+  attendance = attendance.filter(a => a.userId !== currentUser.id);
+
+  const { error } = await supabaseClient
+    .from('nvg_events')
+    .update({ attendance: attendance })
+    .eq('id', evId);
+
+  if (error) {
+    alert("Erreur lors de la désinscription : " + error.message);
+    return;
+  }
+
+  alert("👋 Tu t'es désinscrit de l'événement.");
+  closeAttendanceModal();
+  await loadEvents();
+}
+
+async function saveAttendanceModal() {
+  const evId = document.getElementById('modalEventId').value;
+  const arrivalTime = document.getElementById('modalArrivalTime').value;
+  const carpool = document.getElementById('modalCarpoolStatus').value;
+
+  const checkboxes = document.querySelectorAll('.catalog-gear-checkbox:checked');
+  const gearItems = Array.from(checkboxes).map(cb => {
+    const name = cb.value;
+    const img = cb.getAttribute('data-img');
+    const container = cb.closest('div.flex');
+    const qtyInput = container ? container.querySelector('.catalog-gear-qty') : null;
+    const quantity = qtyInput ? parseInt(qtyInput.value) || 1 : 1;
+
+    return { name, img, quantity };
+  });
+
+  const ev = db.events.find(e => e.id === evId);
+  if (!ev) return;
+
+  let attendance = ev.attendance || [];
+  let existingIndex = attendance.findIndex(a => a.userId === currentUser.id);
+
+  const participationData = {
+    userId: currentUser.id,
+    userName: currentUser.name,
+    arrivalTime,
+    carpool,
+    gearItems
+  };
+
+  if (existingIndex >= 0) {
+    attendance[existingIndex] = participationData;
+  } else {
+    attendance.push(participationData);
+  }
+
+  const { error } = await supabaseClient
+    .from('nvg_events')
+    .update({ attendance: attendance })
+    .eq('id', evId);
+
+  if (error) {
+    alert("Erreur lors de la sauvegarde de la présence : " + error.message);
+    return;
+  }
+
+  alert("✅ Présence et matériel enregistrés avec succès !");
+  closeAttendanceModal();
+  await loadEvents();
+}
+
+function renderAdminLogisticsDetails() {
+  const container = document.getElementById('adminLogisticsContent');
+  const sel = document.getElementById('adminLogisticsEventSelector');
+  if (!container || !sel) return;
+
+  const evId = sel.value;
+  const ev = db.events.find(e => e.id === evId);
+
+  if (!ev || !ev.attendance || ev.attendance.length === 0) {
+    container.innerHTML = `<p class="text-xs text-gray-500 italic">Aucun Viking inscrit pour le moment sur cet événement.</p>`;
+    return;
+  }
+
+  const carpoolLabels = {
+    solo: '🚗 Vient seul(e)',
+    seats_available: '🟢 Places libres dans le véhicule',
+    looking_for_seat: '🙋‍♂️ Cherche une place'
+  };
+
+  container.innerHTML = `
+    <h3 class="text-xs font-bold text-white uppercase tracking-wider mb-3">Liste des inscrits, transports et matériel apporté :</h3>
+    <div class="space-y-4">
+      ${ev.attendance.map(a => `
+        <div class="p-4 bg-[#07090e] border border-[#1f293d] rounded-xl space-y-3 text-xs">
+          <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 border-b border-[#1f293d] pb-2">
+            <div>
+              <div class="font-black text-white text-sm flex items-center gap-2">
+                👤 ${a.userName} 
+                <span class="text-[10px] text-red-500 font-bold bg-red-500/10 px-2 py-0.5 rounded">Arrivée : ${a.arrivalTime || 'Non précisée'}</span>
+              </div>
+              <div class="text-[11px] text-amber-400 font-bold mt-1">${carpoolLabels[a.carpool] || ''}</div>
+            </div>
+          </div>
+          
+          <div>
+            <span class="text-[10px] text-gray-400 uppercase font-bold block mb-1.5">📦 Matériel apporté :</span>
+            ${a.gearItems && a.gearItems.length > 0 ? `
+              <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                ${a.gearItems.map(gear => `
+                  <div class="flex items-center gap-2.5 p-2 bg-[#121722] border border-[#1f293d] rounded-lg">
+                    <div class="w-8 h-8 rounded bg-[#07090e] border border-[#1f293d] overflow-hidden flex items-center justify-center shrink-0">
+                      ${gear.img ? `<img src="${gear.img}" class="w-full h-full object-contain">` : '📦'}
+                    </div>
+                    <div class="truncate flex-1">
+                      <div class="font-bold text-white text-xs truncate">${gear.name}</div>
+                      <div class="text-[10px] text-emerald-400 font-bold">Quantité : ${gear.quantity}</div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            ` : `<p class="text-gray-500 italic text-[11px]">Rien de particulier apporté.</p>`}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderEventsAdmin() {
+  const eventsList = document.getElementById('adminEventsList');
+  if (!eventsList) return;
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const sortedEvents = [...db.events].sort((a, b) => (a.date_debut || '').localeCompare(b.date_debut || ''));
+
+  eventsList.innerHTML = sortedEvents.map(ev => {
+    const evDate = ev.date_debut || todayStr;
+    const isPast = evDate < todayStr;
+    const dateColorClass = isPast ? 'text-red-500' : 'text-emerald-400 font-bold';
+    const dateDisplay = formatEventDateRange(ev.date_debut, ev.date_fin);
+
+    return `
+      <div class="p-3 bg-[#07090e] border border-[#1f293d] rounded-lg flex items-center justify-between text-xs">
+        <div>
+          <span class="${dateColorClass} mr-2">[${dateDisplay}]</span>
+          <strong class="text-white">${ev.title}</strong> 
+          <span class="text-gray-400 ml-2">(${ev.category})</span>
+        </div>
+        <div class="space-x-2">
+          <button onclick="adminEditEvent('${ev.id}')" class="px-2.5 py-1 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold hover:bg-amber-500 hover:text-black transition">Modifier</button>
+          <button onclick="adminDeleteEvent('${ev.id}')" class="px-2.5 py-1 rounded bg-red-600/20 text-red-400 border border-red-600/30 font-bold hover:bg-red-600 hover:text-white transition">Supprimer</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function adminEditEvent(id) {
+  const ev = db.events.find(e => e.id === id);
+  if (!ev) return;
+
+  document.getElementById('adminNewEvTitle').value = ev.title;
+  document.getElementById('adminNewEvStartDate').value = ev.date_debut || '';
+  document.getElementById('adminNewEvStartTime').value = ev.start_time || '';
+  document.getElementById('adminNewEvEndDate').value = ev.date_fin || '';
+  document.getElementById('adminNewEvEndTime').value = ev.end_time || '';
+  document.getElementById('adminNewEvCategory').value = ev.category;
+  document.getElementById('adminNewEvLoc').value = ev.location;
+  document.getElementById('adminNewEvDropbox').value = ev.dropbox_url || '';
+  document.getElementById('adminNewEvDesc').value = ev.description;
+
+  editingEventId = id;
+
+  const createBtn = document.getElementById('adminEventSubmitBtn');
+  if (createBtn) {
+    createBtn.innerText = "💾 Enregistrer les modifications";
+    createBtn.className = "px-4 py-2 bg-emerald-600 text-white font-bold text-xs rounded-lg hover:bg-emerald-500 transition md:col-span-2";
+  }
+}
+
+async function adminSaveEventForm() {
+  const title = document.getElementById('adminNewEvTitle').value.trim();
+  const startDate = document.getElementById('adminNewEvStartDate').value.trim();
+  const startTime = document.getElementById('adminNewEvStartTime').value.trim();
+  const endDate = document.getElementById('adminNewEvEndDate').value.trim();
+  const endTime = document.getElementById('adminNewEvEndTime').value.trim();
+  const category = document.getElementById('adminNewEvCategory').value;
+  const loc = document.getElementById('adminNewEvLoc').value.trim();
+  const dropbox_url = document.getElementById('adminNewEvDropbox').value.trim() || 'https://drive.google.com';
+  const description = document.getElementById('adminNewEvDesc').value.trim();
+  
+  if (!title || !startDate) {
+    alert("Le titre et la date de début sont obligatoires.");
+    return;
+  }
+
+  let eventObj;
+  if (editingEventId) {
+    const existing = db.events.find(e => e.id === editingEventId);
+    eventObj = {
+      id: editingEventId,
+      title,
+      date_debut: startDate,
+      start_time: startTime,
+      date_fin: endDate || startDate,
+      end_time: endTime,
+      category,
+      location: loc,
+      description,
+      dropbox_url,
+      attendance: existing ? existing.attendance : []
+    };
+  } else {
+    eventObj = {
+      id: 'ev' + Date.now(),
+      title,
+      date_debut: startDate,
+      start_time: startTime,
+      date_fin: endDate || startDate,
+      end_time: endTime,
+      category,
+      location: loc,
+      description,
+      dropbox_url,
+      attendance: []
+    };
+  }
+
+  const { error } = await supabaseClient.from('nvg_events').upsert([eventObj]);
+
+  if (error) {
+    alert("Erreur lors de la sauvegarde : " + error.message);
+    return;
+  }
+
+  if (editingEventId) {
+    alert("✅ Événement mis à jour sur Supabase !");
+    editingEventId = null;
+    const createBtn = document.getElementById('adminEventSubmitBtn');
+    if (createBtn) {
+      createBtn.innerText = "Créer l'événement";
+      createBtn.className = "px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-lg hover:bg-amber-400 transition md:col-span-2";
+    }
+  } else {
+    alert("✅ Événement créé sur Supabase !");
+  }
+  
+  document.getElementById('adminNewEvTitle').value = '';
+  document.getElementById('adminNewEvStartDate').value = '';
+  document.getElementById('adminNewEvStartTime').value = '';
+  document.getElementById('adminNewEvEndDate').value = '';
+  document.getElementById('adminNewEvEndTime').value = '';
+  document.getElementById('adminNewEvLoc').value = '';
+  document.getElementById('adminNewEvDropbox').value = '';
+  document.getElementById('adminNewEvDesc').value = '';
+
+  await loadEvents();
+}
+
+async function adminDeleteEvent(id) {
+  if (!confirm("Veux-tu vraiment supprimer cet événement ?")) return;
+
+  const { error } = await supabaseClient.from('nvg_events').delete().eq('id', id);
+
+  if (error) {
+    alert("Erreur lors de la suppression : " + error.message);
+    return;
+  }
+
+  alert("🗑️ Événement supprimé !");
+  await loadEvents();
+}
