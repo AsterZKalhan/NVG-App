@@ -101,7 +101,7 @@ function renderPublicEvents() {
 
   container.innerHTML = filteredEvents.map(ev => {
     const logoSrc = `./Logos/${eventLogos[ev.category] || 'logo-nvg.png'}`;
-    const dateDisplay = formatEventDateRange(ev.date_debut, ev.date_fin);
+    const dateDisplay = formatEventDateRange(ev.date_debut, ev.date_fin) + (ev.category === 'Nieuwheim' && ev.start_time ? ' · ' + ev.start_time.replace(':', 'H') : '');
     
     const attendance = ev.attendance || [];
     const userAttendance = currentUser ? attendance.find(a => a.userId === currentUser.id) : null;
@@ -209,6 +209,7 @@ function openAttendanceModal(evId) {
   };
 
   document.getElementById('modalArrivalTime').value = userAttendance.arrivalTime || '';
+  setPresenceFields(ev, userAttendance);
   setCarpoolField(ev.category === 'Nieuwheim', userAttendance);
 
   const modalFooterAction = document.getElementById('modalFooterActions');
@@ -362,6 +363,25 @@ function setCarpoolField(isNieuwheim, userAttendance) {
   select.value = userAttendance[config.field] || config.fallback;
 }
 
+function setPresenceFields(ev, userAttendance) {
+  const isNieuwheim = ev.category === 'Nieuwheim';
+  document.getElementById('modalEngagementBlock').classList.toggle('hidden', !isNieuwheim);
+  document.getElementById('modalArrivalLabel').classList.toggle('hidden', isNieuwheim);
+  document.getElementById('modalArrivalTime').classList.toggle('hidden', isNieuwheim);
+  if (!isNieuwheim) return;
+
+  const [year, month, day] = (ev.date_debut || '').split('-');
+  const dateStr = day ? `${day}/${month}/${year}` : '';
+  const timeStr = (ev.start_time || '').replace(':', 'H');
+  document.getElementById('modalEngagementText').textContent = `Je m'engage à être présent à l'heure sur le Discord de la NVG et sur le stream démarré (si stream ON) à la date et heure prévues : ${timeStr} le ${dateStr}`;
+  document.getElementById('modalEngagement').checked = !!userAttendance.engagement;
+}
+
+function adminCategoryChanged() {
+  const isNieuwheim = document.getElementById('adminNewEvCategory').value === 'Nieuwheim';
+  document.getElementById('adminNewEvEndDate').closest('.space-y-1').classList.toggle('hidden', isNieuwheim);
+}
+
 function closeAttendanceModal() {
   document.getElementById('attendanceModal').classList.add('hidden');
 }
@@ -393,6 +413,11 @@ async function cancelAttendance(evId) {
 async function saveAttendanceModal() {
   const evId = document.getElementById('modalEventId').value;
   const arrivalTime = document.getElementById('modalArrivalTime').value;
+  const isNieuwheimEv = (db.events.find(e => e.id === evId) || {}).category === 'Nieuwheim';
+  if (isNieuwheimEv && !document.getElementById('modalEngagement').checked) {
+    alert("Coche la case d'engagement pour t'inscrire à cette soirée.");
+    return;
+  }
   const carpoolChoice = document.getElementById('modalCarpoolStatus').value;
 
   const checkboxes = document.querySelectorAll('.catalog-gear-checkbox:checked');
@@ -418,6 +443,7 @@ async function saveAttendanceModal() {
     userName: currentUser.name,
     arrivalTime,
     carpool: ev.category === 'Nieuwheim' ? undefined : carpoolChoice,
+    engagement: ev.category === 'Nieuwheim' ? document.getElementById('modalEngagement').checked : undefined,
     soiree: ev.category === 'Nieuwheim' ? carpoolChoice : undefined,
     gearItems
   };
@@ -514,7 +540,7 @@ function renderAdminLogisticsDetails() {
             <div>
               <div class="font-black text-white text-sm flex items-center gap-2">
                 👤 ${a.userName}
-                <span class="text-[10px] text-red-500 font-bold bg-red-500/10 px-2 py-0.5 rounded">Arrivée : ${a.arrivalTime || 'Non précisée'}</span>
+                <span class="text-[10px] text-red-500 font-bold bg-red-500/10 px-2 py-0.5 rounded">${ev.category === 'Nieuwheim' ? (a.engagement ? '✅ Engagé à l\'heure' : 'Engagement non coché') : 'Arrivée : ' + (a.arrivalTime || 'Non précisée')}</span>
               </div>
               <div class="text-[11px] text-amber-400 font-bold mt-1">${carpoolLabels[a.carpool] || soireeLabels[a.soiree] || ''}</div>
             </div>
@@ -588,6 +614,7 @@ function adminEditEvent(id) {
   document.getElementById('adminNewEvEndDate').value = ev.date_fin || '';
   document.getElementById('adminNewEvEndTime').value = ev.end_time || '';
   document.getElementById('adminNewEvCategory').value = ev.category === 'NVG' ? 'NVG Spring' : ev.category;
+  adminCategoryChanged();
   document.getElementById('adminNewEvLoc').value = ev.location;
   document.getElementById('adminNewEvDropbox').value = ev.dropbox_url || '';
   document.getElementById('adminNewEvDesc').value = ev.description;
@@ -615,6 +642,11 @@ async function adminSaveEventForm() {
   const loc = document.getElementById('adminNewEvLoc').value.trim();
   const dropbox_url = document.getElementById('adminNewEvDropbox').value.trim() || 'https://drive.google.com';
   const description = document.getElementById('adminNewEvDesc').value.trim();
+  if (category === 'Nieuwheim' && !startTime) {
+    alert("L'heure de départ est obligatoire pour une soirée Nieuwheim.");
+    return;
+  }
+
   const titlePrefix = category.startsWith('NVG') ? 'NVG' : category;
   const fullTitle = `[${titlePrefix}] ${title.replace(/^\[(NVG( Spring| Summer| Autumn| Winter)?|Nieuwheim)\]\s*/i, '')}`;
   const watch_mode = document.getElementById('adminNewEvWatch').value;
@@ -638,8 +670,8 @@ async function adminSaveEventForm() {
       title: fullTitle,
       date_debut: startDate,
       start_time: startTime,
-      date_fin: endDate || startDate,
-      end_time: endTime,
+      date_fin: category === 'Nieuwheim' ? startDate : (endDate || startDate),
+      end_time: category === 'Nieuwheim' ? '' : endTime,
       category,
       location: loc,
       description,
@@ -654,8 +686,8 @@ async function adminSaveEventForm() {
       title: fullTitle,
       date_debut: startDate,
       start_time: startTime,
-      date_fin: endDate || startDate,
-      end_time: endTime,
+      date_fin: category === 'Nieuwheim' ? startDate : (endDate || startDate),
+      end_time: category === 'Nieuwheim' ? '' : endTime,
       category,
       location: loc,
       description,

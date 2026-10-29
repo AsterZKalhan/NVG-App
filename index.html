@@ -98,8 +98,14 @@
         <button onclick="closeAttendanceModal()" class="text-gray-400 hover:text-white font-bold text-xs">✕</button>
       </div>
       <input type="hidden" id="modalEventId">
+      <div id="modalEngagementBlock" class="hidden p-3 bg-[#07090e] border border-[#1f293d] rounded-xl">
+        <label class="flex items-start gap-2.5 cursor-pointer text-xs text-gray-200">
+          <input type="checkbox" id="modalEngagement" class="mt-0.5 rounded bg-[#121722] border-[#1f293d] text-red-600 focus:ring-0 shrink-0">
+          <span id="modalEngagementText"></span>
+        </label>
+      </div>
       <div>
-        <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Heure d'arrivée prévue</label>
+        <label id="modalArrivalLabel" class="block text-xs font-bold text-gray-300 uppercase mb-1">Heure d'arrivée prévue</label>
         <select id="modalArrivalTime" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
           <option value="">-- Choisir une heure --</option>
           <option value="08:00">08:00</option>
@@ -434,7 +440,7 @@
               </select>
             </div>
           </div>
-          <select id="adminNewEvCategory" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <select id="adminNewEvCategory" onchange="adminCategoryChanged()" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
             <option value="NVG Spring">NVG Spring</option>
             <option value="NVG Summer">NVG Summer</option>
             <option value="NVG Autumn">NVG Autumn</option>
