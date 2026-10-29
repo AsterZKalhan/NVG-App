@@ -471,6 +471,22 @@
           <input type="text" id="adminNewEvLoc" placeholder="Lieu (ex: Briouze / En ligne)" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
           <input type="text" id="adminNewEvDropbox" placeholder="Lien Drive / Dropbox" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white md:col-span-2">
           <textarea id="adminNewEvDesc" placeholder="Description de l'événement..." class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white md:col-span-2" rows="2"></textarea>
+          <div class="md:col-span-2 space-y-2 bg-[#07090e] border border-[#1f293d] rounded-xl p-3">
+            <label class="block text-[10px] text-gray-400 uppercase font-bold">Où regarder</label>
+            <select id="adminNewEvWatch" onchange="adminWatchModeChanged()" class="w-full bg-[#121722] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+              <option value="none">À venir (aucun stream défini)</option>
+              <option value="chaine">Chaîne NVG (lien vers NVG en Live)</option>
+              <option value="liste">Liste de streams</option>
+            </select>
+            <div id="adminNewEvStreamsBox" class="hidden space-y-2">
+              <div class="flex gap-2">
+                <input type="text" id="adminNewEvStreamInput" placeholder="Lien ou nom de chaîne Twitch" autocomplete="off" class="flex-1 bg-[#121722] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+                <button type="button" onclick="adminAddStream()" class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-lg transition">Ajouter</button>
+              </div>
+              <div id="adminNewEvStreamsList" class="flex flex-wrap gap-2"></div>
+              <p class="text-[10px] text-gray-500">Maximum 10 chaînes.</p>
+            </div>
+          </div>
           <button id="adminEventSubmitBtn" onclick="adminSaveEventForm()" class="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-lg hover:bg-amber-400 transition md:col-span-2">Créer l'événement</button>
         </div>
         <div id="adminEventsList" class="space-y-2">

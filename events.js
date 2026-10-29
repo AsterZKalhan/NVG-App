@@ -111,15 +111,78 @@ function renderPublicEvents() {
         </div>
         <p class="text-xs md:text-sm text-gray-300 mt-3">${ev.description}</p>
         
-        <div class="mt-4 pt-3 border-t border-[#1f293d] flex items-center justify-between">
-          <span class="text-[11px] text-gray-400 font-bold">Participants : ${attendance.length}</span>
-          <button onclick="openAttendanceModal('${ev.id}')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${isParticipating ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-600/30 hover:bg-emerald-600 hover:text-white' : 'bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600 hover:text-white'}">
-            ${isParticipating ? '✅ Je participe (Modifier)' : '🚀 Gérer ma présence'}
-          </button>
+        <div class="mt-4 pt-3 border-t border-[#1f293d] flex items-center justify-between gap-3 flex-wrap">
+          <div class="flex items-center gap-2 text-xs text-gray-400 min-w-0">
+            <span class="font-bold shrink-0">Où regarder :</span>
+            ${renderWatchBlock(ev)}
+          </div>
+          ${isPetitViking() ? '' : `
+            <div class="flex items-center gap-3 shrink-0">
+              <span class="text-[11px] text-gray-400 font-bold">Participants : ${attendance.length}</span>
+              <button onclick="openAttendanceModal('${ev.id}')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${isParticipating ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-600/30 hover:bg-emerald-600 hover:text-white' : 'bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600 hover:text-white'}">
+                ${isParticipating ? '✅ Je participe (Modifier)' : '🚀 Gérer ma présence'}
+              </button>
+            </div>
+          `}
         </div>
       </div>
     `;
   }).join('');
+
+  hydrateTwitchAvatars(container);
+}
+
+function isPetitViking() {
+  return !currentUser || currentUser.rank === 'Petit Viking';
+}
+
+function renderWatchBlock(ev) {
+  const streams = ev.streams || [];
+
+  if (ev.watch_mode === 'chaine') {
+    return `<button onclick="showTab('live')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-500 text-white transition">📺 Rejoindre le stream</button>`;
+  }
+
+  if (ev.watch_mode === 'liste' && streams.length > 0) {
+    return `
+      <details class="min-w-0">
+        <summary class="list-none cursor-pointer inline-block px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-500 text-white transition">📺 Rejoindre le stream ▾</summary>
+        <div class="mt-2 space-y-1 bg-[#07090e] border border-[#1f293d] rounded-xl p-1">
+          ${streams.map(login => `
+            <a href="https://twitch.tv/${login}" target="_blank" rel="noopener" class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 text-xs text-white">
+              <img data-twitch-avatar="${login}" alt="" class="w-6 h-6 rounded-full bg-[#121722] object-cover shrink-0">
+              <span class="truncate">${login}</span>
+            </a>
+          `).join('')}
+        </div>
+      </details>
+    `;
+  }
+
+  return `<span class="text-xs text-gray-400 font-mono">à venir</span>`;
+}
+
+const twitchAvatarCache = {};
+
+async function getTwitchAvatar(login) {
+  if (!(login in twitchAvatarCache)) {
+    try {
+      const res = await fetch(`https://decapi.me/twitch/avatar/${login}`);
+      twitchAvatarCache[login] = (await res.text()).trim();
+    } catch (err) {
+      twitchAvatarCache[login] = '';
+    }
+  }
+  return twitchAvatarCache[login];
+}
+
+async function hydrateTwitchAvatars(root) {
+  const imgs = root.querySelectorAll('img[data-twitch-avatar]');
+  for (const img of imgs) {
+    const login = img.dataset.twitchAvatar;
+    const url = await getTwitchAvatar(login);
+    if (url.startsWith('http')) img.src = url;
+  }
 }
 
 // Ouvrir la modale de présence
@@ -366,6 +429,10 @@ function adminEditEvent(id) {
   document.getElementById('adminNewEvLoc').value = ev.location;
   document.getElementById('adminNewEvDropbox').value = ev.dropbox_url || '';
   document.getElementById('adminNewEvDesc').value = ev.description;
+  document.getElementById('adminNewEvWatch').value = ev.watch_mode || 'none';
+  adminStreams = [...(ev.streams || [])];
+  adminWatchModeChanged();
+  renderAdminStreams();
 
   editingEventId = id;
 
@@ -386,9 +453,16 @@ async function adminSaveEventForm() {
   const loc = document.getElementById('adminNewEvLoc').value.trim();
   const dropbox_url = document.getElementById('adminNewEvDropbox').value.trim() || 'https://drive.google.com';
   const description = document.getElementById('adminNewEvDesc').value.trim();
+  const watch_mode = document.getElementById('adminNewEvWatch').value;
+  const streams = watch_mode === 'liste' ? [...adminStreams] : [];
   
   if (!title || !startDate) {
     alert("Le titre et la date de début sont obligatoires.");
+    return;
+  }
+
+  if (watch_mode === 'liste' && streams.length === 0) {
+    alert("Ajoute au moins une chaîne Twitch à la liste, ou choisis une autre option.");
     return;
   }
 
@@ -406,6 +480,8 @@ async function adminSaveEventForm() {
       location: loc,
       description,
       dropbox_url,
+      watch_mode,
+      streams,
       attendance: existing ? existing.attendance : []
     };
   } else {
@@ -420,6 +496,8 @@ async function adminSaveEventForm() {
       location: loc,
       description,
       dropbox_url,
+      watch_mode,
+      streams,
       attendance: []
     };
   }
@@ -451,8 +529,57 @@ async function adminSaveEventForm() {
   document.getElementById('adminNewEvLoc').value = '';
   document.getElementById('adminNewEvDropbox').value = '';
   document.getElementById('adminNewEvDesc').value = '';
+  document.getElementById('adminNewEvWatch').value = 'none';
+  adminStreams = [];
+  adminWatchModeChanged();
+  renderAdminStreams();
 
   await loadEvents();
+}
+
+let adminStreams = [];
+
+function adminWatchModeChanged() {
+  const box = document.getElementById('adminNewEvStreamsBox');
+  if (box) box.classList.toggle('hidden', document.getElementById('adminNewEvWatch').value !== 'liste');
+}
+
+function adminAddStream() {
+  const input = document.getElementById('adminNewEvStreamInput');
+  const raw = input.value.trim();
+  const match = raw.match(/twitch\.tv\/([A-Za-z0-9_]{3,25})/i) || raw.match(/^([A-Za-z0-9_]{3,25})$/);
+  if (!match) {
+    alert("Lien ou nom de chaîne Twitch invalide.");
+    return;
+  }
+  const login = match[1].toLowerCase();
+  if (adminStreams.includes(login)) {
+    alert("Cette chaîne est déjà dans la liste.");
+    return;
+  }
+  if (adminStreams.length >= 10) {
+    alert("Maximum 10 chaînes par événement.");
+    return;
+  }
+  adminStreams.push(login);
+  input.value = '';
+  renderAdminStreams();
+}
+
+function adminRemoveStream(login) {
+  adminStreams = adminStreams.filter(s => s !== login);
+  renderAdminStreams();
+}
+
+function renderAdminStreams() {
+  const list = document.getElementById('adminNewEvStreamsList');
+  if (!list) return;
+  list.innerHTML = adminStreams.map(s => `
+    <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#121722] border border-[#1f293d] text-xs text-white">
+      ${s}
+      <button type="button" onclick="adminRemoveStream('${s}')" class="text-gray-400 hover:text-red-400 transition">✕</button>
+    </span>
+  `).join('');
 }
 
 async function adminDeleteEvent(id) {
