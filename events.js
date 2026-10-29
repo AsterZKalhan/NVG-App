@@ -227,6 +227,8 @@ function openAttendanceModal(evId) {
   const isNieuwheim = ev.category === 'Nieuwheim';
   document.getElementById('modalGearSection').classList.toggle('hidden', isNieuwheim);
 
+  document.getElementById('modalCableLines').innerHTML = '';
+
   if (isNieuwheim) {
     catalogContainer.innerHTML = '';
   } else if (catalog.length === 0) {
@@ -235,8 +237,25 @@ function openAttendanceModal(evId) {
   } else {
     catalogContainer.className = "max-h-80 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-[#07090e] border border-[#1f293d] rounded-xl p-3";
     
-    catalogContainer.innerHTML = catalog.map(item => {
-      const existingGear = userAttendance.gearItems ? userAttendance.gearItems.find(g => g.name === item.name) : null;
+    catalogContainer.innerHTML = renderGearCheckboxes(catalog.filter(item => item.category !== CABLE_CATEGORY), userAttendance);
+    renderCableLines(catalog.filter(item => item.category === CABLE_CATEGORY), userAttendance);
+  }
+
+  document.getElementById('attendanceModal').classList.remove('hidden');
+}
+
+const CATALOG_CATEGORIES = ['Interface audio', 'Interface vidéo', 'Périphérique PC'];
+const CABLE_CATEGORY = 'Câblage';
+const CABLE_LENGTHS = [1, 2, 3, 5, 10, 15, 20];
+const CABLE_COLORS = ['noir', 'blanc', 'rouge', 'bleu', 'jaune', 'vert'];
+
+function renderGearCheckboxes(items, userAttendance) {
+  return CATALOG_CATEGORIES.map(category => {
+    const group = items.filter(item => (item.category || 'Périphérique PC') === category);
+    if (group.length === 0) return '';
+
+    const cards = group.map(item => {
+      const existingGear = userAttendance.gearItems ? userAttendance.gearItems.find(g => g.name === item.name && !g.length) : null;
       const isChecked = !!existingGear;
       const quantity = existingGear ? existingGear.quantity : 1;
 
@@ -258,9 +277,59 @@ function openAttendanceModal(evId) {
         </div>
       `;
     }).join('');
+
+    return `<div class="col-span-full text-[10px] text-gray-400 uppercase font-bold pt-1">${category}</div>${cards}`;
+  }).join('');
+}
+
+function renderCableLines(cableItems, userAttendance) {
+  document.getElementById('modalCableLines').innerHTML = '';
+  (userAttendance.gearItems || []).filter(g => g.length).forEach(g => {
+    const item = cableItems.find(i => i.name === g.name);
+    if (item) addCableLine(item.id, g.length, g.color, g.quantity);
+  });
+}
+
+function addCableLine(itemId = '', length = '', color = '', quantity = 1) {
+  const cableItems = (db.equipmentCatalog || []).filter(item => item.category === CABLE_CATEGORY).sort((a, b) => a.name.localeCompare(b.name));
+  if (cableItems.length === 0) {
+    alert("Aucun câble dans le catalogue. Ajoute-en dans la catégorie Câblage.");
+    return;
   }
 
-  document.getElementById('attendanceModal').classList.remove('hidden');
+  const row = document.createElement('div');
+  row.className = 'cable-line flex flex-wrap items-center gap-2 p-2 rounded-lg bg-[#121722] border border-[#1f293d]';
+  row.innerHTML = `
+    <select class="cable-item flex-1 min-w-[140px] bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-1.5 text-xs text-white">
+      ${cableItems.map(item => `<option value="${item.id}" ${item.id === itemId ? 'selected' : ''}>${item.name}</option>`).join('')}
+    </select>
+    <select class="cable-length bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-1.5 text-xs text-white">
+      ${CABLE_LENGTHS.map(l => `<option value="${l}" ${String(l) === String(length) ? 'selected' : ''}>${l} m</option>`).join('')}
+    </select>
+    <select class="cable-color bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-1.5 text-xs text-white">
+      ${CABLE_COLORS.map(c => `<option value="${c}" ${c === color ? 'selected' : ''}>${c}</option>`).join('')}
+    </select>
+    <div class="flex items-center gap-1">
+      <span class="text-[9px] text-gray-400 font-bold uppercase">Qté:</span>
+      <input type="number" min="1" value="${quantity}" class="cable-qty w-12 bg-[#07090e] border border-[#1f293d] rounded px-1.5 py-1 text-xs text-white text-center focus:outline-none focus:border-red-600">
+    </div>
+    <button type="button" onclick="this.closest('.cable-line').remove()" class="px-2 py-1 rounded text-red-400 hover:text-white hover:bg-red-600 transition text-xs font-bold">✕</button>
+  `;
+  document.getElementById('modalCableLines').appendChild(row);
+}
+
+function collectCableGear() {
+  return Array.from(document.querySelectorAll('#modalCableLines .cable-line')).map(row => {
+    const item = (db.equipmentCatalog || []).find(i => i.id === row.querySelector('.cable-item').value);
+    if (!item) return null;
+    return {
+      name: item.name,
+      img: item.img || '',
+      quantity: parseInt(row.querySelector('.cable-qty').value) || 1,
+      length: Number(row.querySelector('.cable-length').value),
+      color: row.querySelector('.cable-color').value
+    };
+  }).filter(Boolean);
 }
 
 function closeAttendanceModal() {
@@ -297,7 +366,7 @@ async function saveAttendanceModal() {
   const soiree = document.getElementById('modalCarpoolStatus').value;
 
   const checkboxes = document.querySelectorAll('.catalog-gear-checkbox:checked');
-  const gearItems = Array.from(checkboxes).map(cb => {
+  const checkboxGear = Array.from(checkboxes).map(cb => {
     const name = cb.value;
     const img = cb.getAttribute('data-img');
     const container = cb.closest('div.flex');
@@ -306,6 +375,7 @@ async function saveAttendanceModal() {
 
     return { name, img, quantity };
   });
+  const gearItems = [...checkboxGear, ...collectCableGear()];
 
   const ev = db.events.find(e => e.id === evId);
   if (!ev) return;
@@ -385,7 +455,7 @@ function renderAdminLogisticsDetails() {
                       ${gear.img ? `<img src="${gear.img}" class="w-full h-full object-contain">` : '📦'}
                     </div>
                     <div class="truncate flex-1">
-                      <div class="font-bold text-white text-xs truncate">${gear.name}</div>
+                      <div class="font-bold text-white text-xs truncate">${gear.name}${gear.length ? ` · ${gear.length} m${gear.color ? ' · ' + gear.color : ''}` : ''}</div>
                       <div class="text-[10px] text-emerald-400 font-bold">Quantité : ${gear.quantity}</div>
                     </div>
                   </div>

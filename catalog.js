@@ -34,7 +34,7 @@ function renderCatalogAdmin() {
         </div>
         <div class="truncate">
           <strong class="text-white uppercase truncate">${item.name}</strong>
-          <div class="text-[11px] text-gray-400 truncate">${item.desc || 'Pas de description'}</div>
+          <div class="text-[11px] text-gray-400 truncate"><span class="text-amber-400 font-bold">${item.category || ''}</span>${item.desc ? ' · ' + item.desc : ''}</div>
         </div>
       </div>
       <div class="space-x-1 shrink-0">
@@ -53,13 +53,14 @@ function adminEditCatalogItem(id) {
   document.getElementById('adminCatName').value = item.name;
   document.getElementById('adminCatDesc').value = item.desc || '';
   document.getElementById('adminCatImg').value = item.img || '';
+  document.getElementById('adminCatCategory').value = item.category || 'Périphérique PC';
 
   editingCatalogId = id;
 
   const submitBtn = document.getElementById('adminCatalogSubmitBtn');
   if (submitBtn) {
     submitBtn.innerText = "💾 Enregistrer les modifications";
-    submitBtn.className = "px-4 py-2 bg-emerald-600 text-white font-bold text-xs rounded-lg hover:bg-emerald-500 transition md:col-span-3";
+    submitBtn.className = "px-4 py-2 bg-emerald-600 text-white font-bold text-xs rounded-lg hover:bg-emerald-500 transition md:col-span-4";
   }
 }
 
@@ -68,6 +69,7 @@ async function adminSaveCatalogItem() {
   const name = document.getElementById('adminCatName').value.trim();
   const desc = document.getElementById('adminCatDesc').value.trim();
   const img = document.getElementById('adminCatImg').value.trim();
+  const category = document.getElementById('adminCatCategory').value;
 
   if (!name) {
     alert("Le nom du matériel est obligatoire.");
@@ -80,14 +82,16 @@ async function adminSaveCatalogItem() {
       id: editingCatalogId,
       name,
       desc,
-      img
+      img,
+      category
     };
   } else {
     catalogObj = {
       id: 'eq_' + Date.now(),
       name,
       desc,
-      img
+      img,
+      category
     };
   }
 
@@ -104,7 +108,7 @@ async function adminSaveCatalogItem() {
     const submitBtn = document.getElementById('adminCatalogSubmitBtn');
     if (submitBtn) {
       submitBtn.innerText = "Ajouter au catalogue";
-      submitBtn.className = "px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-lg hover:bg-amber-400 transition md:col-span-3";
+      submitBtn.className = "px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-lg hover:bg-amber-400 transition md:col-span-4";
     }
   } else {
     alert("✅ Matériel ajouté au catalogue !");
