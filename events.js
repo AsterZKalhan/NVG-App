@@ -209,7 +209,7 @@ function openAttendanceModal(evId) {
   };
 
   document.getElementById('modalArrivalTime').value = userAttendance.arrivalTime || '';
-  document.getElementById('modalCarpoolStatus').value = userAttendance.soiree || 'jeu';
+  setCarpoolField(ev.category === 'Nieuwheim', userAttendance);
 
   const modalFooterAction = document.getElementById('modalFooterActions');
   if (modalFooterAction) {
@@ -332,6 +332,36 @@ function collectCableGear() {
   }).filter(Boolean);
 }
 
+const CARPOOL_CHOICES = {
+  nvg: {
+    label: 'Covoiturage / Transport',
+    options: [
+      ['solo', 'Je viens seul(e)'],
+      ['seats_available', "J'ai des places de libre dans mon véhicule 🚗"],
+      ['looking_for_seat', 'Je cherche une place en covoiturage 🙋‍♂️']
+    ],
+    field: 'carpool',
+    fallback: 'solo'
+  },
+  nieuwheim: {
+    label: 'Pour la soirée :',
+    options: [
+      ['stream', 'Je stream sur ma chaîne'],
+      ['jeu', 'Je joue uniquement, je ne peux pas stream']
+    ],
+    field: 'soiree',
+    fallback: 'jeu'
+  }
+};
+
+function setCarpoolField(isNieuwheim, userAttendance) {
+  const config = CARPOOL_CHOICES[isNieuwheim ? 'nieuwheim' : 'nvg'];
+  document.getElementById('modalCarpoolLabel').textContent = config.label;
+  const select = document.getElementById('modalCarpoolStatus');
+  select.innerHTML = config.options.map(([value, text]) => `<option value="${value}">${text}</option>`).join('');
+  select.value = userAttendance[config.field] || config.fallback;
+}
+
 function closeAttendanceModal() {
   document.getElementById('attendanceModal').classList.add('hidden');
 }
@@ -363,7 +393,7 @@ async function cancelAttendance(evId) {
 async function saveAttendanceModal() {
   const evId = document.getElementById('modalEventId').value;
   const arrivalTime = document.getElementById('modalArrivalTime').value;
-  const soiree = document.getElementById('modalCarpoolStatus').value;
+  const carpoolChoice = document.getElementById('modalCarpoolStatus').value;
 
   const checkboxes = document.querySelectorAll('.catalog-gear-checkbox:checked');
   const checkboxGear = Array.from(checkboxes).map(cb => {
@@ -387,7 +417,8 @@ async function saveAttendanceModal() {
     userId: currentUser.id,
     userName: currentUser.name,
     arrivalTime,
-    soiree,
+    carpool: ev.category === 'Nieuwheim' ? undefined : carpoolChoice,
+    soiree: ev.category === 'Nieuwheim' ? carpoolChoice : undefined,
     gearItems
   };
 
@@ -468,6 +499,11 @@ function renderAdminLogisticsDetails() {
     stream: '🎥 Stream sur sa chaîne',
     jeu: '🎮 Joue uniquement'
   };
+  const carpoolLabels = {
+    solo: '🚗 Vient seul(e)',
+    seats_available: '🟢 Places libres dans le véhicule',
+    looking_for_seat: '🙋‍♂️ Cherche une place'
+  };
 
   container.innerHTML = `
     ${renderLogisticsSummary(ev.attendance)}
@@ -481,7 +517,7 @@ function renderAdminLogisticsDetails() {
                 👤 ${a.userName} 
                 <span class="text-[10px] text-red-500 font-bold bg-red-500/10 px-2 py-0.5 rounded">Arrivée : ${a.arrivalTime || 'Non précisée'}</span>
               </div>
-              <div class="text-[11px] text-amber-400 font-bold mt-1">${soireeLabels[a.soiree] || ''}</div>
+              <div class="text-[11px] text-amber-400 font-bold mt-1">${carpoolLabels[a.carpool] || soireeLabels[a.soiree] || ''}</div>
             </div>
           </div>
           
