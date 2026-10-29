@@ -443,15 +443,31 @@ async function saveAttendanceModal() {
   await loadEvents();
 }
 
-function categoryIcon(name) {
+const LOGISTICS_CATEGORIES = [CABLE_CATEGORY, ...CATALOG_CATEGORIES];
+const LOGISTICS_ICONS = {
+  'Câblage': '🔌',
+  'Interface audio': '🎧',
+  'Interface vidéo': '📹',
+  'Périphérique PC': '🖥️'
+};
+let logisticsCategoryFilter = new Set();
+
+function categoryOf(name) {
   const item = (db.equipmentCatalog || []).find(i => i.name === name);
-  const icons = {
-    'Câblage': '🔌',
-    'Interface audio': '🎧',
-    'Interface vidéo': '📹',
-    'Périphérique PC': '🖥️'
-  };
-  return icons[item && item.category ? item.category : 'Périphérique PC'] || '🖥️';
+  return item && item.category ? item.category : 'Périphérique PC';
+}
+
+function categoryIcon(name) {
+  return LOGISTICS_ICONS[categoryOf(name)] || '🖥️';
+}
+
+function toggleLogisticsCategory(category) {
+  if (logisticsCategoryFilter.has(category)) {
+    logisticsCategoryFilter.delete(category);
+  } else {
+    logisticsCategoryFilter.add(category);
+  }
+  renderAdminLogisticsDetails();
 }
 
 function renderAdminLogisticsDetails() {
@@ -477,26 +493,38 @@ function renderAdminLogisticsDetails() {
     looking_for_seat: '🙋‍♂️ Cherche une place'
   };
 
-  container.innerHTML = `
-    <h3 class="text-xs font-bold text-white uppercase tracking-wider mb-3">Liste des inscrits, transports et matériel apporté :</h3>
-    <div class="space-y-4">
-      ${ev.attendance.map(a => `
+  const filterActive = logisticsCategoryFilter.size > 0;
+  const chips = LOGISTICS_CATEGORIES.map(cat => {
+    const active = logisticsCategoryFilter.has(cat);
+    return `<button type="button" onclick="toggleLogisticsCategory('${cat}')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${active ? 'bg-amber-500 text-black' : 'bg-white/5 text-gray-300 hover:bg-white/10'}">${LOGISTICS_ICONS[cat]} ${cat}</button>`;
+  }).join('');
+
+  const visible = ev.attendance
+    .map(a => ({
+      a,
+      gears: (a.gearItems || []).filter(g => !filterActive || logisticsCategoryFilter.has(categoryOf(g.name)))
+    }))
+    .filter(x => !filterActive || x.gears.length > 0);
+
+  const list = visible.length === 0
+    ? `<p class="text-xs text-gray-500 italic">Aucun matériel dans les catégories sélectionnées.</p>`
+    : visible.map(({ a, gears }) => `
         <div class="p-4 bg-[#07090e] border border-[#1f293d] rounded-xl space-y-3 text-xs">
           <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 border-b border-[#1f293d] pb-2">
             <div>
               <div class="font-black text-white text-sm flex items-center gap-2">
-                👤 ${a.userName} 
+                👤 ${a.userName}
                 <span class="text-[10px] text-red-500 font-bold bg-red-500/10 px-2 py-0.5 rounded">Arrivée : ${a.arrivalTime || 'Non précisée'}</span>
               </div>
               <div class="text-[11px] text-amber-400 font-bold mt-1">${carpoolLabels[a.carpool] || soireeLabels[a.soiree] || ''}</div>
             </div>
           </div>
-          
+
           <div>
             <span class="text-[10px] text-gray-400 uppercase font-bold block mb-1.5">📦 Matériel apporté :</span>
-            ${a.gearItems && a.gearItems.length > 0 ? `
+            ${gears.length > 0 ? `
               <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                ${a.gearItems.map(gear => `
+                ${gears.map(gear => `
                   <div class="flex items-center gap-2.5 p-2 bg-[#121722] border border-[#1f293d] rounded-lg">
                     <div class="w-8 h-8 rounded bg-[#07090e] border border-[#1f293d] overflow-hidden flex items-center justify-center shrink-0">
                       ${gear.img ? `<img src="${gear.img}" class="w-full h-full object-contain">` : '📦'}
@@ -505,15 +533,19 @@ function renderAdminLogisticsDetails() {
                       <div class="font-bold text-white text-xs truncate">${gear.name}${gear.length ? ` · ${gear.length} m${gear.color ? ' · ' + gear.color : ''}` : ''}</div>
                       <div class="text-[10px] text-emerald-400 font-bold">Quantité : ${gear.quantity}</div>
                     </div>
-                      <span class="text-lg shrink-0">${categoryIcon(gear.name)}</span>
+                    <span class="text-lg shrink-0">${categoryIcon(gear.name)}</span>
                   </div>
                 `).join('')}
               </div>
             ` : `<p class="text-gray-500 italic text-[11px]">Rien de particulier apporté.</p>`}
           </div>
         </div>
-      `).join('')}
-    </div>
+      `).join('');
+
+  container.innerHTML = `
+    <div class="flex flex-wrap gap-2">${chips}</div>
+    <h3 class="text-xs font-bold text-white uppercase tracking-wider mb-3">Liste des inscrits, transports et matériel apporté :</h3>
+    <div class="space-y-4">${list}</div>
   `;
 }
 
