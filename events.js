@@ -193,6 +193,7 @@ async function hydrateTwitchAvatars(root) {
     const login = img.dataset.twitchAvatar;
     const url = await getTwitchAvatar(login);
     if (url.startsWith('http')) img.src = url;
+    else img.style.display = 'none';
   }
 }
 

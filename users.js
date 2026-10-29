@@ -262,8 +262,12 @@ async function loadUsers() {
           Supprimer 🗑️
         </button>
       </td>
+      <td data-label="Twitch" class="block md:table-cell p-0 md:p-3 text-xs before:content-[attr(data-label)] before:block before:text-[10px] before:text-gray-500 before:uppercase before:font-bold before:mb-1 md:before:content-none">
+        ${user.twitch_channel ? `<div class="flex items-center gap-2"><img data-twitch-avatar="${escapeHtmlSafe(user.twitch_channel)}" alt="" class="w-7 h-7 rounded-lg bg-[#07090e] border border-[#1f293d] object-cover shrink-0"><span class="font-bold text-white">${escapeHtmlSafe(user.twitch_channel)}</span></div>` : '<span class="text-gray-500">-</span>'}
+      </td>
     </tr>
   `).join('');
+  hydrateTwitchAvatars(tbody);
 }
 
 let editingAdminUserId = null;
