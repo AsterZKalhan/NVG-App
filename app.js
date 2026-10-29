@@ -252,12 +252,13 @@ function loadTwitchLive() {
               src="https://player.twitch.tv/?channel=${TWITCH_CHANNEL}&parent=app.nvg-tv.com&parent=localhost" 
               height="100%" 
               width="100%" 
+              allow="autoplay; fullscreen"
               allowfullscreen>
             </iframe>
           </div>
-          <div class="flex items-center justify-between text-xs text-gray-400 px-1">
-            <span>Si le lecteur indique "Hors ligne", le direct n'a pas encore commencé.</span>
-            <a href="https://twitch.tv/${TWITCH_CHANNEL}" target="_blank" class="text-red-500 hover:underline font-bold">Ouvrir sur Twitch ↗</a>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-gray-400 px-1">
+            <span>Si le lecteur indique "Hors ligne", le direct n'a pas encore commencé. Si rien ne s'affiche, ton navigateur bloque peut-être les contenus Twitch (Brave, Firefox : désactive la protection renforcée pour ce site).</span>
+            <a href="https://twitch.tv/${TWITCH_CHANNEL}" target="_blank" class="text-red-500 hover:underline font-bold whitespace-nowrap">Ouvrir sur Twitch ↗</a>
           </div>
         </div>
 
