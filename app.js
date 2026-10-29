@@ -35,6 +35,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 	}
 
   // Afficher l'onglet par défaut au démarrage
+  refreshLiveStatus();
+  setInterval(refreshLiveStatus, 60000);
+
   history.replaceState({ tab: 'calendar' }, '');
   showTab('calendar');
 });
@@ -304,45 +307,55 @@ function loadTwitchLive() {
     </div>
   `;
 
-  // Utilisation d'une API de statut Twitch alternative et propre
-  fetch(`https://decapi.me/twitch/uptime/${TWITCH_CHANNEL}`)
-    .then(response => response.text())
-    .then(uptimeText => {
-      const viewerBadge = document.getElementById('twitchViewerCount');
-      if (!viewerBadge) return;
+  refreshLiveStatus();
+}
 
-      // Si la réponse contient "offline" ou une erreur, la chaîne n'est pas en live
-      if (uptimeText.includes('offline') || uptimeText.includes('is offline') || uptimeText.includes('Not Found')) {
-        viewerBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span> <span>Chaîne hors ligne</span>`;
-        if (liveIndicator) {
-          liveIndicator.classList.remove('bg-emerald-500');
-          liveIndicator.classList.add('bg-red-500');
-        }
-      } else {
-        // Si la chaîne est en live, on récupère en plus le nombre de spectateurs
-        fetch(`https://decapi.me/twitch/viewers/${TWITCH_CHANNEL}`)
-          .then(res => res.text())
-          .then(viewers => {
-            viewerBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span> <span class="text-white font-bold">${viewers}</span> spectateurs en direct`;
-            if (liveIndicator) {
-              liveIndicator.classList.remove('bg-red-500');
-              liveIndicator.classList.add('bg-emerald-500');
-            }
-          })
-          .catch(() => {
-            viewerBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> <span class="text-white font-bold">En direct</span>`;
-            if (liveIndicator) {
-              liveIndicator.classList.remove('bg-red-500');
-              liveIndicator.classList.add('bg-emerald-500');
-            }
-          });
-      }
-    })
-    .catch(err => {
-      console.error("Erreur vérification statut Twitch", err);
-      const viewerBadge = document.getElementById('twitchViewerCount');
-      if (viewerBadge) {
-        viewerBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span> <span>Statut indisponible</span>`;
-      }
-    });
+async function refreshLiveStatus() {
+  const viewerBadge = document.getElementById('twitchViewerCount');
+  const navBtn = document.getElementById('navLiveBtn');
+  const navDot = document.getElementById('liveIndicator');
+  const navViewers = document.getElementById('liveViewers');
+
+  let isLive;
+  let viewers = null;
+  try {
+    const res = await fetch(`https://decapi.me/twitch/uptime/${TWITCH_CHANNEL}`);
+    if (!res.ok) return;
+    const text = (await res.text()).trim();
+    isLive = !/offline|not found/i.test(text);
+  } catch (err) {
+    console.error("Erreur vérification statut Twitch", err);
+    return;
+  }
+
+  if (isLive) {
+    try {
+      const res = await fetch(`https://decapi.me/twitch/viewers/${TWITCH_CHANNEL}`);
+      const text = res.ok ? (await res.text()).trim() : '';
+      if (/^\d+$/.test(text)) viewers = Number(text);
+    } catch (err) {
+      console.error("Erreur nombre de viewers", err);
+    }
+  }
+
+  if (navDot) {
+    navDot.classList.toggle('bg-emerald-500', isLive);
+    navDot.classList.toggle('bg-red-500', !isLive);
+  }
+  if (navBtn) {
+    navBtn.classList.toggle('text-emerald-400', isLive);
+    navBtn.classList.toggle('text-red-500', !isLive);
+  }
+  if (navViewers) {
+    navViewers.textContent = isLive && viewers !== null ? `👁 ${viewers}` : '';
+  }
+
+  if (viewerBadge) {
+    if (!isLive) {
+      viewerBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span> <span>Chaîne hors ligne</span>`;
+    } else {
+      const label = viewers !== null ? `${viewers} spectateurs en direct` : 'En direct';
+      viewerBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span> <span class="text-white font-bold">${label}</span>`;
+    }
+  }
 }
