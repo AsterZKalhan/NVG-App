@@ -32,19 +32,16 @@ async function loadNotifications() {
       <div class="p-4 bg-[#07090e] border ${unread ? 'border-red-600/50' : 'border-[#1f293d]'} rounded-xl flex flex-col gap-2 hover:border-red-600/50 transition">
         <div onclick="openNotification('${notif.id}')" class="cursor-pointer flex flex-col gap-2">
           <div class="flex items-center justify-between gap-2">
-            <span class="text-xs font-bold text-white flex items-center gap-2">
-              ${unread ? '<span class="w-2 h-2 rounded-full bg-red-500 inline-block shrink-0"></span>' : ''}
-              ${escapeHtmlSafe(notif.title)}
-            </span>
-            <span class="text-[10px] text-gray-400 shrink-0">${formatDate(notif.time)}</span>
+            <span class="text-xs font-bold text-white">${escapeHtmlSafe(notif.title)}</span>
+            <div class="flex items-center gap-2 shrink-0">
+              ${unread ? '<span class="text-[10px] font-bold text-red-400 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>Non lue</span>' : ''}
+              <span class="text-[10px] text-gray-400">${formatDate(notif.time)}</span>
+            </div>
           </div>
           <p class="text-xs text-gray-300 line-clamp-2">${escapeHtmlSafe(notif.body)}</p>
         </div>
-        <div class="flex items-center justify-between mt-1">
+        <div class="flex items-center mt-1">
           <span class="text-[10px] px-2 py-0.5 rounded bg-red-600/10 text-red-400 border border-red-600/20">Cible : ${escapeHtmlSafe(notif.target || 'Tous')}</span>
-          ${currentUser && (currentUser.rank === 'Grand Jarl' || currentUser.rank === 'Divinité' || currentUser.role === 'admin') ? `
-            <button onclick="deleteNotification('${notif.id}')" class="text-[10px] text-gray-500 hover:text-red-400 transition">Supprimer 🗑️</button>
-          ` : ''}
         </div>
       </div>
     `;
