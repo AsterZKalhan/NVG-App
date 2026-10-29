@@ -139,6 +139,7 @@ function loadAccountTab() {
 
   if (profileName) profileName.textContent = currentUser.name || 'Pseudo';
   if (profileRank) profileRank.textContent = currentUser.rank || 'Petit Viking';
+  updateNotifButton();
 }
 
 async function saveAccountChanges() {
@@ -307,6 +308,7 @@ async function askForNotifications(silent = false) {
   }
 
   const permission = await Notification.requestPermission();
+  updateNotifButton();
   
   if (permission === "granted") {
     try {
@@ -336,6 +338,34 @@ async function askForNotifications(silent = false) {
     }
   } else if (permission === "denied" && !silent) {
     alert("❌ Les notifications sont bloquées par le navigateur.");
+  }
+}
+
+function updateNotifButton() {
+  const btn = document.getElementById('notifPermBtn');
+  if (!btn) return;
+
+  const base = 'w-full py-2.5 rounded-xl font-bold text-xs uppercase transition border';
+  if (!("Notification" in window) || !('serviceWorker' in navigator)) {
+    btn.disabled = true;
+    btn.className = `${base} bg-white/5 text-gray-400 border-[#1f293d]`;
+    btn.innerHTML = 'Non supporté sur ce navigateur';
+    return;
+  }
+
+  const permission = Notification.permission;
+  if (permission === 'granted') {
+    btn.disabled = true;
+    btn.className = `${base} bg-emerald-500/15 text-emerald-400 border-emerald-500/30`;
+    btn.innerHTML = '✅ Notifications autorisées';
+  } else if (permission === 'denied') {
+    btn.disabled = true;
+    btn.className = `${base} bg-red-600/15 text-red-400 border-red-600/30`;
+    btn.innerHTML = '⛔ Bloquées par le navigateur (à réactiver dans ses paramètres)';
+  } else {
+    btn.disabled = false;
+    btn.className = `${base} bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-black border-amber-500/30`;
+    btn.innerHTML = '🔔 Activer les notifications';
   }
 }
 
