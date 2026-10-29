@@ -122,7 +122,7 @@ function renderPublicEvents() {
         <div class="mt-4 pt-3 border-t border-[#1f293d] space-y-3">
           ${isPetitViking() ? '' : `
             <button onclick="openAttendanceModal('${ev.id}')" class="w-full py-2 rounded-lg text-xs font-bold transition ${isParticipating ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-600/30 hover:bg-emerald-600 hover:text-white' : 'bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600 hover:text-white'}">
-              ${isParticipating ? '✅ Je participe (Modifier)' : '🚀 Gérer ma présence'}
+              ${isParticipating ? '✅ Je participe à cet événement (modifier ma présence)' : '🚀 Je m\'inscris'}
             </button>
           `}
           <div class="flex items-center justify-between gap-3 flex-wrap">
