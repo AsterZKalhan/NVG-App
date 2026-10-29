@@ -100,7 +100,7 @@
       <input type="hidden" id="modalEventId">
       <div id="modalEngagementBlock" class="hidden p-3 bg-[#07090e] border border-[#1f293d] rounded-xl">
         <label class="flex items-start gap-2.5 cursor-pointer text-xs text-gray-200">
-          <input type="checkbox" id="modalEngagement" class="mt-0.5 rounded bg-[#121722] border-[#1f293d] text-red-600 focus:ring-0 shrink-0">
+          <input type="checkbox" id="modalEngagement" onchange="updateSaveButton()" class="mt-0.5 rounded bg-[#121722] border-[#1f293d] text-red-600 focus:ring-0 shrink-0">
           <span id="modalEngagementText"></span>
         </label>
       </div>

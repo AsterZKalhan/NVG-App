@@ -208,7 +208,7 @@ function openAttendanceModal(evId) {
   const attendance = ev.attendance || [];
   const userAttendance = attendance.find(a => a.userId === currentUser.id) || {
     arrivalTime: '',
-    soiree: 'jeu',
+    soiree: 'stream',
     gearItems: []
   };
 
@@ -246,6 +246,7 @@ function openAttendanceModal(evId) {
     renderCableLines(catalog.filter(item => item.category === CABLE_CATEGORY), userAttendance);
   }
 
+  updateSaveButton();
   document.getElementById('attendanceModal').classList.remove('hidden');
 }
 
@@ -355,7 +356,7 @@ const CARPOOL_CHOICES = {
       ['jeu', 'Je joue uniquement, je ne peux pas stream']
     ],
     field: 'soiree',
-    fallback: 'jeu'
+    fallback: 'stream'
   }
 };
 
@@ -365,6 +366,16 @@ function setCarpoolField(isNieuwheim, userAttendance) {
   const select = document.getElementById('modalCarpoolStatus');
   select.innerHTML = config.options.map(([value, text]) => `<option value="${value}">${text}</option>`).join('');
   select.value = userAttendance[config.field] || config.fallback;
+}
+
+function updateSaveButton() {
+  const btn = document.querySelector('#modalFooterActions button[onclick="saveAttendanceModal()"]');
+  if (!btn) return;
+  const isNieuwheim = !document.getElementById('modalEngagementBlock').classList.contains('hidden');
+  const blocked = isNieuwheim && !document.getElementById('modalEngagement').checked;
+  btn.disabled = blocked;
+  btn.classList.toggle('opacity-40', blocked);
+  btn.classList.toggle('cursor-not-allowed', blocked);
 }
 
 function setPresenceFields(ev, userAttendance) {
