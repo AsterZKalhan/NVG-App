@@ -437,11 +437,7 @@ function adminEditEvent(id) {
   document.getElementById('adminNewEvStartTime').value = ev.start_time || '';
   document.getElementById('adminNewEvEndDate').value = ev.date_fin || '';
   document.getElementById('adminNewEvEndTime').value = ev.end_time || '';
-  const categorySelect = document.getElementById('adminNewEvCategory');
-  if (![...categorySelect.options].some(o => o.value === ev.category)) {
-    categorySelect.add(new Option(ev.category, ev.category));
-  }
-  categorySelect.value = ev.category;
+  document.getElementById('adminNewEvCategory').value = ev.category === 'NVG' ? 'NVG Spring' : ev.category;
   document.getElementById('adminNewEvLoc').value = ev.location;
   document.getElementById('adminNewEvDropbox').value = ev.dropbox_url || '';
   document.getElementById('adminNewEvDesc').value = ev.description;
