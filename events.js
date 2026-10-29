@@ -68,6 +68,14 @@ function formatEventDateRange(startDateStr, endDateStr) {
   }
 }
 
+const eventLogos = {
+  'NVG Spring': 'logo-nvg-spring.png',
+  'NVG Summer': 'logo-nvg-summer.png',
+  'NVG Autumn': 'logo-nvg-autumn.png',
+  'NVG Winter': 'logo-nvg-winter.png',
+  'Nieuwheim': 'logo-nieuwheim.png'
+};
+
 function renderPublicEvents() {
   const container = document.getElementById('publicEventsList');
   if (!container) return;
@@ -92,7 +100,7 @@ function renderPublicEvents() {
   }
 
   container.innerHTML = filteredEvents.map(ev => {
-    const logoSrc = ev.category === 'Nieuwheim' ? './Logos/logo-nieuwheim.png' : './Logos/logo-nvg.png';
+    const logoSrc = `./Logos/${eventLogos[ev.category] || 'logo-nvg.png'}`;
     const dateDisplay = formatEventDateRange(ev.date_debut, ev.date_fin);
     
     const attendance = ev.attendance || [];
@@ -107,7 +115,7 @@ function renderPublicEvents() {
             <h4 class="text-xl md:text-2xl font-black text-white mt-1">${ev.title}</h4>
             <p class="text-xs text-gray-400 mt-1">📍 ${ev.location}</p>
           </div>
-          <img src="${logoSrc}" alt="${ev.category}" class="w-40 h-40 object-contain shrink-0 bg-black/40 p-1 rounded-lg border border-[#1f293d]">
+          <img src="${logoSrc}" alt="${ev.category}" onerror="this.onerror=null;this.src='./Logos/logo-nvg.png'" class="w-40 h-40 object-contain shrink-0 bg-black/40 p-1 rounded-lg border border-[#1f293d]">
         </div>
         <p class="text-xs md:text-sm text-gray-300 mt-3">${ev.description}</p>
         
@@ -424,12 +432,16 @@ function adminEditEvent(id) {
   const ev = db.events.find(e => e.id === id);
   if (!ev) return;
 
-  document.getElementById('adminNewEvTitle').value = ev.title.replace(/^\[(NVG|Nieuwheim)\]\s*/i, '');
+  document.getElementById('adminNewEvTitle').value = ev.title.replace(/^\[(NVG( Spring| Summer| Autumn| Winter)?|Nieuwheim)\]\s*/i, '');
   document.getElementById('adminNewEvStartDate').value = ev.date_debut || '';
   document.getElementById('adminNewEvStartTime').value = ev.start_time || '';
   document.getElementById('adminNewEvEndDate').value = ev.date_fin || '';
   document.getElementById('adminNewEvEndTime').value = ev.end_time || '';
-  document.getElementById('adminNewEvCategory').value = ev.category;
+  const categorySelect = document.getElementById('adminNewEvCategory');
+  if (![...categorySelect.options].some(o => o.value === ev.category)) {
+    categorySelect.add(new Option(ev.category, ev.category));
+  }
+  categorySelect.value = ev.category;
   document.getElementById('adminNewEvLoc').value = ev.location;
   document.getElementById('adminNewEvDropbox').value = ev.dropbox_url || '';
   document.getElementById('adminNewEvDesc').value = ev.description;
@@ -457,7 +469,7 @@ async function adminSaveEventForm() {
   const loc = document.getElementById('adminNewEvLoc').value.trim();
   const dropbox_url = document.getElementById('adminNewEvDropbox').value.trim() || 'https://drive.google.com';
   const description = document.getElementById('adminNewEvDesc').value.trim();
-  const fullTitle = `[${category}] ${title.replace(/^\[(NVG|Nieuwheim)\]\s*/i, '')}`;
+  const fullTitle = `[${category}] ${title.replace(/^\[(NVG( Spring| Summer| Autumn| Winter)?|Nieuwheim)\]\s*/i, '')}`;
   const watch_mode = document.getElementById('adminNewEvWatch').value;
   const streams = watch_mode === 'liste' ? [...adminStreams] : [];
   
