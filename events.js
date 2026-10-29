@@ -108,29 +108,28 @@ function renderPublicEvents() {
     const isParticipating = !!userAttendance;
 
     return `
-      <div class="event-card backdrop-blur-md border-2 rounded-xl p-5 flex flex-col justify-between shadow relative">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <span class="text-sm font-black uppercase text-red-500">${dateDisplay}</span>
-            <h4 class="text-xl md:text-2xl font-black text-white mt-1">${ev.title.replace(/^\[NVG (Spring|Summer|Autumn|Winter)\]/, '[NVG]')}</h4>
-            <p class="text-xs text-gray-400 mt-1">📍 ${ev.location}</p>
+      <div class="event-card border-2 rounded-xl flex flex-col justify-between shadow relative">
+        <div class="flex items-start justify-between">
+          <div class="min-w-0 flex-1">
+            <span class="ec-date block">${dateDisplay}</span>
+            <h4 class="ec-title">${ev.title.replace(/^\[NVG (Spring|Summer|Autumn|Winter)\]/, '[NVG]')}</h4>
+            <p class="ec-meta">📍 ${ev.location}</p>
           </div>
-          <img src="${logoSrc}" alt="${ev.category}" onerror="this.onerror=null;this.src='./Logos/logo-nvg.png'" class="w-24 h-24 xl:w-40 xl:h-40 object-contain shrink-0 bg-black/40 p-1 rounded-lg border border-[#1f293d]">
+          <img src="${logoSrc}" alt="${ev.category}" onerror="this.onerror=null;this.src='./Logos/logo-nvg.png'" class="ec-logo">
         </div>
-        <p class="text-xs md:text-sm text-gray-300 mt-3">${ev.description}</p>
-        
-        <div class="mt-4 pt-3 border-t border-[#1f293d] space-y-3">
+        <p class="ec-desc">${ev.description}</p>
+        <div class="ec-footer">
           ${isPetitViking() ? '' : `
-            <button onclick="openAttendanceModal('${ev.id}')" class="w-full py-2 rounded-lg text-xs font-bold transition ${isParticipating ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-600/30 hover:bg-emerald-600 hover:text-white' : 'bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600 hover:text-white'}">
+            <button onclick="openAttendanceModal('${ev.id}')" class="ec-btn w-full font-bold transition ${isParticipating ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-600/30 hover:bg-emerald-600 hover:text-white' : 'bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600 hover:text-white'}">
               ${isParticipating ? '✅ Je participe à cet événement (modifier ma présence)' : '🚀 Je m\'inscris'}
             </button>
           `}
-          <div class="flex items-center justify-between gap-3 flex-wrap">
-            <div class="flex items-center gap-2 text-xs text-gray-400 min-w-0">
+          <div class="ec-row">
+            <div class="ec-watch flex items-center min-w-0 flex-wrap">
               <span class="font-bold shrink-0">Où regarder :</span>
               ${renderWatchBlock(ev)}
             </div>
-            ${isPetitViking() ? '' : `<span class="text-[11px] text-gray-400 font-bold ml-auto">Participants : ${attendance.length}</span>`}
+            ${isPetitViking() ? '' : `<span class="ec-count font-bold shrink-0">Participants : ${attendance.length}</span>`}
           </div>
         </div>
       </div>
@@ -151,13 +150,13 @@ function renderWatchBlock(ev) {
   const streams = [...new Set([...(ev.streams || []), ...autoStreams])];
 
   if (ev.watch_mode === 'chaine') {
-    return `<button onclick="showTab('live')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-500 text-white transition">📺 Rejoindre le stream</button>`;
+    return `<button onclick="showTab('live')" class="ec-chip px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-500 text-white transition">📺 Rejoindre le stream</button>`;
   }
 
   if (ev.watch_mode === 'liste' && streams.length > 0) {
     return `
       <details class="relative">
-        <summary class="list-none cursor-pointer inline-block px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-500 text-white transition">📺 Sélectionner le stream ▾</summary>
+        <summary class="list-none cursor-pointer inline-block ec-chip px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-500 text-white transition">📺 Sélectionner le stream ▾</summary>
         <div class="absolute left-0 top-full mt-1 z-20 w-64 space-y-1 bg-[#07090e] border border-[#1f293d] rounded-xl p-1 shadow-2xl">
           ${streams.map(login => `
             <a href="https://twitch.tv/${login}" target="_blank" rel="noopener" class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 text-xs text-white">
