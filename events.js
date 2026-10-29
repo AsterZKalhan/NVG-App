@@ -424,7 +424,7 @@ function adminEditEvent(id) {
   const ev = db.events.find(e => e.id === id);
   if (!ev) return;
 
-  document.getElementById('adminNewEvTitle').value = ev.title;
+  document.getElementById('adminNewEvTitle').value = ev.title.replace(/^\[(NVG|Nieuwheim)\]\s*/i, '');
   document.getElementById('adminNewEvStartDate').value = ev.date_debut || '';
   document.getElementById('adminNewEvStartTime').value = ev.start_time || '';
   document.getElementById('adminNewEvEndDate').value = ev.date_fin || '';
@@ -457,6 +457,7 @@ async function adminSaveEventForm() {
   const loc = document.getElementById('adminNewEvLoc').value.trim();
   const dropbox_url = document.getElementById('adminNewEvDropbox').value.trim() || 'https://drive.google.com';
   const description = document.getElementById('adminNewEvDesc').value.trim();
+  const fullTitle = `[${category}] ${title.replace(/^\[(NVG|Nieuwheim)\]\s*/i, '')}`;
   const watch_mode = document.getElementById('adminNewEvWatch').value;
   const streams = watch_mode === 'liste' ? [...adminStreams] : [];
   
@@ -475,7 +476,7 @@ async function adminSaveEventForm() {
     const existing = db.events.find(e => e.id === editingEventId);
     eventObj = {
       id: editingEventId,
-      title,
+      title: fullTitle,
       date_debut: startDate,
       start_time: startTime,
       date_fin: endDate || startDate,
@@ -491,7 +492,7 @@ async function adminSaveEventForm() {
   } else {
     eventObj = {
       id: 'ev' + Date.now(),
-      title,
+      title: fullTitle,
       date_debut: startDate,
       start_time: startTime,
       date_fin: endDate || startDate,
