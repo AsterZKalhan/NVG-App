@@ -465,7 +465,8 @@ async function adminSaveEventForm() {
   const loc = document.getElementById('adminNewEvLoc').value.trim();
   const dropbox_url = document.getElementById('adminNewEvDropbox').value.trim() || 'https://drive.google.com';
   const description = document.getElementById('adminNewEvDesc').value.trim();
-  const fullTitle = `[${category}] ${title.replace(/^\[(NVG( Spring| Summer| Autumn| Winter)?|Nieuwheim)\]\s*/i, '')}`;
+  const titlePrefix = category.startsWith('NVG') ? 'NVG' : category;
+  const fullTitle = `[${titlePrefix}] ${title.replace(/^\[(NVG( Spring| Summer| Autumn| Winter)?|Nieuwheim)\]\s*/i, '')}`;
   const watch_mode = document.getElementById('adminNewEvWatch').value;
   const streams = watch_mode === 'liste' ? [...adminStreams] : [];
   
