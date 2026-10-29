@@ -103,8 +103,8 @@ function renderPublicEvents() {
       <div class="event-card backdrop-blur-md border-2 rounded-xl p-5 flex flex-col justify-between shadow relative">
         <div class="flex items-start justify-between gap-3">
           <div>
-            <span class="text-[11px] font-black uppercase text-red-500">${dateDisplay}</span>
-            <h4 class="text-base md:text-lg font-bold text-white mt-1">${ev.title}</h4>
+            <span class="text-sm font-black uppercase text-red-500">${dateDisplay}</span>
+            <h4 class="text-xl md:text-2xl font-black text-white mt-1">${ev.title}</h4>
             <p class="text-xs text-gray-400 mt-1">📍 ${ev.location}</p>
           </div>
           <img src="${logoSrc}" alt="${ev.category}" class="w-40 h-40 object-contain shrink-0 bg-black/40 p-1 rounded-lg border border-[#1f293d]">
