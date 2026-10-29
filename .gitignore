@@ -1,0 +1,12 @@
+*.jks
+*.keystore
+*.p12
+.env
+.env.*
+*.aab
+*.apk
+build/
+.gradle/
+node_modules/
+.DS_Store
+Thumbs.db
