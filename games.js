@@ -1,31 +1,30 @@
 // --- GESTION DES PROPOSITIONS DE JEUX ---
 
-function steamAppIdOf(link) {
-  const match = (link || '').match(/store\.steampowered\.com\/app\/(\d+)/);
-  return match ? match[1] : null;
+function isGameLink(link) {
+  return /^https:\/\//i.test(link || '');
 }
 
-const steamHeaderCache = {};
+const gameImageCache = {};
 
-async function fetchSteamHeader(appId) {
-  if (!(appId in steamHeaderCache)) {
+async function fetchGameImage(link) {
+  if (!(link in gameImageCache)) {
     try {
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/steam-header?appid=${appId}`, {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/steam-header?url=${encodeURIComponent(link)}`, {
         headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
       });
       const data = await res.json();
-      steamHeaderCache[appId] = data.image || '';
+      gameImageCache[link] = data.image || '';
     } catch (err) {
-      steamHeaderCache[appId] = '';
+      gameImageCache[link] = '';
     }
   }
-  return steamHeaderCache[appId];
+  return gameImageCache[link];
 }
 
-async function hydrateSteamBanners(root) {
-  const imgs = root.querySelectorAll('img[data-steam-app]');
+async function hydrateGameBanners(root) {
+  const imgs = root.querySelectorAll('img[data-game-link]');
   for (const img of imgs) {
-    const url = await fetchSteamHeader(img.dataset.steamApp);
+    const url = await fetchGameImage(img.dataset.gameLink);
     if (url) img.src = url;
     else img.parentElement.style.display = 'none';
   }
@@ -56,9 +55,9 @@ async function loadGames() {
   container.innerHTML = games.map(game => `
     <div class="bg-[#121722] border border-[#1f293d] rounded-2xl overflow-hidden flex flex-col justify-between shadow-lg group">
       <div>
-        ${(game.img && game.img.startsWith('http')) || steamAppIdOf(game.link) ? `
+        ${(game.img && game.img.startsWith('http')) || isGameLink(game.link) ? `
           <div class="h-32 w-full overflow-hidden bg-black/40 border-b border-[#1f293d]">
-            <img ${game.img && game.img.startsWith('http') ? `src="${escapeHtml(game.img)}"` : `data-steam-app="${steamAppIdOf(game.link)}"`} referrerpolicy="no-referrer" alt="Bannière" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="this.style.display='none'">
+            <img ${game.img && game.img.startsWith('http') ? `src="${escapeHtml(game.img)}"` : `data-game-link="${escapeHtml(game.link)}"`} referrerpolicy="no-referrer" alt="Bannière" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="this.style.display='none'">
           </div>
         ` : ''}
         <div class="p-5 space-y-2">
@@ -85,7 +84,7 @@ async function loadGames() {
     </div>
   `).join('');
 
-  hydrateSteamBanners(container);
+  hydrateGameBanners(container);
 }
 
 // Proposer un nouveau jeu
@@ -108,9 +107,8 @@ async function addGameProposal() {
   const uniqueId = 'game_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
 
   let finalImg = imgUrl;
-  const steamAppId = steamAppIdOf(link);
-  if (!finalImg && steamAppId) {
-    finalImg = await fetchSteamHeader(steamAppId);
+  if (!finalImg && isGameLink(link)) {
+    finalImg = await fetchGameImage(link);
   }
 
   const gameObj = {
