@@ -111,19 +111,19 @@ function renderPublicEvents() {
         </div>
         <p class="text-xs md:text-sm text-gray-300 mt-3">${ev.description}</p>
         
-        <div class="mt-4 pt-3 border-t border-[#1f293d] flex items-center justify-between gap-3 flex-wrap">
-          <div class="flex items-center gap-2 text-xs text-gray-400 min-w-0">
-            <span class="font-bold shrink-0">Où regarder :</span>
-            ${renderWatchBlock(ev)}
-          </div>
+        <div class="mt-4 pt-3 border-t border-[#1f293d] space-y-3">
           ${isPetitViking() ? '' : `
-            <div class="flex items-center gap-3 shrink-0">
-              <span class="text-[11px] text-gray-400 font-bold">Participants : ${attendance.length}</span>
-              <button onclick="openAttendanceModal('${ev.id}')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${isParticipating ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-600/30 hover:bg-emerald-600 hover:text-white' : 'bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600 hover:text-white'}">
-                ${isParticipating ? '✅ Je participe (Modifier)' : '🚀 Gérer ma présence'}
-              </button>
-            </div>
+            <button onclick="openAttendanceModal('${ev.id}')" class="w-full py-2 rounded-lg text-xs font-bold transition ${isParticipating ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-600/30 hover:bg-emerald-600 hover:text-white' : 'bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600 hover:text-white'}">
+              ${isParticipating ? '✅ Je participe (Modifier)' : '🚀 Gérer ma présence'}
+            </button>
           `}
+          <div class="flex items-center justify-between gap-3 flex-wrap">
+            <div class="flex items-center gap-2 text-xs text-gray-400 min-w-0">
+              <span class="font-bold shrink-0">Où regarder :</span>
+              ${renderWatchBlock(ev)}
+            </div>
+            ${isPetitViking() ? '' : `<span class="text-[11px] text-gray-400 font-bold ml-auto">Participants : ${attendance.length}</span>`}
+          </div>
         </div>
       </div>
     `;
