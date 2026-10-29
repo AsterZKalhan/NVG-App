@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Afficher l'onglet par défaut au démarrage
   refreshLiveStatus();
   setInterval(refreshLiveStatus, 60000);
-  if (/iphone|ipad|ipod/i.test(navigator.userAgent)) showInstallBanner(false);
+  if (/iphone|ipad|ipod/i.test(navigator.userAgent) || (/android/i.test(navigator.userAgent) && /firefox/i.test(navigator.userAgent))) showInstallBanner(false);
 
   history.replaceState({ tab: 'calendar' }, '');
   showTab('calendar');
@@ -71,7 +71,12 @@ function showInstallBanner(canInstall) {
   if (reportee && Date.now() - Number(reportee) < 7 * 24 * 3600 * 1000) return;
 
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  if (!canInstall && !isIOS) return;
+  const isFirefoxAndroid = /android/i.test(navigator.userAgent) && /firefox/i.test(navigator.userAgent);
+  if (!canInstall && !isIOS && !isFirefoxAndroid) return;
+
+  const manualSteps = isIOS
+    ? 'Touche le bouton Partager <span class="font-bold">⬆️</span> de Safari, puis « Sur l\'écran d\'accueil ».'
+    : 'Ouvre le menu <span class="font-bold">⋮</span> de Firefox, puis « Installer ».';
 
   const banner = document.createElement('div');
   banner.id = 'installBanner';
@@ -83,7 +88,7 @@ function showInstallBanner(canInstall) {
         <p class="font-bold text-white">Installer NVG Companion</p>
         ${canInstall
           ? '<p>Accède à l\'application directement depuis ton écran d\'accueil.</p>'
-          : '<p>Touche le bouton Partager <span class="font-bold">⬆️</span> de Safari, puis « Sur l\'écran d\'accueil ».</p>'}
+          : `<p>${manualSteps}</p>`}
       </div>
     </div>
     <div class="flex justify-end gap-2">
