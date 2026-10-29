@@ -240,9 +240,9 @@
         <button id="navGamesBtn" onclick="showTab('games')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap text-white bg-white/10 hidden">
           🎮 Jeux
         </button>
-        <a href="https://shop.nvg-tv.com/" target="_blank" rel="noopener" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap">
+        <button onclick="showTab('shop')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap">
           🛍️ Boutique
-        </a>
+        </button>
         <button id="navLogisticsBtn" onclick="showTab('logistics')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap hidden">
           🎒 Logistique <span class="italic">(Admin)</span>
         </button>
@@ -413,6 +413,20 @@
       </div>
     </section>
     <!-- ONGLET ADMINISTRATION -->
+    <section id="shop" class="tab-content hidden space-y-6">
+      <h2 class="text-xl font-black text-white uppercase">Boutique NVG</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <a href="https://shop.nvg-tv.com/" target="_blank" rel="noopener" class="block rounded-2xl overflow-hidden border border-[#1f293d] bg-[#121722] hover:border-red-600/60 transition">
+          <img src="./Logos/boutique-1.png" alt="" onerror="this.parentElement.style.display='none'" class="w-full aspect-video object-cover">
+        </a>
+        <a href="https://shop.nvg-tv.com/" target="_blank" rel="noopener" class="block rounded-2xl overflow-hidden border border-[#1f293d] bg-[#121722] hover:border-red-600/60 transition">
+          <img src="./Logos/boutique-2.png" alt="" onerror="this.parentElement.style.display='none'" class="w-full aspect-video object-cover">
+        </a>
+      </div>
+      <a href="https://shop.nvg-tv.com/" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider shadow-lg transition">
+        🛍️ Rejoindre la boutique NVG ↗
+      </a>
+    </section>
     <section id="admin" class="tab-content hidden space-y-8">
       <div class="border-b border-[#1f293d] pb-4">
         <h2 class="text-xl font-black text-white uppercase">Administration Générale NVG</h2>
