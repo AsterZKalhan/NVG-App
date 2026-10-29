@@ -5,13 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Normandy Viking Gaming - Event Companion</title>
   
-  
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="./Logos/favicon.png">
   <link rel="apple-touch-icon" href="./Logos/favicon.png">
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#0b0f17">
-  
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -31,7 +29,6 @@
       }
     }
   </script>
-
   <!-- 1. SDK Supabase & Configuration -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
@@ -40,7 +37,6 @@
   </style>
 </head>
 <body class="bg-[#07090e] text-gray-100 font-sans min-h-screen flex flex-col md:flex-row">
-
   <!-- MODALE D'AUTHENTIFICATION (Connexion / Inscription séparées + Captcha) -->
   <div id="authModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
     <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
@@ -49,13 +45,11 @@
         <h2 class="text-xl font-black text-white uppercase tracking-wider">Normandy Viking Gaming</h2>
         <p class="text-xs text-gray-400 mt-1">Event companion</p>
       </div>
-
       <!-- Boutons d'onglets pour basculer -->
       <div class="flex bg-[#07090e] border border-[#1f293d] rounded-xl p-1 mb-6">
         <button id="tabConnexionBtn" onclick="switchAuthTab('connexion')" class="flex-1 py-2 rounded-lg text-xs font-bold text-white bg-red-600 shadow transition">Connexion</button>
         <button id="tabInscriptionBtn" onclick="switchAuthTab('inscription')" class="flex-1 py-2 rounded-lg text-xs font-bold text-gray-400 hover:text-white transition">Inscription</button>
       </div>
-
       <!-- FORMULAIRE DE CONNEXION -->
       <form id="loginForm" onsubmit="event.preventDefault(); handleLoginSubmit();" class="space-y-4">
         <div>
@@ -70,7 +64,6 @@
           Se connecter ⚔️
         </button>
       </form>
-
       <!-- FORMULAIRE D'INSCRIPTION (Masqué par défaut) -->
       <form id="registerForm" onsubmit="event.preventDefault(); handleRegisterSubmit();" class="space-y-4 hidden">
         <div>
@@ -85,20 +78,17 @@
           <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Mot de passe</label>
           <input type="password" id="registerPassword" placeholder="••••••••" autocomplete="new-password" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
         </div>
-
         <!-- Captcha Simple anti-spam -->
         <div class="bg-[#07090e] border border-[#1f293d] rounded-xl p-3 space-y-2">
           <label class="block text-[11px] font-bold text-gray-300 uppercase">Anti-Spam : Combien font <span id="captchaQuestion" class="text-red-500 font-black">?</span> ?</label>
           <input type="number" id="captchaAnswer" placeholder="Votre réponse" autocomplete="off" class="w-full bg-[#121722] border border-[#1f293d] rounded-lg px-3 py-2 text-xs text-white focus:border-red-600 focus:outline-none">
         </div>
-
         <button type="submit" class="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider shadow-lg transition">
           S'inscrire 🚀
         </button>
       </form>
     </div>
   </div>
-
   <!-- MODALE DE GESTION DE PRÉSENCE & MATÉRIEL -->
   <div id="attendanceModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
     <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-6 w-full max-w-2xl shadow-2xl relative space-y-5">
@@ -106,9 +96,7 @@
         <h3 class="text-sm font-black text-white uppercase tracking-wider">🚀 Gérer ma présence & mon matériel</h3>
         <button onclick="closeAttendanceModal()" class="text-gray-400 hover:text-white font-bold text-xs">✕</button>
       </div>
-
       <input type="hidden" id="modalEventId">
-
       <div>
         <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Heure d'arrivée prévue</label>
         <select id="modalArrivalTime" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
@@ -147,7 +135,6 @@
           <option value="23:30">23:30</option>
         </select>
       </div>
-
       <div>
         <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Pour la soirée :</label>
         <select id="modalCarpoolStatus" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
@@ -155,38 +142,35 @@
           <option value="jeu">Je joue uniquement, je ne peux pas stream</option>
         </select>
       </div>
-
       <div id="modalGearSection">
         <label class="block text-xs font-bold text-gray-300 uppercase mb-2">Matériel apporté & Quantités</label>
         <div id="modalCatalogCheckboxes" class="space-y-2.5 bg-[#07090e] border border-[#1f293d] rounded-xl p-3">
           <!-- Rendu dynamique -->
         </div>
       </div>
-
       <div id="modalFooterActions" class="flex gap-3 pt-2">
         <button onclick="closeAttendanceModal()" class="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs uppercase transition">Annuler</button>
         <button onclick="saveAttendanceModal()" class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase shadow-lg transition">Enregistrer 💾</button>
       </div>
     </div>
   </div>
-
   <!-- SIDEBAR / MENU DE NAVIGATION -->
-  <aside class="relative w-full md:w-64 bg-[#121722] border-b md:border-b-0 md:border-r border-[#1f293d] p-5 flex flex-col justify-between shrink-0">
+  <aside class="relative w-full md:w-64 bg-[#121722] border-b md:border-b-0 md:border-r border-[#1f293d] p-5 pt-24 md:pt-5 flex flex-col justify-between shrink-0">
     <div>
-      <div class="flex flex-wrap items-center gap-3 mb-6 md:mb-8 pl-14 md:pl-0 pr-44 md:pr-0">
-        <img src="./Logos/logo-nvg.png" alt="Logo" class="w-10 h-10 md:w-16 md:h-16 object-contain bg-black/40 p-1 rounded-lg border border-[#1f293d]">
+      <div class="fixed top-0 left-0 right-0 z-40 md:static flex items-center gap-3 px-4 py-3 md:p-0 md:mb-8 bg-[#121722] md:bg-transparent border-b md:border-0 border-[#1f293d]">
+        <img src="./Logos/logo-nvg.png" alt="Logo" class="w-14 h-14 md:w-16 md:h-16 object-contain bg-black/40 p-1 rounded-lg border border-[#1f293d]">
         <div>
           <h1 class="text-sm font-black uppercase text-white"><span class="md:hidden">NVG-TV</span><span class="hidden md:inline">Normandy Viking Gaming</span></h1>
-          <span class="hidden md:inline text-xs text-red-500 font-bold">Event companion</span>
+          <span class="block md:inline text-xs text-red-500 font-bold">Event companion</span>
         </div>
-        <div class="md:hidden fixed top-4 left-4 z-50">
+      </div>
+      <div class="md:hidden mb-4">
           <button onclick="toggleMobileMenu()" aria-label="Menu" class="w-10 h-10 flex items-center justify-center rounded-lg bg-[#121722] border border-[#1f293d] hover:bg-white/10 text-white transition shadow-lg">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
         </div>
-      </div>
 
       <nav id="mainNav" class="hidden md:flex flex-col gap-2 pb-2 md:pb-0">
 		<button id="navLiveBtn" onclick="showTab('live')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap text-red-500">
@@ -209,9 +193,8 @@
         </button>
       </nav>
     </div>
-
     <!-- ZONE PROFIL & COMPTE UTILISATEUR CONNECTÉ (EN BAS) -->
-    <div id="userProfileBadge" class="hidden absolute top-5 right-5 w-44 md:static md:w-auto pt-0 md:pt-4 border-0 md:border-t border-[#1f293d] space-y-2">
+    <div id="userProfileBadge" class="hidden fixed top-3 right-4 z-50 max-w-[55vw] md:static md:max-w-none md:w-auto pt-0 md:pt-4 border-0 md:border-t border-[#1f293d] space-y-2">
       <!-- Bloc du profil avec l'avatar réel -->
       <div class="flex items-center gap-3 p-2 rounded-xl bg-white/5 overflow-hidden">
         <div id="sidebarUserAvatar" class="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-[#07090e] border border-[#1f293d] overflow-hidden flex items-center justify-center text-gray-500 font-bold shrink-0">
@@ -240,14 +223,11 @@
         </div>
       </div>
     </div>  </aside>
-
   <!-- CONTENU PRINCIPAL -->
   <main class="flex-1 p-6 md:p-10 overflow-y-auto space-y-6">
-
     <button onclick="goBack()" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-bold text-gray-300 hover:text-white transition">
       <span class="text-base leading-none">←</span> Retour
     </button>
-
     <!-- Bannière de Notification In-App Live -->
     <div id="notifModal" onclick="if (event.target === this) closeNotification()" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
       <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
@@ -266,14 +246,12 @@
       </div>
     </div>
     <div id="inAppNotificationBanner" class="hidden"></div>
-
     <!-- ONGLET LIVE -->
     <section id="live" class="tab-content hidden space-y-6">
       <div id="liveContainer" class="bg-[#121722] border border-[#1f293d] rounded-2xl p-6">
         <p class="text-xs text-gray-400">Chargement du lecteur Twitch...</p>
       </div>
     </section>
-
     <!-- ONGLET CALENDRIER -->
     <section id="calendar" class="tab-content space-y-6">
       <div class="flex items-center justify-between">
@@ -287,24 +265,20 @@
         <!-- Rendu dynamique -->
       </div>
     </section>
-
     <!-- ONGLET LOGISTIQUE (ADMIN) -->
     <section id="logistics" class="tab-content hidden space-y-6">
       <div class="border-b border-[#1f293d] pb-4">
         <h2 class="text-xl font-black text-white uppercase">Récapitulatif Logistique & Présences</h2>
         <p class="text-xs text-gray-400 mt-1">Vue administrateur : ce que chaque Viking apporte par événement.</p>
       </div>
-
       <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-6 space-y-4">
         <label class="block text-xs font-bold text-gray-300 uppercase">Sélectionner un événement</label>
         <select id="adminLogisticsEventSelector" onchange="renderAdminLogisticsDetails()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none"></select>
-        
         <div id="adminLogisticsContent" class="space-y-4 pt-4 border-t border-[#1f293d]">
           <!-- Rendu dynamique -->
         </div>
       </div>
     </section>
-
     <!-- ONGLET JEUX -->
     <section id="games" class="tab-content hidden space-y-6">
       <h2 class="text-xl font-black text-white uppercase">Propositions de Jeux & Votes</h2>
@@ -318,7 +292,6 @@
         <!-- Rendu dynamique -->
       </div>
     </section>
-
     <!-- ONGLET NOTIFICATIONS -->
     <section id="notifications" class="tab-content hidden space-y-6">
       <h2 class="text-xl font-black text-white uppercase">Historique des Notifications</h2>
@@ -326,11 +299,9 @@
         <!-- Rendu dynamique -->
       </div>
     </section>
-
     <!-- ONGLET MON COMPTE -->
     <section id="account" class="tab-content hidden space-y-6">
       <h2 class="text-xl font-black text-white uppercase">Mon Compte & Paramètres</h2>
-      
       <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-6 max-w-2xl space-y-6">
         <div class="flex items-center gap-4">
           <div id="accountAvatarPreview" class="w-16 h-16 rounded-xl bg-[#07090e] border border-[#1f293d] overflow-hidden flex items-center justify-center text-gray-500 font-bold shrink-0">
@@ -341,7 +312,6 @@
             <p id="accountProfileRank" class="text-xs text-amber-400 font-bold">Rang</p>
           </div>
         </div>
-
         <div class="space-y-4 border-t border-[#1f293d] pt-4">
           <div>
             <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Pseudo</label>
@@ -363,7 +333,6 @@
               <button type="button" onclick="document.getElementById('accAvatarFile').click()" class="px-4 py-2 bg-[#1f293d] hover:bg-gray-700 text-white rounded-xl text-xs font-bold transition shrink-0">📁 Uploader</button>
             </div>
           </div>
-		  
 		  <!-- Bloc Notifications Push -->
 		  <div class="space-y-2 border-t border-[#1f293d] pt-4">
 		    <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Notifications Push</label>
@@ -371,28 +340,24 @@
 		  	  🔔 Activer les notifications
 		    </button>
 		  </div>
-		  
           <button onclick="saveAccountChanges()" class="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider shadow-lg transition">
             Enregistrer les modifications 💾
           </button>
         </div>
       </div>
     </section>
-
     <!-- ONGLET ADMINISTRATION -->
     <section id="admin" class="tab-content hidden space-y-8">
       <div class="border-b border-[#1f293d] pb-4">
         <h2 class="text-xl font-black text-white uppercase">Administration Générale NVG</h2>
         <p class="text-xs text-gray-400 mt-1">Gérez les rôles, les événements et le catalogue matériel.</p>
       </div>
-
       <div id="adminSubNav" class="flex flex-wrap gap-2">
         <button data-admin-panel="membres" onclick="showAdminPanel('membres')" class="admin-subtab px-4 py-2 rounded-lg text-xs font-bold uppercase transition bg-amber-500 text-black">👥 Membres</button>
         <button data-admin-panel="evenements" onclick="showAdminPanel('evenements')" class="admin-subtab px-4 py-2 rounded-lg text-xs font-bold uppercase transition text-gray-300 bg-white/5 hover:bg-white/10">📅 Événements</button>
         <button data-admin-panel="notifications" onclick="showAdminPanel('notifications')" class="admin-subtab px-4 py-2 rounded-lg text-xs font-bold uppercase transition text-gray-300 bg-white/5 hover:bg-white/10">🔔 Notifications</button>
         <button data-admin-panel="catalogue" onclick="showAdminPanel('catalogue')" class="admin-subtab px-4 py-2 rounded-lg text-xs font-bold uppercase transition text-gray-300 bg-white/5 hover:bg-white/10">🎒 Catalogue</button>
       </div>
-
       <div id="adminPanel-membres" class="admin-panel space-y-4">
         <h3 class="text-sm font-bold text-white uppercase tracking-wider">👥 Gestion des Membres & Rôles</h3>
         <div class="bg-[#121722] border border-[#1f293d] rounded-xl overflow-hidden">
@@ -412,12 +377,10 @@
           </table>
         </div>
       </div>
-
       <div id="adminPanel-evenements" class="admin-panel hidden space-y-4">
         <h3 class="text-sm font-bold text-white uppercase tracking-wider">📅 Créer / Gérer les Événements</h3>
         <div class="bg-[#121722] border border-[#1f293d] rounded-xl p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
           <input type="text" id="adminNewEvTitle" placeholder="Titre de l'événement" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white md:col-span-2">
-          
           <div class="space-y-1">
             <label class="block text-[10px] text-gray-400 uppercase font-bold">Début (Date & Heure)</label>
             <div class="flex gap-2">
@@ -443,7 +406,6 @@
               </select>
             </div>
           </div>
-
           <div class="space-y-1">
             <label class="block text-[10px] text-gray-400 uppercase font-bold">Fin (Date & Heure)</label>
             <div class="flex gap-2">
@@ -469,7 +431,6 @@
               </select>
             </div>
           </div>
-
           <select id="adminNewEvCategory" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
             <option value="NVG Spring">NVG Spring</option>
             <option value="NVG Summer">NVG Summer</option>
@@ -502,13 +463,11 @@
           <!-- Rendu dynamique -->
         </div>
       </div>
-
       <div id="adminPanel-notifications" class="admin-panel hidden space-y-4">
         <h3 class="text-sm font-bold text-white uppercase tracking-wider">🔔 Envoyer une Notification</h3>
         <div class="bg-[#121722] border border-[#1f293d] rounded-xl p-4 space-y-3">
           <input type="text" id="adminNotifTitle" placeholder="Titre de la notification" autocomplete="off" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
           <textarea id="adminNotifMessage" placeholder="Message de la notification..." class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white" rows="2"></textarea>
-          
           <div>
             <label class="block text-xs font-bold text-gray-300 uppercase mb-2">Rôles ciblés</label>
             <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-[#07090e] border border-[#1f293d] rounded-xl p-3">
@@ -529,15 +488,12 @@
               </label>
             </div>
           </div>
-
           <button onclick="adminSendNotification()" class="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-lg hover:bg-amber-400 transition">Diffuser la notification 🚀</button>
         </div>
-
         <div id="adminNotificationsList" class="space-y-2 pt-2">
           <!-- Rendu dynamique -->
         </div>
       </div>
-
       <div id="adminPanel-catalogue" class="admin-panel hidden space-y-4">
         <h3 class="text-sm font-bold text-white uppercase tracking-wider">🎒 Catalogue de Matériel de Référence</h3>
         <div class="bg-[#121722] border border-[#1f293d] rounded-xl p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -551,9 +507,7 @@
         </div>
       </div>
     </section>
-
   </main>
-
   <!-- 2. SCRIPTS MÉTIER -->
   <script src="events.js"></script>
   <script src="catalog.js"></script>
@@ -561,6 +515,5 @@
   <script src="notifications.js"></script>
   <script src="users.js"></script>
   <script src="app.js"></script>
-
 </body>
 </html>
