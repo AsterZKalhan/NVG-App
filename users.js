@@ -125,6 +125,8 @@ function loadAccountTab() {
   if (pseudoInput) pseudoInput.value = currentUser.name || '';
   if (emailInput) emailInput.value = currentUser.email || '';
   if (avatarInput) avatarInput.value = currentUser.avatar_url || '';
+  const twitchInput = document.getElementById('accTwitchInput');
+  if (twitchInput) twitchInput.value = currentUser.twitch_channel || '';
   
   const currentAvatar = currentUser.avatar_url;
   if (preview) {
@@ -145,8 +147,15 @@ async function saveAccountChanges() {
   const newPseudo = document.getElementById('accPseudoInput').value.trim();
   const newAvatar = document.getElementById('accAvatarInput').value.trim();
   const newPassword = document.getElementById('accPasswordInput').value.trim();
+  const twitchRaw = document.getElementById('accTwitchInput').value.trim();
+  const twitchMatch = twitchRaw.match(/twitch\.tv\/([A-Za-z0-9_]{3,25})/i) || twitchRaw.match(/^([A-Za-z0-9_]{3,25})$/);
+  if (twitchRaw && !twitchMatch) {
+    alert("Nom de chaîne Twitch invalide (3 à 25 lettres, chiffres ou _).");
+    return;
+  }
+  const twitchChannel = twitchMatch ? twitchMatch[1].toLowerCase() : '';
 
-  let updates = {};
+  let updates = { twitch_channel: twitchChannel };
   if (newPseudo) updates.name = newPseudo;
   if (newAvatar) updates.avatar_url = newAvatar;
 

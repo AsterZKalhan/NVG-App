@@ -239,7 +239,8 @@ async function handleSuccessfulAuth(authUser) {
     rank: rank,
     verified: isVerifiedInDb,
     avatar_url: avatarUrl,
-    notif_baseline: userProfile ? userProfile.notif_baseline : null
+    notif_baseline: userProfile ? userProfile.notif_baseline : null,
+    twitch_channel: userProfile ? userProfile.twitch_channel : ''
   };
 
   if (!userProfile) {
