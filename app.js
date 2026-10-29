@@ -155,6 +155,8 @@ async function handleSuccessfulAuth(authUser) {
     }]);
   }
 
+  loadNotifications();
+
   const authModal = document.getElementById('authModal');
   if (authModal) authModal.classList.add('hidden');
 

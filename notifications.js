@@ -17,17 +17,34 @@ async function loadNotifications() {
     document.getElementById('adminNotificationsList')
   ].filter(Boolean); // Ignore les éléments absents
 
+  window.notifCache = notifications || [];
+
+  let readIds = getReadNotifIds();
+  if (readIds === null) {
+    readIds = window.notifCache.map(notif => notif.id);
+    saveReadNotifIds(readIds);
+  }
+  const unreadCount = window.notifCache.filter(notif => !readIds.includes(notif.id)).length;
+  updateNotifDot(unreadCount);
+
   if (containers.length === 0) return;
 
   const htmlContent = (!notifications || notifications.length === 0)
     ? `<div class="p-4 text-center text-xs text-gray-400 bg-[#07090e] border border-[#1f293d] rounded-xl">Aucune notification pour le moment.</div>`
-    : notifications.map(notif => `
-      <div class="p-4 bg-[#07090e] border border-[#1f293d] rounded-xl flex flex-col gap-2 hover:border-red-600/50 transition">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-bold text-white">${escapeHtmlSafe(notif.title)}</span>
-          <span class="text-[10px] text-gray-400">${formatDate(notif.time)}</span>
+    : notifications.map(notif => {
+      const isUnread = !readIds.includes(notif.id);
+      return `
+      <div class="p-4 bg-[#07090e] border ${isUnread ? 'border-red-600/50' : 'border-[#1f293d]'} rounded-xl flex flex-col gap-2 hover:border-red-600/50 transition">
+        <div onclick="openNotification('${notif.id}')" class="cursor-pointer flex flex-col gap-2">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-bold text-white flex items-center gap-2">
+              ${isUnread ? '<span class="w-2 h-2 rounded-full bg-red-500 inline-block shrink-0"></span>' : ''}
+              ${escapeHtmlSafe(notif.title)}
+            </span>
+            <span class="text-[10px] text-gray-400 shrink-0">${formatDate(notif.time)}</span>
+          </div>
+          <p class="text-xs text-gray-300 line-clamp-2">${escapeHtmlSafe(notif.body)}</p>
         </div>
-        <p class="text-xs text-gray-300">${escapeHtmlSafe(notif.body)}</p>
         <div class="flex items-center justify-between mt-1">
           <span class="text-[10px] px-2 py-0.5 rounded bg-red-600/10 text-red-400 border border-red-600/20">Cible : ${escapeHtmlSafe(notif.target || 'Tous')}</span>
           ${currentUser && (currentUser.rank === 'Grand Jarl' || currentUser.rank === 'Divinité' || currentUser.role === 'admin') ? `
@@ -35,7 +52,8 @@ async function loadNotifications() {
           ` : ''}
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
 
   // Mise à jour de tous les conteneurs trouvés
   containers.forEach(container => {
@@ -107,6 +125,51 @@ async function deleteNotification(notifId) {
   const { error } = await supabaseClient.from('nvg_notifications').delete().eq('id', notifId);
   if (error) alert("Erreur : " + error.message);
   else loadNotifications();
+}
+
+function getReadNotifKey() {
+  return 'nvg_notifs_lues_' + (currentUser ? currentUser.id : 'invite');
+}
+
+function getReadNotifIds() {
+  try {
+    return JSON.parse(localStorage.getItem(getReadNotifKey())) || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveReadNotifIds(ids) {
+  localStorage.setItem(getReadNotifKey(), JSON.stringify(ids));
+}
+
+function updateNotifDot(unreadCount) {
+  const dot = document.getElementById('notifDot');
+  if (dot) dot.classList.toggle('hidden', unreadCount === 0);
+}
+
+function openNotification(notifId) {
+  const notif = (window.notifCache || []).find(n => n.id === notifId);
+  if (!notif) return;
+
+  const readIds = getReadNotifIds() || [];
+  if (!readIds.includes(notifId)) {
+    readIds.push(notifId);
+    saveReadNotifIds(readIds);
+  }
+
+  document.getElementById('notifModalTitle').textContent = notif.title || '';
+  document.getElementById('notifModalDate').textContent = formatDate(notif.time);
+  document.getElementById('notifModalTarget').textContent = 'Cible : ' + (notif.target || 'Tous');
+  document.getElementById('notifModalBody').textContent = notif.body || '';
+  document.getElementById('notifModal').classList.remove('hidden');
+
+  loadNotifications();
+}
+
+function closeNotification() {
+  const modal = document.getElementById('notifModal');
+  if (modal) modal.classList.add('hidden');
 }
 
 function formatDate(isoString) {
