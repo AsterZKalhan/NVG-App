@@ -443,43 +443,15 @@ async function saveAttendanceModal() {
   await loadEvents();
 }
 
-function renderLogisticsSummary(attendance) {
-  const groups = {};
-  attendance.forEach(a => (a.gearItems || []).forEach(gear => {
-    const item = (db.equipmentCatalog || []).find(i => i.name === gear.name);
-    const category = item && item.category ? item.category : 'Périphérique PC';
-    const label = gear.length ? `${gear.name} · ${gear.length} m${gear.color ? ' · ' + gear.color : ''}` : gear.name;
-    const key = `${gear.name}|${gear.length || ''}|${gear.color || ''}`;
-    groups[category] = groups[category] || {};
-    const entry = groups[category][key] || { label, img: gear.img, total: 0, who: [] };
-    entry.total += Number(gear.quantity) || 0;
-    entry.who.push(`${a.userName} (${gear.quantity})`);
-    groups[category][key] = entry;
-  }));
-
-  const order = [CABLE_CATEGORY, ...CATALOG_CATEGORIES];
-  const sections = order.filter(cat => groups[cat]).map(cat => `
-    <div class="space-y-2">
-      <div class="text-[10px] text-gray-400 uppercase font-bold">${cat}</div>
-      ${Object.values(groups[cat]).map(e => `
-        <div class="flex items-center justify-between gap-3 p-2 bg-[#121722] border border-[#1f293d] rounded-lg">
-          <div class="min-w-0">
-            <div class="font-bold text-white text-xs truncate">${e.label}</div>
-            <div class="text-[10px] text-gray-400 truncate">${e.who.join(', ')}</div>
-          </div>
-          <span class="text-emerald-400 font-black text-sm shrink-0">× ${e.total}</span>
-        </div>
-      `).join('')}
-    </div>
-  `).join('');
-
-  if (!sections) return '';
-  return `
-    <div class="space-y-4 p-4 bg-[#07090e] border border-[#1f293d] rounded-xl">
-      <h3 class="text-xs font-bold text-white uppercase tracking-wider">Matériel par catégorie</h3>
-      ${sections}
-    </div>
-  `;
+function categoryIcon(name) {
+  const item = (db.equipmentCatalog || []).find(i => i.name === name);
+  const icons = {
+    'Câblage': '🔌',
+    'Interface audio': '🎧',
+    'Interface vidéo': '📹',
+    'Périphérique PC': '🖥️'
+  };
+  return icons[item && item.category ? item.category : 'Périphérique PC'] || '🖥️';
 }
 
 function renderAdminLogisticsDetails() {
@@ -506,7 +478,6 @@ function renderAdminLogisticsDetails() {
   };
 
   container.innerHTML = `
-    ${renderLogisticsSummary(ev.attendance)}
     <h3 class="text-xs font-bold text-white uppercase tracking-wider mb-3">Liste des inscrits, transports et matériel apporté :</h3>
     <div class="space-y-4">
       ${ev.attendance.map(a => `
@@ -534,6 +505,7 @@ function renderAdminLogisticsDetails() {
                       <div class="font-bold text-white text-xs truncate">${gear.name}${gear.length ? ` · ${gear.length} m${gear.color ? ' · ' + gear.color : ''}` : ''}</div>
                       <div class="text-[10px] text-emerald-400 font-bold">Quantité : ${gear.quantity}</div>
                     </div>
+                      <span class="text-lg shrink-0">${categoryIcon(gear.name)}</span>
                   </div>
                 `).join('')}
               </div>
