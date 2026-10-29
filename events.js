@@ -100,7 +100,7 @@ function renderPublicEvents() {
     const isParticipating = !!userAttendance;
 
     return `
-      <div class="bg-[#121722]/90 backdrop-blur-md border border-[#1f293d] rounded-xl p-5 flex flex-col justify-between shadow relative">
+      <div class="${ev.category === 'Nieuwheim' ? 'event-nieuwheim' : 'event-nvg'} backdrop-blur-md border-2 rounded-xl p-5 flex flex-col justify-between shadow relative">
         <div class="flex items-start justify-between gap-3">
           <div>
             <span class="text-[11px] font-black uppercase text-red-500">${dateDisplay}</span>
