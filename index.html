@@ -173,14 +173,14 @@
   <!-- SIDEBAR / MENU DE NAVIGATION -->
   <aside class="relative w-full md:w-64 bg-[#121722] border-b md:border-b-0 md:border-r border-[#1f293d] p-5 flex flex-col justify-between shrink-0">
     <div>
-      <div class="flex flex-wrap items-center gap-3 mb-6 md:mb-8 pr-44 md:pr-0">
-        <img src="./Logos/logo-nvg.png" alt="Logo" class="w-16 h-16 object-contain bg-black/40 p-1 rounded-lg border border-[#1f293d]">
+      <div class="flex flex-wrap items-center gap-3 mb-6 md:mb-8 pl-14 md:pl-0 pr-44 md:pr-0">
+        <img src="./Logos/logo-nvg.png" alt="Logo" class="w-10 h-10 md:w-16 md:h-16 object-contain bg-black/40 p-1 rounded-lg border border-[#1f293d]">
         <div>
-          <h1 class="text-sm font-black uppercase text-white">Normandy Viking Gaming</h1>
-          <span class="text-xs text-red-500 font-bold">Event companion</span>
+          <h1 class="text-sm font-black uppercase text-white"><span class="md:hidden">NVG-TV</span><span class="hidden md:inline">Normandy Viking Gaming</span></h1>
+          <span class="hidden md:inline text-xs text-red-500 font-bold">Event companion</span>
         </div>
-        <div class="md:hidden w-full">
-          <button onclick="toggleMobileMenu()" aria-label="Menu" class="w-10 h-10 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-white transition">
+        <div class="md:hidden fixed top-4 left-4 z-50">
+          <button onclick="toggleMobileMenu()" aria-label="Menu" class="w-10 h-10 flex items-center justify-center rounded-lg bg-[#121722] border border-[#1f293d] hover:bg-white/10 text-white transition shadow-lg">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
