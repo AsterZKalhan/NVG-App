@@ -389,25 +389,17 @@ async function refreshLiveStatus() {
   let isLive;
   let viewers = null;
   try {
-    const res = await fetch(`https://decapi.me/twitch/uptime/${TWITCH_CHANNEL}`);
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/twitch-live?login=${TWITCH_CHANNEL}`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+    });
     if (!res.ok) return;
-    const text = (await res.text()).trim();
-    isLive = !/offline|not found/i.test(text);
+    const data = await res.json();
+    isLive = !!data.live;
+    viewers = isLive ? data.viewers : null;
   } catch (err) {
     console.error("Erreur vérification statut Twitch", err);
     return;
   }
-
-  if (isLive) {
-    try {
-      const res = await fetch(`https://decapi.me/twitch/viewers/${TWITCH_CHANNEL}`);
-      const text = res.ok ? (await res.text()).trim() : '';
-      if (/^\d+$/.test(text)) viewers = Number(text);
-    } catch (err) {
-      console.error("Erreur nombre de viewers", err);
-    }
-  }
-
   if (navDot) {
     navDot.classList.toggle('bg-emerald-500', isLive);
     navDot.classList.toggle('bg-red-500', !isLive);
