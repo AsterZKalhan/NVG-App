@@ -1,5 +1,12 @@
 // --- GESTION DES PROPOSITIONS DE JEUX ---
 
+// Image de bannière : celle saisie, sinon le header Steam déduit du lien store
+function getGameImage(game) {
+  if (game.img && game.img.startsWith('http')) return game.img;
+  const match = (game.link || '').match(/store\.steampowered\.com\/app\/(\d+)/);
+  return match ? `https://cdn.akamai.steamstatic.com/steam/apps/${match[1]}/header.jpg` : '';
+}
+
 // Charger et afficher la liste des jeux proposés
 async function loadGames() {
   const { data: games, error } = await supabaseClient
@@ -25,9 +32,9 @@ async function loadGames() {
   container.innerHTML = games.map(game => `
     <div class="bg-[#121722] border border-[#1f293d] rounded-2xl overflow-hidden flex flex-col justify-between shadow-lg group">
       <div>
-        ${game.img && game.img.startsWith('http') ? `
+        ${getGameImage(game) ? `
           <div class="h-32 w-full overflow-hidden bg-black/40 border-b border-[#1f293d]">
-            <img src="${escapeHtml(game.img)}" referrerpolicy="no-referrer" alt="Bannière" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="this.style.display='none'">
+            <img src="${escapeHtml(getGameImage(game))}" referrerpolicy="no-referrer" alt="Bannière" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="if(this.src.includes('akamai')){this.src=this.src.replace('akamai','cloudflare')}else{this.style.display='none'}">
           </div>
         ` : ''}
         <div class="p-5 space-y-2">
