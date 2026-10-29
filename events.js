@@ -216,7 +216,12 @@ function openAttendanceModal(evId) {
   const catalogContainer = document.getElementById('modalCatalogCheckboxes');
   const catalog = [...(db.equipmentCatalog || [])].sort((a, b) => a.name.localeCompare(b.name));
 
-  if (catalog.length === 0) {
+  const isNieuwheim = ev.category === 'Nieuwheim';
+  document.getElementById('modalGearSection').classList.toggle('hidden', isNieuwheim);
+
+  if (isNieuwheim) {
+    catalogContainer.innerHTML = '';
+  } else if (catalog.length === 0) {
     catalogContainer.className = "space-y-2.5 bg-[#07090e] border border-[#1f293d] rounded-xl p-3";
     catalogContainer.innerHTML = `<p class="text-xs text-gray-500 italic">Aucun matériel de référence dans le catalogue.</p>`;
   } else {
