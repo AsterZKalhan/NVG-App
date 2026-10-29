@@ -127,6 +127,7 @@ function loadAccountTab() {
   if (avatarInput) avatarInput.value = currentUser.avatar_url || '';
   const twitchInput = document.getElementById('accTwitchInput');
   if (twitchInput) twitchInput.value = currentUser.twitch_channel || '';
+  showTwitchAvatar(currentUser.twitch_channel || '');
   
   const currentAvatar = currentUser.avatar_url;
   if (preview) {
@@ -155,6 +156,16 @@ async function saveAccountChanges() {
     return;
   }
   const twitchChannel = twitchMatch ? twitchMatch[1].toLowerCase() : '';
+  if (twitchChannel) {
+    const avatarUrl = await getTwitchAvatar(twitchChannel);
+    if (!avatarUrl.startsWith('http')) {
+      alert("Cette chaîne Twitch est introuvable. Vérifie le nom.");
+      return;
+    }
+    showTwitchAvatar(twitchChannel);
+  } else {
+    showTwitchAvatar('');
+  }
 
   let updates = { twitch_channel: twitchChannel };
   if (newPseudo) updates.name = newPseudo;
@@ -338,6 +349,23 @@ async function askForNotifications(silent = false) {
     }
   } else if (permission === "denied" && !silent) {
     alert("❌ Les notifications sont bloquées par le navigateur.");
+  }
+}
+
+async function showTwitchAvatar(login) {
+  const img = document.getElementById('accTwitchAvatar');
+  if (!img) return;
+  if (!login) {
+    img.classList.add('hidden');
+    img.removeAttribute('src');
+    return;
+  }
+  const url = await getTwitchAvatar(login);
+  if (url.startsWith('http')) {
+    img.src = url;
+    img.classList.remove('hidden');
+  } else {
+    img.classList.add('hidden');
   }
 }
 
