@@ -100,7 +100,7 @@ function renderPublicEvents() {
     const isParticipating = !!userAttendance;
 
     return `
-      <div class="bg-[#121722]/90 backdrop-blur-md border border-[#1f293d] rounded-xl p-5 flex flex-col justify-between shadow relative overflow-hidden">
+      <div class="bg-[#121722]/90 backdrop-blur-md border border-[#1f293d] rounded-xl p-5 flex flex-col justify-between shadow relative">
         <div class="flex items-start justify-between gap-3">
           <div>
             <span class="text-[11px] font-black uppercase text-red-500">${dateDisplay}</span>
@@ -145,9 +145,9 @@ function renderWatchBlock(ev) {
 
   if (ev.watch_mode === 'liste' && streams.length > 0) {
     return `
-      <details class="min-w-0">
-        <summary class="list-none cursor-pointer inline-block px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-500 text-white transition">📺 Rejoindre le stream ▾</summary>
-        <div class="mt-2 space-y-1 bg-[#07090e] border border-[#1f293d] rounded-xl p-1">
+      <details class="relative">
+        <summary class="list-none cursor-pointer inline-block px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-500 text-white transition">📺 Sélectionner le stream ▾</summary>
+        <div class="absolute left-0 top-full mt-1 z-20 w-64 space-y-1 bg-[#07090e] border border-[#1f293d] rounded-xl p-1 shadow-2xl">
           ${streams.map(login => `
             <a href="https://twitch.tv/${login}" target="_blank" rel="noopener" class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 text-xs text-white">
               <img data-twitch-avatar="${login}" alt="" class="w-6 h-6 rounded-full bg-[#121722] object-cover shrink-0">
