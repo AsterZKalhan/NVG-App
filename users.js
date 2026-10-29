@@ -208,8 +208,8 @@ async function loadUsers() {
   }
 
   tbody.innerHTML = users.map(user => `
-    <tr class="border-b border-[#1f293d] hover:bg-white/5 transition">
-      <td class="p-3 flex items-center gap-3">
+    <tr class="block md:table-row border-b border-[#1f293d] hover:bg-white/5 transition p-3 md:p-0 space-y-2 md:space-y-0">
+      <td class="p-0 md:p-3 flex items-center gap-3 md:table-cell">
         <div class="w-8 h-8 rounded-lg bg-[#07090e] border border-[#1f293d] flex items-center justify-center overflow-hidden shrink-0">
           ${user.avatar_url && user.avatar_url !== 'EMPTY' ? `<img src="${escapeHtmlSafe(user.avatar_url)}" class="w-full h-full object-cover">` : '👤'}
         </div>
@@ -218,22 +218,22 @@ async function loadUsers() {
           <div class="text-[10px] text-gray-400">${escapeHtmlSafe(user.email)}</div>
         </div>
       </td>
-      <td class="p-3 text-xs">
+      <td data-label="Vérification" class="block md:table-cell p-0 md:p-3 text-xs before:content-[attr(data-label)] before:block before:text-[10px] before:text-gray-500 before:uppercase before:font-bold before:mb-1 md:before:content-none">
         <button onclick="toggleUserVerification('${user.id}', ${user.verified})" class="px-2 py-1 rounded border ${user.verified ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' : 'border-amber-500/30 text-amber-400 bg-amber-500/10'} hover:bg-white/10 transition">
           ${user.verified ? '✓ Vérifié' : '⏳ En attente'}
         </button>
       </td>
-      <td class="p-3">
+      <td data-label="Rang" class="block md:table-cell p-0 md:p-3 before:content-[attr(data-label)] before:block before:text-[10px] before:text-gray-500 before:uppercase before:font-bold before:mb-1 md:before:content-none">
         <!-- LISTE DÉROULANTE UNIFIÉE (Grade + Rôle) -->
-        <select onchange="updateUserRankAndRole('${user.id}', this.value)" class="bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-1.5 text-xs text-white focus:border-red-600 focus:outline-none">
+        <select onchange="updateUserRankAndRole('${user.id}', this.value)" class="w-full md:w-auto bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-1.5 text-xs text-white focus:border-red-600 focus:outline-none">
           <option value="Petit Viking" ${user.rank === 'Petit Viking' ? 'selected' : ''}>Petit Viking (Membre)</option>
           <option value="Viking" ${user.rank === 'Viking' ? 'selected' : ''}>Viking (Staff)</option>
           <option value="Grand Jarl" ${user.rank === 'Grand Jarl' || user.rank === 'Jarl' ? 'selected' : ''}>Grand Jarl (Admin)</option>
           <option value="Divinité" ${user.rank === 'Divinité' ? 'selected' : ''}>Divinité (Admin)</option>
         </select>
       </td>
-      <td class="p-3">
-        <button onclick="deleteUser('${user.id}')" class="px-3 py-1.5 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-[10px] font-bold rounded-xl transition">
+      <td data-label="Actions" class="block md:table-cell p-0 md:p-3 before:content-[attr(data-label)] before:block before:text-[10px] before:text-gray-500 before:uppercase before:font-bold before:mb-1 md:before:content-none">
+        <button onclick="deleteUser('${user.id}')" class="w-full md:w-auto px-3 py-2 md:py-1.5 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-[10px] font-bold rounded-xl transition">
           Supprimer 🗑️
         </button>
       </td>

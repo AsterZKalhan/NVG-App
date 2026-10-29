@@ -395,8 +395,8 @@
       <div id="adminPanel-membres" class="admin-panel space-y-4">
         <h3 class="text-sm font-bold text-white uppercase tracking-wider">👥 Gestion des Membres & Rôles</h3>
         <div class="bg-[#121722] border border-[#1f293d] rounded-xl overflow-hidden">
-          <table class="w-full text-left border-collapse">
-            <thead>
+          <table class="w-full text-left border-collapse block md:table">
+            <thead class="hidden md:table-header-group">
               <tr class="border-b border-[#1f293d] text-[10px] text-gray-400 uppercase bg-[#07090e]">
                 <th class="p-3">Utilisateur</th>
                 <th class="p-3">Vérification</th>
@@ -405,7 +405,7 @@
                 <th class="p-3">Actions</th>
               </tr>
             </thead>
-            <tbody id="adminUsersTable">
+            <tbody id="adminUsersTable" class="block md:table-row-group">
               <!-- Rendu dynamique -->
             </tbody>
           </table>
