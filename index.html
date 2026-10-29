@@ -238,6 +238,10 @@
   <!-- CONTENU PRINCIPAL -->
   <main class="flex-1 p-6 md:p-10 overflow-y-auto space-y-6">
 
+    <button onclick="goBack()" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-bold text-gray-300 hover:text-white transition">
+      <span class="text-base leading-none">←</span> Retour
+    </button>
+
     <!-- Bannière de Notification In-App Live -->
     <div id="notifModal" onclick="if (event.target === this) closeNotification()" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
       <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">

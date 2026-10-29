@@ -35,8 +35,29 @@ document.addEventListener("DOMContentLoaded", async () => {
 	}
 
   // Afficher l'onglet par défaut au démarrage
+  history.replaceState({ tab: 'calendar' }, '');
   showTab('calendar');
 });
+
+let navDepth = 0;
+let suppressHistory = false;
+
+window.addEventListener('popstate', (e) => {
+  navDepth = Math.max(0, navDepth - 1);
+  if (e.state && e.state.tab) {
+    suppressHistory = true;
+    showTab(e.state.tab);
+    suppressHistory = false;
+  }
+});
+
+function goBack() {
+  if (navDepth > 0) {
+    history.back();
+  } else {
+    showTab('calendar');
+  }
+}
 
 // Fonction globale pour basculer d'un onglet à un autre
 function showTab(tabId) {
@@ -65,6 +86,11 @@ function showTab(tabId) {
 	if (tabId === 'live') {
     loadTwitchLive();
 	}
+  }
+
+  if (!suppressHistory && history.state?.tab !== tabId) {
+    history.pushState({ tab: tabId }, '');
+    navDepth++;
   }
 
   const tabs = document.querySelectorAll('.tab-content');
