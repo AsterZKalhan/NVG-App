@@ -155,16 +155,16 @@
     </div>
   </div>
   <!-- SIDEBAR / MENU DE NAVIGATION -->
-  <aside class="relative w-full md:w-64 bg-[#121722] border-b md:border-b-0 md:border-r border-[#1f293d] p-5 pt-24 md:pt-5 flex flex-col justify-between shrink-0">
+  <aside class="relative w-full md:w-64 bg-transparent md:bg-[#121722] border-0 md:border-r border-[#1f293d] p-0 md:p-5 flex flex-col justify-between shrink-0">
     <div>
       <div class="fixed top-0 left-0 right-0 z-40 md:static flex items-center gap-3 px-4 py-3 md:p-0 md:mb-8 bg-[#121722] md:bg-transparent border-b md:border-0 border-[#1f293d]">
         <img src="./Logos/logo-nvg.png" alt="Logo" class="w-14 h-14 md:w-16 md:h-16 object-contain bg-black/40 p-1 rounded-lg border border-[#1f293d]">
         <div>
           <h1 class="text-sm font-black uppercase text-white"><span class="md:hidden">NVG-TV</span><span class="hidden md:inline">Normandy Viking Gaming</span></h1>
-          <span class="block md:inline text-xs text-red-500 font-bold">Event companion</span>
+          <span class="block md:inline text-[10px] md:text-xs text-red-500 font-bold">Event companion</span>
         </div>
       </div>
-      <div class="md:hidden mb-4">
+      <div class="md:hidden fixed top-[84px] left-4 z-40">
           <button onclick="toggleMobileMenu()" aria-label="Menu" class="w-10 h-10 flex items-center justify-center rounded-lg bg-[#121722] border border-[#1f293d] hover:bg-white/10 text-white transition shadow-lg">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
@@ -172,7 +172,7 @@
           </button>
         </div>
 
-      <nav id="mainNav" class="hidden md:flex flex-col gap-2 pb-2 md:pb-0">
+      <nav id="mainNav" class="hidden md:flex flex-col gap-2 pb-2 md:pb-0 fixed top-[136px] left-4 right-4 z-40 bg-[#121722] border border-[#1f293d] rounded-xl p-2 shadow-2xl md:static md:bg-transparent md:border-0 md:p-0 md:shadow-none">
 		<button id="navLiveBtn" onclick="showTab('live')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap text-red-500">
 		<span id="liveIndicator" class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span> NVG en Live <span id="liveViewers" class="text-[10px] text-gray-300 font-bold"></span>
 		</button>
@@ -224,7 +224,7 @@
       </div>
     </div>  </aside>
   <!-- CONTENU PRINCIPAL -->
-  <main class="flex-1 p-6 md:p-10 overflow-y-auto space-y-6">
+  <main class="flex-1 p-6 pt-36 md:p-10 overflow-y-auto space-y-6">
     <button onclick="goBack()" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-bold text-gray-300 hover:text-white transition">
       <span class="text-base leading-none">←</span> Retour
     </button>
