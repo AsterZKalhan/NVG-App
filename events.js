@@ -112,7 +112,7 @@ function renderPublicEvents() {
         <div class="flex items-start justify-between gap-3">
           <div>
             <span class="text-sm font-black uppercase text-red-500">${dateDisplay}</span>
-            <h4 class="text-xl md:text-2xl font-black text-white mt-1">${ev.title}</h4>
+            <h4 class="text-xl md:text-2xl font-black text-white mt-1">${ev.title.replace(/^\[NVG (Spring|Summer|Autumn|Winter)\]/, '[NVG]')}</h4>
             <p class="text-xs text-gray-400 mt-1">📍 ${ev.location}</p>
           </div>
           <img src="${logoSrc}" alt="${ev.category}" onerror="this.onerror=null;this.src='./Logos/logo-nvg.png'" class="w-40 h-40 object-contain shrink-0 bg-black/40 p-1 rounded-lg border border-[#1f293d]">
@@ -247,7 +247,7 @@ function openAttendanceModal(evId) {
 const CATALOG_CATEGORIES = ['Interface audio', 'Interface vidéo', 'Périphérique PC'];
 const CABLE_CATEGORY = 'Câblage';
 const CABLE_LENGTHS = [1, 2, 3, 5, 10, 15, 20];
-const CABLE_COLORS = ['noir', 'blanc', 'rouge', 'bleu', 'jaune', 'vert'];
+const CABLE_COLORS = ['noir', 'blanc', 'rouge', 'bleu', 'jaune', 'vert', 'gris', 'rose', 'orange'];
 
 function renderGearCheckboxes(items, userAttendance) {
   return CATALOG_CATEGORIES.map(category => {
@@ -412,6 +412,45 @@ async function saveAttendanceModal() {
   await loadEvents();
 }
 
+function renderLogisticsSummary(attendance) {
+  const groups = {};
+  attendance.forEach(a => (a.gearItems || []).forEach(gear => {
+    const item = (db.equipmentCatalog || []).find(i => i.name === gear.name);
+    const category = item && item.category ? item.category : 'Périphérique PC';
+    const label = gear.length ? `${gear.name} · ${gear.length} m${gear.color ? ' · ' + gear.color : ''}` : gear.name;
+    const key = `${gear.name}|${gear.length || ''}|${gear.color || ''}`;
+    groups[category] = groups[category] || {};
+    const entry = groups[category][key] || { label, img: gear.img, total: 0, who: [] };
+    entry.total += Number(gear.quantity) || 0;
+    entry.who.push(`${a.userName} (${gear.quantity})`);
+    groups[category][key] = entry;
+  }));
+
+  const order = [CABLE_CATEGORY, ...CATALOG_CATEGORIES];
+  const sections = order.filter(cat => groups[cat]).map(cat => `
+    <div class="space-y-2">
+      <div class="text-[10px] text-gray-400 uppercase font-bold">${cat}</div>
+      ${Object.values(groups[cat]).map(e => `
+        <div class="flex items-center justify-between gap-3 p-2 bg-[#121722] border border-[#1f293d] rounded-lg">
+          <div class="min-w-0">
+            <div class="font-bold text-white text-xs truncate">${e.label}</div>
+            <div class="text-[10px] text-gray-400 truncate">${e.who.join(', ')}</div>
+          </div>
+          <span class="text-emerald-400 font-black text-sm shrink-0">× ${e.total}</span>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+
+  if (!sections) return '';
+  return `
+    <div class="space-y-4 p-4 bg-[#07090e] border border-[#1f293d] rounded-xl">
+      <h3 class="text-xs font-bold text-white uppercase tracking-wider">Matériel par catégorie</h3>
+      ${sections}
+    </div>
+  `;
+}
+
 function renderAdminLogisticsDetails() {
   const container = document.getElementById('adminLogisticsContent');
   const sel = document.getElementById('adminLogisticsEventSelector');
@@ -431,6 +470,7 @@ function renderAdminLogisticsDetails() {
   };
 
   container.innerHTML = `
+    ${renderLogisticsSummary(ev.attendance)}
     <h3 class="text-xs font-bold text-white uppercase tracking-wider mb-3">Liste des inscrits, transports et matériel apporté :</h3>
     <div class="space-y-4">
       ${ev.attendance.map(a => `
