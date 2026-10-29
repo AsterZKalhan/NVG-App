@@ -222,6 +222,7 @@ async function loadUsers() {
     return;
   }
 
+  window.adminUsersCache = users || [];
   const tbody = document.getElementById('adminUsersTable');
   if (!tbody) return;
 
@@ -256,12 +257,117 @@ async function loadUsers() {
         </select>
       </td>
       <td data-label="Actions" class="block md:table-cell p-0 md:p-3 before:content-[attr(data-label)] before:block before:text-[10px] before:text-gray-500 before:uppercase before:font-bold before:mb-1 md:before:content-none">
+        <button onclick="openAdminUserModal('${user.id}')" class="w-full md:w-auto px-3 py-2 md:py-1.5 mb-2 md:mb-0 md:mr-1 bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-black text-[10px] font-bold rounded-xl transition">Modifier ✏️</button>
         <button onclick="deleteUser('${user.id}')" class="w-full md:w-auto px-3 py-2 md:py-1.5 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-[10px] font-bold rounded-xl transition">
           Supprimer 🗑️
         </button>
       </td>
     </tr>
   `).join('');
+}
+
+let editingAdminUserId = null;
+
+function openAdminUserModal(id) {
+  const user = (window.adminUsersCache || []).find(u => u.id === id);
+  if (!user) return;
+  editingAdminUserId = id;
+  document.getElementById('admUserName').value = user.name || '';
+  document.getElementById('admUserEmail').value = user.email || '';
+  document.getElementById('admUserAvatar').value = user.avatar_url && user.avatar_url !== 'EMPTY' ? user.avatar_url : '';
+  document.getElementById('admUserTwitch').value = user.twitch_channel || '';
+  document.getElementById('adminUserModal').classList.remove('hidden');
+  showAdminTwitchAvatar();
+}
+
+function closeAdminUserModal() {
+  document.getElementById('adminUserModal').classList.add('hidden');
+  editingAdminUserId = null;
+}
+
+async function showAdminTwitchAvatar() {
+  const raw = document.getElementById('admUserTwitch').value.trim();
+  const match = raw.match(/twitch\.tv\/([A-Za-z0-9_]{3,25})/i) || raw.match(/^([A-Za-z0-9_]{3,25})$/);
+  const img = document.getElementById('admUserTwitchAvatar');
+  if (!match) {
+    img.classList.add('hidden');
+    img.removeAttribute('src');
+    return;
+  }
+  const url = await getTwitchAvatar(match[1].toLowerCase());
+  if (url.startsWith('http')) {
+    img.src = url;
+    img.classList.remove('hidden');
+  } else {
+    img.classList.add('hidden');
+    img.removeAttribute('src');
+  }
+}
+
+async function adminSaveUser() {
+  const id = editingAdminUserId;
+  if (!id) return;
+  const user = (window.adminUsersCache || []).find(u => u.id === id);
+
+  const name = document.getElementById('admUserName').value.trim();
+  if (!name) {
+    alert("Le pseudo est obligatoire.");
+    return;
+  }
+
+  const email = document.getElementById('admUserEmail').value.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    alert("Adresse e-mail invalide.");
+    return;
+  }
+
+  const avatar = document.getElementById('admUserAvatar').value.trim();
+
+  const raw = document.getElementById('admUserTwitch').value.trim();
+  const match = raw.match(/twitch\.tv\/([A-Za-z0-9_]{3,25})/i) || raw.match(/^([A-Za-z0-9_]{3,25})$/);
+  if (raw && !match) {
+    alert("Nom de chaîne Twitch invalide (3 à 25 lettres, chiffres ou _).");
+    return;
+  }
+  const twitch = match ? match[1].toLowerCase() : '';
+  if (twitch) {
+    const url = await getTwitchAvatar(twitch);
+    if (!url.startsWith('http')) {
+      alert("Cette chaîne Twitch est introuvable.");
+      return;
+    }
+  }
+
+  const { error } = await supabaseClient
+    .from('nvg_users')
+    .update({ name, avatar_url: avatar, twitch_channel: twitch })
+    .eq('id', id);
+  if (error) {
+    alert("Erreur lors de la mise à jour : " + error.message);
+    return;
+  }
+
+  if (email !== ((user && user.email) || '').toLowerCase()) {
+    const { error: emailError } = await supabaseClient.rpc('nvg_admin_set_email', { target: id, new_email: email });
+    if (emailError) {
+      alert("Erreur lors du changement d'e-mail : " + emailError.message);
+      return;
+    }
+  }
+
+  alert("✅ Membre mis à jour.");
+  closeAdminUserModal();
+  await loadUsers();
+}
+
+async function adminSendPasswordReset() {
+  const user = (window.adminUsersCache || []).find(u => u.id === editingAdminUserId);
+  const email = (user && user.email) || document.getElementById('admUserEmail').value.trim();
+  if (!email) return;
+  if (!confirm(`Envoyer un e-mail de réinitialisation du mot de passe à ${email} ?`)) return;
+
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
+  alert(error ? "Erreur : " + error.message : "✅ E-mail de réinitialisation envoyé.");
 }
 
 async function updateUserRankAndRole(userId, newRank) {
