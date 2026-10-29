@@ -54,6 +54,10 @@ window.addEventListener('popstate', (e) => {
   }
 });
 
+function toggleMobileMenu() {
+  document.getElementById('mainNav').classList.toggle('hidden');
+}
+
 function goBack() {
   if (navDepth > 0) {
     history.back();
@@ -89,6 +93,10 @@ function showTab(tabId) {
 	if (tabId === 'live') {
     loadTwitchLive();
 	}
+  }
+
+  if (window.innerWidth < 768) {
+    document.getElementById('mainNav').classList.add('hidden');
   }
 
   if (!suppressHistory && history.state?.tab !== tabId) {
