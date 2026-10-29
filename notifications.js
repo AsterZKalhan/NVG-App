@@ -50,9 +50,21 @@ async function loadNotifications() {
     `;
     }).join('');
 
+  const htmlCompact = (!notifications || notifications.length === 0)
+    ? `<div class="p-3 text-center text-xs text-gray-400">Aucune notification pour le moment.</div>`
+    : notifications.map(notif => `
+      <div class="flex items-center justify-between gap-3 px-3 py-2 bg-[#07090e] border border-[#1f293d] rounded-lg text-xs">
+        <span class="font-bold text-white truncate">${escapeHtmlSafe(notif.title)}</span>
+        <div class="flex items-center gap-3 shrink-0">
+          <span class="text-[10px] text-gray-400 hidden sm:inline">${formatDate(notif.time)} · ${escapeHtmlSafe(notif.target || 'Tous')}</span>
+          <button onclick="deleteNotification('${notif.id}')" class="text-[10px] text-gray-500 hover:text-red-400 transition">Supprimer</button>
+        </div>
+      </div>
+    `).join('');
+
   // Mise à jour de tous les conteneurs trouvés
   containers.forEach(container => {
-    container.innerHTML = htmlContent;
+    container.innerHTML = container.id === 'adminNotificationsList' ? htmlCompact : htmlContent;
   });
 }
 

@@ -277,6 +277,19 @@ async function deleteUser(userId) {
   else loadUsers(); 
 }
 
+function showAdminPanel(name) {
+  document.querySelectorAll('.admin-panel').forEach(panel => {
+    panel.classList.toggle('hidden', panel.id !== 'adminPanel-' + name);
+  });
+  document.querySelectorAll('.admin-subtab').forEach(btn => {
+    const active = btn.dataset.adminPanel === name;
+    btn.classList.toggle('bg-amber-500', active);
+    btn.classList.toggle('text-black', active);
+    btn.classList.toggle('bg-white/5', !active);
+    btn.classList.toggle('text-gray-300', !active);
+  });
+}
+
 // --- GESTION DE L'ABONNEMENT NOTIFICATIONS PUSH (PROFIL) ---
 async function askForNotifications(silent = false) {
   if (!("Notification" in window) || !('serviceWorker' in navigator)) {

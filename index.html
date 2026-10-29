@@ -376,7 +376,14 @@
         <p class="text-xs text-gray-400 mt-1">Gérez les rôles, les événements et le catalogue matériel.</p>
       </div>
 
-      <div class="space-y-4">
+      <div id="adminSubNav" class="flex flex-wrap gap-2">
+        <button data-admin-panel="membres" onclick="showAdminPanel('membres')" class="admin-subtab px-4 py-2 rounded-lg text-xs font-bold uppercase transition bg-amber-500 text-black">👥 Membres</button>
+        <button data-admin-panel="evenements" onclick="showAdminPanel('evenements')" class="admin-subtab px-4 py-2 rounded-lg text-xs font-bold uppercase transition text-gray-300 bg-white/5 hover:bg-white/10">📅 Événements</button>
+        <button data-admin-panel="notifications" onclick="showAdminPanel('notifications')" class="admin-subtab px-4 py-2 rounded-lg text-xs font-bold uppercase transition text-gray-300 bg-white/5 hover:bg-white/10">🔔 Notifications</button>
+        <button data-admin-panel="catalogue" onclick="showAdminPanel('catalogue')" class="admin-subtab px-4 py-2 rounded-lg text-xs font-bold uppercase transition text-gray-300 bg-white/5 hover:bg-white/10">🎒 Catalogue</button>
+      </div>
+
+      <div id="adminPanel-membres" class="admin-panel space-y-4">
         <h3 class="text-sm font-bold text-white uppercase tracking-wider">👥 Gestion des Membres & Rôles</h3>
         <div class="bg-[#121722] border border-[#1f293d] rounded-xl overflow-hidden">
           <table class="w-full text-left border-collapse">
@@ -396,7 +403,7 @@
         </div>
       </div>
 
-      <div class="space-y-4">
+      <div id="adminPanel-evenements" class="admin-panel hidden space-y-4">
         <h3 class="text-sm font-bold text-white uppercase tracking-wider">📅 Créer / Gérer les Événements</h3>
         <div class="bg-[#121722] border border-[#1f293d] rounded-xl p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
           <input type="text" id="adminNewEvTitle" placeholder="Titre de l'événement" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white md:col-span-2">
@@ -467,9 +474,9 @@
         </div>
       </div>
 
-      <div class="space-y-4">
+      <div id="adminPanel-notifications" class="admin-panel hidden space-y-4">
         <h3 class="text-sm font-bold text-white uppercase tracking-wider">🔔 Envoyer une Notification</h3>
-        <div class="bg-[#121722] border border-[#1f293d] rounded-xl p-6 space-y-4">
+        <div class="bg-[#121722] border border-[#1f293d] rounded-xl p-4 space-y-3">
           <input type="text" id="adminNotifTitle" placeholder="Titre de la notification" autocomplete="off" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
           <textarea id="adminNotifMessage" placeholder="Message de la notification..." class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white" rows="2"></textarea>
           
@@ -502,7 +509,7 @@
         </div>
       </div>
 
-      <div class="space-y-4">
+      <div id="adminPanel-catalogue" class="admin-panel hidden space-y-4">
         <h3 class="text-sm font-bold text-white uppercase tracking-wider">🎒 Catalogue de Matériel de Référence</h3>
         <div class="bg-[#121722] border border-[#1f293d] rounded-xl p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
           <input type="text" id="adminCatName" placeholder="Nom (ex: Focusrite)" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
