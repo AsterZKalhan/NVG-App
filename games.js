@@ -1,10 +1,34 @@
 // --- GESTION DES PROPOSITIONS DE JEUX ---
 
-// Image de bannière : celle saisie, sinon le header Steam déduit du lien store
-function getGameImage(game) {
-  if (game.img && game.img.startsWith('http')) return game.img;
-  const match = (game.link || '').match(/store\.steampowered\.com\/app\/(\d+)/);
-  return match ? `https://cdn.akamai.steamstatic.com/steam/apps/${match[1]}/header.jpg` : '';
+function steamAppIdOf(link) {
+  const match = (link || '').match(/store\.steampowered\.com\/app\/(\d+)/);
+  return match ? match[1] : null;
+}
+
+const steamHeaderCache = {};
+
+async function fetchSteamHeader(appId) {
+  if (!(appId in steamHeaderCache)) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/steam-header?appid=${appId}`, {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+      });
+      const data = await res.json();
+      steamHeaderCache[appId] = data.image || '';
+    } catch (err) {
+      steamHeaderCache[appId] = '';
+    }
+  }
+  return steamHeaderCache[appId];
+}
+
+async function hydrateSteamBanners(root) {
+  const imgs = root.querySelectorAll('img[data-steam-app]');
+  for (const img of imgs) {
+    const url = await fetchSteamHeader(img.dataset.steamApp);
+    if (url) img.src = url;
+    else img.parentElement.style.display = 'none';
+  }
 }
 
 // Charger et afficher la liste des jeux proposés
@@ -32,9 +56,9 @@ async function loadGames() {
   container.innerHTML = games.map(game => `
     <div class="bg-[#121722] border border-[#1f293d] rounded-2xl overflow-hidden flex flex-col justify-between shadow-lg group">
       <div>
-        ${getGameImage(game) ? `
+        ${(game.img && game.img.startsWith('http')) || steamAppIdOf(game.link) ? `
           <div class="h-32 w-full overflow-hidden bg-black/40 border-b border-[#1f293d]">
-            <img src="${escapeHtml(getGameImage(game))}" referrerpolicy="no-referrer" alt="Bannière" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="if(this.src.includes('akamai')){this.src=this.src.replace('akamai','cloudflare')}else{this.style.display='none'}">
+            <img ${game.img && game.img.startsWith('http') ? `src="${escapeHtml(game.img)}"` : `data-steam-app="${steamAppIdOf(game.link)}"`} referrerpolicy="no-referrer" alt="Bannière" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="this.style.display='none'">
           </div>
         ` : ''}
         <div class="p-5 space-y-2">
@@ -60,6 +84,8 @@ async function loadGames() {
       </div>
     </div>
   `).join('');
+
+  hydrateSteamBanners(container);
 }
 
 // Proposer un nouveau jeu
@@ -81,11 +107,17 @@ async function addGameProposal() {
 
   const uniqueId = 'game_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
 
+  let finalImg = imgUrl;
+  const steamAppId = steamAppIdOf(link);
+  if (!finalImg && steamAppId) {
+    finalImg = await fetchSteamHeader(steamAppId);
+  }
+
   const gameObj = {
     id: uniqueId,
     title: title,
     link: link,
-    img: imgUrl, // Enregistrement direct en base
+    img: finalImg, // Enregistrement direct en base
     author: currentUser ? currentUser.name : 'Viking Anonyme',
     votes: 0
   };
