@@ -145,7 +145,10 @@ function isPetitViking() {
 }
 
 function renderWatchBlock(ev) {
-  const streams = ev.streams || [];
+  const autoStreams = ev.category === 'Nieuwheim'
+    ? (ev.attendance || []).filter(a => a.soiree === 'stream' && a.twitch).map(a => a.twitch)
+    : [];
+  const streams = [...new Set([...(ev.streams || []), ...autoStreams])];
 
   if (ev.watch_mode === 'chaine') {
     return `<button onclick="showTab('live')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-500 text-white transition">📺 Rejoindre le stream</button>`;
@@ -379,6 +382,7 @@ function setPresenceFields(ev, userAttendance) {
 
 function adminCategoryChanged() {
   const isNieuwheim = document.getElementById('adminNewEvCategory').value === 'Nieuwheim';
+  document.getElementById('adminAutoStreamsHint').classList.toggle('hidden', !isNieuwheim);
   document.getElementById('adminNewEvEndDate').closest('.space-y-1').classList.toggle('hidden', isNieuwheim);
 }
 
@@ -444,6 +448,7 @@ async function saveAttendanceModal() {
     arrivalTime,
     carpool: ev.category === 'Nieuwheim' ? undefined : carpoolChoice,
     engagement: ev.category === 'Nieuwheim' ? document.getElementById('modalEngagement').checked : undefined,
+    twitch: currentUser.twitch_channel || '',
     soiree: ev.category === 'Nieuwheim' ? carpoolChoice : undefined,
     gearItems
   };
@@ -657,7 +662,7 @@ async function adminSaveEventForm() {
     return;
   }
 
-  if (watch_mode === 'liste' && streams.length === 0) {
+  if (watch_mode === 'liste' && streams.length === 0 && category !== 'Nieuwheim') {
     alert("Ajoute au moins une chaîne Twitch à la liste, ou choisis une autre option.");
     return;
   }

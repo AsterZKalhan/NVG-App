@@ -179,6 +179,8 @@ async function saveAccountChanges() {
     }
   }
 
+  currentUser.twitch_channel = twitchChannel;
+
   if (newPassword) {
     const { error: pwdError } = await supabaseClient.auth.updateUser({ password: newPassword });
     if (pwdError) {
