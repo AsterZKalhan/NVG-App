@@ -40,8 +40,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshLiveStatus(); });
   if (/iphone|ipad|ipod/i.test(navigator.userAgent) || (/android/i.test(navigator.userAgent) && /firefox/i.test(navigator.userAgent))) showInstallBanner(false);
 
-  history.replaceState({ tab: 'calendar' }, '');
-  showTab('calendar');
+  const startTab = location.hash === '#notifications' ? 'notifications' : 'calendar';
+  history.replaceState({ tab: startTab }, '');
+  showTab(startTab);
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      if (e.data && e.data.tab) showTab(e.data.tab);
+    });
+  }
 });
 
 let navDepth = 0;

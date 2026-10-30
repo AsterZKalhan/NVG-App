@@ -26,6 +26,13 @@ self.addEventListener('push', function (event) {
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
   event.waitUntil(
-    clients.openWindow('/')
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
+      if (list.length > 0) {
+        list[0].focus();
+        list[0].postMessage({ tab: 'notifications' });
+        return;
+      }
+      return clients.openWindow('/#notifications');
+    })
   );
 });
