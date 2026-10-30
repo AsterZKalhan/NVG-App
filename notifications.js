@@ -123,6 +123,7 @@ async function adminSendNotification() {
   document.getElementById('adminNotifTitle').value = '';
   document.getElementById('adminNotifMessage').value = '';
   document.getElementById('adminNotifImage').value = '';
+  updateNotifImagePreview();
   document.querySelectorAll('input[name="targetRole"]').forEach(cb => cb.checked = false);
   
   await loadNotifications();
@@ -137,6 +138,19 @@ async function deleteNotification(notifId) {
 
 // Upload d'une image de notification dans le stockage Supabase (bucket public « notifs », réservé aux admins).
 // L'URL publique obtenue est placée dans le champ image, comme si elle avait été saisie à la main.
+function updateNotifImagePreview() {
+  const url = document.getElementById('adminNotifImage').value.trim();
+  const preview = document.getElementById('adminNotifImagePreview');
+  if (!preview) return;
+  if (/^https?:\/\//i.test(url)) {
+    preview.src = url;
+    preview.classList.remove('hidden');
+  } else {
+    preview.removeAttribute('src');
+    preview.classList.add('hidden');
+  }
+}
+
 async function handleNotifImageUpload(input) {
   const file = input.files && input.files[0];
   if (!file) return;
@@ -152,6 +166,7 @@ async function handleNotifImageUpload(input) {
 
   const { data } = supabaseClient.storage.from('notifs').getPublicUrl(path);
   document.getElementById('adminNotifImage').value = data.publicUrl;
+  updateNotifImagePreview();
   input.value = '';
   alert("✅ Image uploadée. Elle sera jointe à la notification.");
 }

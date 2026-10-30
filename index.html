@@ -561,10 +561,11 @@
         <div class="bg-[#121722] border border-[#1f293d] rounded-xl p-4 space-y-3">
           <input type="text" id="adminNotifTitle" placeholder="Titre de la notification" autocomplete="off" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
           <div class="flex items-center gap-2">
-            <input type="text" id="adminNotifImage" placeholder="URL de l'image (facultatif)" autocomplete="off" class="flex-1 min-w-0 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            <input type="text" id="adminNotifImage" oninput="updateNotifImagePreview()" placeholder="URL de l'image (facultatif)" autocomplete="off" class="flex-1 min-w-0 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
             <input type="file" id="adminNotifImageFile" accept="image/*" class="hidden" onchange="handleNotifImageUpload(this)">
             <button type="button" onclick="document.getElementById('adminNotifImageFile').click()" class="px-4 py-2.5 bg-[#1f293d] hover:bg-gray-700 text-white rounded-xl text-xs font-bold transition shrink-0">📁 Uploader</button>
           </div>
+          <img id="adminNotifImagePreview" alt="Aperçu de l'image" class="hidden w-full max-h-48 object-contain rounded-xl bg-black/40 border border-[#1f293d]">
           <textarea id="adminNotifMessage" placeholder="Message de la notification..." class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white" rows="2"></textarea>
           <div>
             <label class="block text-xs font-bold text-gray-300 uppercase mb-2">Rôles ciblés</label>
