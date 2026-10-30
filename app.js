@@ -195,6 +195,10 @@ function showTab(tabId) {
     }
   });
 
+  if (tabId === 'notifications' && typeof loadNotifications === 'function') {
+    loadNotifications();
+  }
+
   // Charger dynamiquement les données si l'onglet est sélectionné
   if (tabId === 'account' && typeof loadAccountTab === 'function') {
     loadAccountTab();
