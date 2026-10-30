@@ -15,6 +15,7 @@ window.db = {
 window.currentUser = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
+  const initialHash = location.hash.replace('#', '');
   // Vérification de la session Supabase existante au démarrage
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (session && session.user) {
@@ -40,7 +41,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshLiveStatus(); });
   if (/iphone|ipad|ipod/i.test(navigator.userAgent) || (/android/i.test(navigator.userAgent) && /firefox/i.test(navigator.userAgent))) showInstallBanner(false);
 
-  const hashTab = location.hash.replace('#', '');
+  const hashTab = initialHash;
   const hashEl = document.getElementById(hashTab);
   const startTab = hashEl && hashEl.classList.contains('tab-content') ? hashTab : 'calendar';
   history.replaceState({ tab: startTab }, '', '#' + startTab);
