@@ -135,6 +135,27 @@ async function deleteNotification(notifId) {
   else loadNotifications();
 }
 
+// Upload d'une image de notification dans le stockage Supabase (bucket public « notifs », réservé aux admins).
+// L'URL publique obtenue est placée dans le champ image, comme si elle avait été saisie à la main.
+async function handleNotifImageUpload(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path = `notif_${Date.now()}_${safeName}`;
+  const { error } = await supabaseClient.storage.from('notifs').upload(path, file, { contentType: file.type, upsert: false });
+  if (error) {
+    alert("Erreur lors de l'upload de l'image : " + error.message);
+    input.value = '';
+    return;
+  }
+
+  const { data } = supabaseClient.storage.from('notifs').getPublicUrl(path);
+  document.getElementById('adminNotifImage').value = data.publicUrl;
+  input.value = '';
+  alert("✅ Image uploadée. Elle sera jointe à la notification.");
+}
+
 async function fetchReadNotifIds() {
   if (!currentUser) return [];
   const { data, error } = await supabaseClient
