@@ -49,6 +49,8 @@ Fonctions et triggers :
 
 Fonction Edge `steam-header` : récupère la bannière d'un jeu (Steam ou image de partage de la page). Sans authentification particulière.
 Fonction Edge `twitch-live` : statut et nombre de spectateurs de la chaîne NVG via l'API Twitch. Cache de 15 secondes. Utilise les secrets `TWITCH_CLIENT_ID` et `TWITCH_CLIENT_SECRET`.
+- **twitch-eventsub** (Edge, sans JWT) : reçoit le passage en direct de la chaîne NVG (EventSub `stream.online`), vérifie la signature (secret `TWITCH_EVENTSUB_SECRET`), crée une notification (cible `TWITCH_NOTIFY_TARGET`, actuellement « Divinité » pour les tests) et l'envoie par push. Code source : `.github/edge-functions/twitch-eventsub/index.ts` (non déployé par SFTP). Abonnement créé auprès de Twitch (broadcaster 103197141). Pour élargir l'envoi à tous : changer le secret `TWITCH_NOTIFY_TARGET` en « Tous ».
+
 Fonction Edge `send-push` : envoie les notifications push. Déjà présente avant ce projet.
 
 ## 4. Secrets et accès (les valeurs ne sont PAS ici)
