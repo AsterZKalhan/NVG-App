@@ -33,7 +33,7 @@ async function loadNotifications() {
         <div class="flex flex-col gap-2">
           ${notif.image ? `<img src="${escapeHtmlSafe(notif.image)}" alt="" class="w-full max-h-40 object-cover rounded-lg">` : ''}
           <div class="flex items-center justify-between gap-2">
-            <span class="text-[11px] text-gray-400">${formatDate(notif.time)}</span>
+            <span class="text-xs font-bold text-gray-300">${formatDate(notif.time)}</span>
             ${unread ? '<span class="text-[10px] font-bold text-red-400 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>Non lue</span>' : ''}
           </div>
           <div class="text-center text-base md:text-lg font-black text-white">${escapeHtmlSafe(notif.title)}</div>
