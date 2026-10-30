@@ -155,6 +155,7 @@ function renderPublicEvents() {
   hydrateTwitchAvatars(container);
 }
 
+// Les Petit Vikings (et visiteurs) ne voient ni le bouton de présence ni le nombre de participants : ils ne voient que « Où regarder ».
 function isPetitViking() {
   return !currentUser || currentUser.rank === 'Petit Viking';
 }
@@ -393,6 +394,7 @@ function updateSaveButton() {
   btn.classList.toggle('cursor-not-allowed', blocked);
 }
 
+// Affiche le bon formulaire selon la catégorie : engagement + date unique pour Nieuwheim, heure d'arrivée et covoiturage pour NVG.
 function setPresenceFields(ev, userAttendance) {
   const isNieuwheim = ev.category === 'Nieuwheim';
   document.getElementById('modalEngagementBlock').classList.toggle('hidden', !isNieuwheim);
@@ -441,6 +443,7 @@ async function cancelAttendance(evId) {
   await loadEvents();
 }
 
+// Enregistre la présence. Pour Nieuwheim, la case d'engagement est obligatoire et la chaîne Twitch du participant est mémorisée (liste de streams automatique).
 async function saveAttendanceModal() {
   const evId = document.getElementById('modalEventId').value;
   const arrivalTime = document.getElementById('modalArrivalTime').value;
@@ -664,6 +667,7 @@ function adminEditEvent(id) {
   }
 }
 
+// Création / modification d'un événement. Le titre reçoit le préfixe [NVG] (pour les 4 saisons) ou [Nieuwheim]. Nieuwheim : un seul jour avec heure de départ obligatoire.
 async function adminSaveEventForm() {
   const title = document.getElementById('adminNewEvTitle').value.trim();
   const startDate = document.getElementById('adminNewEvStartDate').value.trim();

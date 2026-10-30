@@ -65,6 +65,7 @@ function adminEditCatalogItem(id) {
 }
 
 // 4. SAUVEGARDE / CRÉATION / MODIFICATION D'UN ITEM DANS SUPABASE
+// Enregistre un article du catalogue. La catégorie (Câblage, Interface audio, Interface vidéo, Périphérique PC) détermine le choix proposé aux participants.
 async function adminSaveCatalogItem() {
   const name = document.getElementById('adminCatName').value.trim();
   const desc = document.getElementById('adminCatDesc').value.trim();

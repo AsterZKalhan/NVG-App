@@ -154,6 +154,7 @@ async function markNotificationRead(notifId) {
   if (error) console.error("Erreur marquage lu :", error);
 }
 
+// Une notification est non lue si elle n'est pas dans les lectures de l'utilisateur ET qu'elle est postée après notif_baseline (les anciennes sont considérées comme lues).
 function isNotifUnread(notif, readIds) {
   if (!currentUser || readIds.includes(notif.id)) return false;
   const baseline = currentUser.notif_baseline ? new Date(String(currentUser.notif_baseline).replace(/(\.\d{3})\d+/, '$1')) : null;

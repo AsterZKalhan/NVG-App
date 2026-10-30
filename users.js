@@ -308,6 +308,7 @@ async function showAdminTwitchAvatar() {
   }
 }
 
+// Modification d'un membre par l'admin. Le changement d'e-mail passe par la fonction SQL nvg_admin_set_email (l'auth Supabase ne se modifie pas directement depuis le navigateur).
 async function adminSaveUser() {
   const id = editingAdminUserId;
   if (!id) return;

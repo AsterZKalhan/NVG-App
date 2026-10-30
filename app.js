@@ -197,6 +197,7 @@ function showTab(tabId) {
 }
 
 // Gestion de l'authentification réussie
+// Connexion : charge le profil, applique le grade admin réservé à asterz et crée le profil s'il manque. Voir NOTES.md section 5.
 async function handleSuccessfulAuth(authUser) {
   const email = authUser.email ? authUser.email.toLowerCase() : '';
   
@@ -381,6 +382,7 @@ function loadTwitchLive() {
   refreshLiveStatus();
 }
 
+// Statut du direct et nombre de spectateurs via la fonction Edge twitch-live (API officielle Twitch). Appelée au chargement, toutes les 30 s quand l'onglet est visible, et au retour sur l'onglet.
 async function refreshLiveStatus() {
   const viewerBadge = document.getElementById('twitchViewerCount');
   const navBtn = document.getElementById('navLiveBtn');
