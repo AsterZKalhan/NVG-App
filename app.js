@@ -40,8 +40,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshLiveStatus(); });
   if (/iphone|ipad|ipod/i.test(navigator.userAgent) || (/android/i.test(navigator.userAgent) && /firefox/i.test(navigator.userAgent))) showInstallBanner(false);
 
-  const startTab = location.hash === '#notifications' ? 'notifications' : 'calendar';
-  history.replaceState({ tab: startTab }, '');
+  const hashTab = location.hash.replace('#', '');
+  const hashEl = document.getElementById(hashTab);
+  const startTab = hashEl && hashEl.classList.contains('tab-content') ? hashTab : 'calendar';
+  history.replaceState({ tab: startTab }, '', '#' + startTab);
   showTab(startTab);
 
   if ('serviceWorker' in navigator) {
@@ -169,7 +171,7 @@ function showTab(tabId) {
   }
 
   if (!suppressHistory && history.state?.tab !== tabId) {
-    history.pushState({ tab: tabId }, '');
+    history.pushState({ tab: tabId }, '', '#' + tabId);
     navDepth++;
   }
 
