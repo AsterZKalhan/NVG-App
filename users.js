@@ -496,9 +496,9 @@ function updateNotifButton() {
 
   const permission = Notification.permission;
   if (permission === 'granted') {
-    btn.disabled = false;
-    btn.className = `${base} bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border-emerald-500/30`;
-    btn.innerHTML = '✅ Notifications autorisées (cliquer pour réactiver cet appareil)';
+    btn.disabled = true;
+    btn.className = `${base} bg-emerald-500/15 text-emerald-400 border-emerald-500/30`;
+    btn.innerHTML = '✅ Notifications autorisées';
   } else if (permission === 'denied') {
     btn.disabled = true;
     btn.className = `${base} bg-red-600/15 text-red-400 border-red-600/30`;
