@@ -33,6 +33,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
   <style>
+    .events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 380px)); justify-content: start; align-items: start; gap: 1rem; }
     .event-card { background: #000; border-color: #9b1c20; container-type: inline-size; padding: 5%; }
     .event-card .ec-date { font-size: min(3.4cqi, 0.9rem); font-weight: 900; text-transform: uppercase; color: #ef4444; line-height: 1.2; }
     .event-card .ec-title { font-size: min(5.4cqi, 1.6rem); font-weight: 900; color: #fff; line-height: 1.1; margin-top: 1.5cqi; }
@@ -319,7 +320,7 @@
           <button id="filterBtnPast" onclick="switchEventFilter('past')" class="px-4 py-2 rounded-xl text-xs font-bold bg-[#121722] text-gray-400 border border-[#1f293d] hover:text-white transition">Passés</button>
         </div>
       </div>
-      <div id="publicEventsList" class="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4 items-start">
+      <div id="publicEventsList" class="events-grid">
         <!-- Rendu dynamique -->
       </div>
     </section>
