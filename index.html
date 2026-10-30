@@ -297,6 +297,7 @@
           <span id="notifModalDate"></span>
           <span id="notifModalTarget" class="px-2 py-0.5 rounded bg-red-600/10 text-red-400 border border-red-600/20"></span>
         </div>
+        <img id="notifModalImage" alt="" class="hidden w-full max-h-64 object-contain rounded-xl bg-black/40">
         <p id="notifModalBody" class="text-xs text-gray-300 whitespace-pre-line break-words"></p>
         <div class="flex justify-end">
           <button onclick="closeNotification()" class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg transition">Fermer</button>
@@ -559,6 +560,7 @@
         <h3 class="text-sm font-bold text-white uppercase tracking-wider">🔔 Envoyer une Notification</h3>
         <div class="bg-[#121722] border border-[#1f293d] rounded-xl p-4 space-y-3">
           <input type="text" id="adminNotifTitle" placeholder="Titre de la notification" autocomplete="off" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <input type="text" id="adminNotifImage" placeholder="URL de l'image (facultatif)" autocomplete="off" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
           <textarea id="adminNotifMessage" placeholder="Message de la notification..." class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white" rows="2"></textarea>
           <div>
             <label class="block text-xs font-bold text-gray-300 uppercase mb-2">Rôles ciblés</label>

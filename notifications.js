@@ -31,6 +31,7 @@ async function loadNotifications() {
       return `
       <div onclick="openNotification('${notif.id}')" class="cursor-pointer p-4 bg-[#07090e] border ${unread ? 'border-red-600/50' : 'border-[#1f293d]'} rounded-xl flex flex-col gap-2 hover:border-red-600/50 transition">
         <div class="flex flex-col gap-2">
+          ${notif.image ? `<img src="${escapeHtmlSafe(notif.image)}" alt="" class="w-full max-h-40 object-cover rounded-lg">` : ''}
           <div class="flex items-center justify-between gap-2">
             <span class="text-xs font-bold text-white">${escapeHtmlSafe(notif.title)}</span>
             <div class="flex items-center gap-2 shrink-0">
@@ -69,6 +70,7 @@ async function loadNotifications() {
 async function adminSendNotification() {
   const title = document.getElementById('adminNotifTitle').value.trim();
   const body = document.getElementById('adminNotifMessage').value.trim();
+  const image = document.getElementById('adminNotifImage').value.trim();
 
   const checkedRoles = document.querySelectorAll('input[name="targetRole"]:checked');
   const targetsArray = Array.from(checkedRoles).map(cb => cb.value);
@@ -87,6 +89,7 @@ async function adminSendNotification() {
     id: 'notif_' + Date.now(),
     title,
     body,
+    image,
     target,
     time: new Date().toISOString()
   };
@@ -119,6 +122,7 @@ async function adminSendNotification() {
   
   document.getElementById('adminNotifTitle').value = '';
   document.getElementById('adminNotifMessage').value = '';
+  document.getElementById('adminNotifImage').value = '';
   document.querySelectorAll('input[name="targetRole"]').forEach(cb => cb.checked = false);
   
   await loadNotifications();
@@ -176,6 +180,14 @@ async function openNotification(notifId) {
   document.getElementById('notifModalDate').textContent = formatDate(notif.time);
   document.getElementById('notifModalTarget').textContent = 'Cible : ' + (notif.target || 'Tous');
   document.getElementById('notifModalBody').textContent = notif.body || '';
+  const modalImg = document.getElementById('notifModalImage');
+  if (notif.image) {
+    modalImg.src = notif.image;
+    modalImg.classList.remove('hidden');
+  } else {
+    modalImg.removeAttribute('src');
+    modalImg.classList.add('hidden');
+  }
   document.getElementById('notifModal').classList.remove('hidden');
 
   loadNotifications();
