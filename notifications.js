@@ -29,8 +29,8 @@ async function loadNotifications() {
     : notifications.map(notif => {
       const unread = isNotifUnread(notif, readIds);
       return `
-      <div class="p-4 bg-[#07090e] border ${unread ? 'border-red-600/50' : 'border-[#1f293d]'} rounded-xl flex flex-col gap-2 hover:border-red-600/50 transition">
-        <div onclick="openNotification('${notif.id}')" class="cursor-pointer flex flex-col gap-2">
+      <div onclick="openNotification('${notif.id}')" class="cursor-pointer p-4 bg-[#07090e] border ${unread ? 'border-red-600/50' : 'border-[#1f293d]'} rounded-xl flex flex-col gap-2 hover:border-red-600/50 transition">
+        <div class="flex flex-col gap-2">
           <div class="flex items-center justify-between gap-2">
             <span class="text-xs font-bold text-white">${escapeHtmlSafe(notif.title)}</span>
             <div class="flex items-center gap-2 shrink-0">
