@@ -115,3 +115,59 @@ Pour déployer une fonction Edge : `curl` vers `/v1/projects/{ref}/functions/dep
 - **Compte de test** : `petitviking.test@nvg-test.fr` a été supprimé.
 - **Abonnements push** : les anciens abonnements d'appareils restent en base jusqu'à réabonnement. Les erreurs d'envoi éventuelles viennent de là.
 - **Photos boutique** : les versions transparentes (`*-transparent.png`) sont prêtes mais non utilisées.
+
+## 8. Guide de modification (à lire avant de changer quelque chose)
+
+### 8.1 Méthode de travail recommandée
+- **Une modification = un commit**, avec un message clair. Ça permet d'annuler proprement (`git revert <commit>`) si un changement casse quelque chose.
+- **Tester avant de pousser** : sur ordinateur (Chrome ou Firefox), puis sur téléphone après déploiement. Le déploiement se fait seul à chaque push sur `main`, donc un push cassé part directement en production.
+- **Vérifier le déploiement** : `gh run list --repo AsterZKalhan/NVG-App --limit 1` (doit afficher `success`).
+- **Après un déploiement**, toujours recharger avec Ctrl+F5, et sur téléphone fermer complètement la PWA ou vider les données du site (Chrome : `chrome://settings/siteData`).
+- **Ne jamais pousser un fichier partiellement modifié** : vérifier `git status` et `git diff --ignore-cr-at-eol` avant chaque commit.
+
+### 8.2 Pièges déjà rencontrés (à ne pas refaire)
+- **Accents et PowerShell** : les accents passés dans une commande PowerShell peuvent être mal encodés. Pour écrire du texte avec accents, préférer l'outil d'édition (`edit`) ou écrire un fichier temporaire avec l'outil `write`, puis le lire dans PowerShell avec `[IO.File]::ReadAllText`. Pour les requêtes vers l'API Supabase, envoyer le corps en UTF-8 (`[Text.Encoding]::UTF8.GetBytes(...)`).
+- **Accent grave (backtick)** dans une chaîne PowerShell entre guillemets doubles : il sert d'échappement. Utiliser `[char]96` ou des guillemets simples.
+- **Fins de ligne** : les fichiers sont en CRLF sur le PC. Un remplacement sur plusieurs lignes doit en tenir compte (normaliser avant de comparer).
+- **Remplacement multiple** : un texte identique peut exister à plusieurs endroits. Toujours vérifier le nombre d'occurrences avant de remplacer.
+- **Sections cachées par défaut** : toutes les sections `tab-content` ont la classe `hidden` dans le HTML. Ne jamais enlever cette classe, sinon un module apparaît brièvement au chargement.
+- **Surbrillance fixe du menu** : ne pas mettre de couleur de fond (`bg-white/10`, `text-white`) en dur sur un bouton du menu. La surbrillance est gérée par `showTab` ; une couleur fixe reste visible au chargement.
+- **Position des éléments** : le bloc du compte (`userProfileBadge`) est en `fixed` sur mobile et `absolute` sur PC. Quand on change ses classes, vérifier le `top` (`md:top-auto`) et le `right`.
+- **Cache du service worker** : `sw.js` ne met rien en cache (pas de `fetch`), mais le navigateur peut garder un ancien JavaScript. D'où le Ctrl+F5.
+- **Lecture de l'adresse au démarrage** : `handleSuccessfulAuth` ouvre le calendrier à la fin. Le module demandé (`#nom`) est donc lu tout au début de `DOMContentLoaded` (variable `initialHash`).
+
+### 8.3 Ajouter un nouveau module (page)
+1. **HTML** (`index.html`) : ajouter une section dans `<main>` :
+   `<section id="monmodule" class="tab-content hidden space-y-6"> ... </section>`
+   La classe `hidden` est obligatoire.
+2. **Menu** : ajouter un bouton dans `<nav id="mainNav">`, avec la classe `nav-btn` et `onclick="showTab('monmodule')"`. Pour un module réservé au staff ou aux admins, copier le modèle de `navGamesBtn` (classe `hidden` au départ, affiché par `app.js` selon `hasStaffRights` / `hasAdminRights`).
+3. **Droits** : les règles d'accès par module sont dans `showTab` (`app.js`) : `games` (staff), `admin` et `logistics` (admin). Ajouter une condition ici si besoin.
+4. **Données** : si le module affiche des données, créer une fonction de chargement, et l'appeler depuis `showTab` (comme `loadUsers` pour `admin`) ou depuis le module.
+5. **Adresse** : `showTab` met à jour l'adresse (`#monmodule`) et rouvre le module après actualisation automatiquement.
+
+### 8.4 Changer le design
+- **Couleurs** : le site utilise Tailwind (CDN). Fond `#07090e`, cartes `#121722`, bordures `#1f293d`, accent rouge `red-600`, or `amber-500`. Garder ces couleurs pour rester cohérent.
+- **Cartes d'événements** : style dans la balise `<style>` de `index.html` (classe `.event-card` et `.ec-*`). Les tailles sont proportionnelles à la carte (unités `cqi`) et plafonnées (`min(...)`). Le ratio est 8:5 (`aspect-ratio`). La grille (`.events-grid`) passe de 1 à plusieurs colonnes entre 320 et 460 px.
+- **Notifications** : carte dans `notifications.js` (fonction `loadNotifications`, variable `htmlContent`). La liste admin compacte est `htmlCompact`.
+- **Menu PC / mobile** : sur mobile (moins de 768 px), barre fixe en haut (`fixed top-0`), bouton ☰ fixe sous la barre, menu en panneau fixe. Sur PC (768 px et plus), colonne latérale `md:sticky md:h-screen`, et le bloc du compte en `md:absolute md:bottom-5`.
+- **Toujours tester les deux tailles** : ordinateur et téléphone.
+
+### 8.5 Modifier la base de données (Supabase)
+- **Accès** : SQL Editor du tableau de bord, ou la Management API avec `SUPABASE_ACCESS_TOKEN` (voir section 6).
+- **Nouvelle colonne** : `alter table public.<table> add column if not exists <nom> <type> ...` avec une valeur par défaut, pour ne pas casser les lignes existantes.
+- **Nouvelle table** : activer la RLS (`alter table ... enable row level security`) **et** écrire les règles (`create policy`) dans la même opération. Une table sans RLS est accessible à tout le monde avec la clé publique.
+- **Règles** : `public.nvg_is_admin()` sert à vérifier les admins. `auth.uid()::text` donne l'identifiant de l'utilisateur connecté (les identifiants de `nvg_users` sont des textes).
+- **Tester une règle** avant de la garder : transaction de test avec `set local role authenticated` et `request.jwt.claims`, puis `raise exception` pour annuler. Vérifier aussi l'accès anonyme avec la clé publique (REST).
+- **Revenir en arrière** : `alter table public.<table> disable row level security;` ou `drop policy`.
+
+### 8.6 Fonctions Edge (serveur Supabase)
+- Trois fonctions : `send-push` (notifications push, utilise la clé de service), `steam-header` (bannières de jeux), `twitch-live` (statut Twitch, cache 15 s).
+- **Déployer ou mettre à jour** une fonction : fichier `index.ts` + `metadata.json` (`{"entrypoint_path":"index.ts","name":"<nom>","verify_jwt":true|false}`), puis `curl.exe` vers `https://api.supabase.com/v1/projects/<ref>/functions/deploy?slug=<nom>` en multipart (`metadata` et `file`). Voir l'historique pour la commande exacte.
+- **Secrets** : `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` (dans Supabase, jamais dans le code).
+
+### 8.7 Git : rappels
+- Voir l'historique : `git log --oneline -20`.
+- Annuler un commit déjà poussé : `git revert <hash>` puis `git push origin main` (ne pas réécrire l'historique de `main`).
+- Récupérer les modifications faites sur GitHub avant de travailler : `git pull origin main`.
+- Les modifications faites directement sur GitHub (par exemple l'ajout de photos) déclenchent aussi le déploiement.
+- Ne jamais committer de secret : vérifier avec une recherche avant de pousser si besoin.
