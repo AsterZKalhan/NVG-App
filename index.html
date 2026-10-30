@@ -34,17 +34,17 @@
   <script src="supabase-config.js"></script>
   <style>
     .event-card { background: #000; border-color: #9b1c20; container-type: inline-size; padding: 5%; }
-    .event-card .ec-date { font-size: 4.2cqi; font-weight: 900; text-transform: uppercase; color: #ef4444; line-height: 1.2; }
-    .event-card .ec-title { font-size: 7.4cqi; font-weight: 900; color: #fff; line-height: 1.1; margin-top: 1.5cqi; }
-    .event-card .ec-meta { font-size: 3.6cqi; color: #9ca3af; margin-top: 1.5cqi; }
-    .event-card .ec-desc { font-size: 4.2cqi; color: #d1d5db; margin-top: 3cqi; }
-    .event-card .ec-logo { width: 34cqi; height: 34cqi; object-fit: contain; flex-shrink: 0; margin-left: 3cqi; padding: 0.8cqi; border-radius: 2cqi; background: rgba(0,0,0,0.4); border: 1px solid #1f293d; }
+    .event-card .ec-date { font-size: min(3.4cqi, 0.9rem); font-weight: 900; text-transform: uppercase; color: #ef4444; line-height: 1.2; }
+    .event-card .ec-title { font-size: min(5.4cqi, 1.6rem); font-weight: 900; color: #fff; line-height: 1.1; margin-top: 1.5cqi; }
+    .event-card .ec-meta { font-size: min(3.2cqi, 0.85rem); color: #9ca3af; margin-top: 1.5cqi; }
+    .event-card .ec-desc { font-size: min(3.6cqi, 1rem); color: #d1d5db; margin-top: 3cqi; }
+    .event-card .ec-logo { width: min(26cqi, 9rem); height: min(26cqi, 9rem); object-fit: contain; flex-shrink: 0; margin-left: 3cqi; padding: 0.8cqi; border-radius: 1.5rem; background: rgba(0,0,0,0.4); border: 1px solid #1f293d; }
     .event-card .ec-footer { margin-top: 4cqi; padding-top: 3cqi; border-top: 1px solid #1f293d; display: flex; flex-direction: column; gap: 3cqi; }
-    .event-card .ec-btn { font-size: 3.8cqi; padding: 2.4cqi; border-radius: 2cqi; }
+    .event-card .ec-btn { font-size: min(3.4cqi, 0.9rem); padding: min(2.2cqi, 0.6rem); border-radius: 0.75rem; }
     .event-card .ec-row { display: flex; align-items: center; justify-content: space-between; gap: 2cqi; }
-    .event-card .ec-watch { font-size: 3.6cqi; color: #9ca3af; gap: 2cqi; }
-    .event-card .ec-chip { font-size: 3.8cqi; padding: 2cqi 3cqi; border-radius: 2cqi; }
-    .event-card .ec-count { font-size: 3.4cqi; color: #9ca3af; }
+    .event-card .ec-watch { font-size: min(3.2cqi, 0.85rem); color: #9ca3af; gap: 2cqi; }
+    .event-card .ec-chip { font-size: min(3.4cqi, 0.9rem); padding: min(2cqi, 0.5rem) min(2.8cqi, 0.75rem); border-radius: 0.75rem; }
+    .event-card .ec-count { font-size: min(3.2cqi, 0.85rem); color: #9ca3af; }
     .app-bg { background-color: #000; background-image: url('./Logos/fond-app.svg'); background-repeat: repeat; }
   </style>
 </head>
