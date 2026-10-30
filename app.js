@@ -317,7 +317,6 @@ async function handleSuccessfulAuth(authUser) {
   }
 
   await renderAll();
-  showTab('calendar');
 }
 
 async function renderAll() {
