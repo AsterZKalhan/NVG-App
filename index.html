@@ -34,7 +34,8 @@
   <script src="supabase-config.js"></script>
   <style>
     .events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 460px)); justify-content: start; align-items: start; gap: 1rem; }
-    .event-card { background: #000; border-color: #9b1c20; container-type: inline-size; padding: 4%; aspect-ratio: 8 / 5; overflow: hidden; }
+    .event-card { background: #000; border-color: #9b1c20; container-type: inline-size; padding: 4%; aspect-ratio: 8 / 5; }
+    .event-card:has(details[open]) { z-index: 30; }
     .event-card .ec-date { font-size: min(2.6cqi, 0.8rem); font-weight: 900; text-transform: uppercase; color: #ef4444; line-height: 1.2; }
     .event-card .ec-title { font-size: min(4.9cqi, 1.5rem); font-weight: 900; color: #fff; line-height: 1.1; margin-top: 1.5cqi; }
     .event-card .ec-meta { font-size: min(2.5cqi, 0.75rem); color: #9ca3af; margin-top: 1.5cqi; }
