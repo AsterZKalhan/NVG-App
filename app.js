@@ -36,7 +36,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Afficher l'onglet par défaut au démarrage
   refreshLiveStatus();
-  setInterval(refreshLiveStatus, 60000);
+  setInterval(() => { if (!document.hidden) refreshLiveStatus(); }, 30000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshLiveStatus(); });
   if (/iphone|ipad|ipod/i.test(navigator.userAgent) || (/android/i.test(navigator.userAgent) && /firefox/i.test(navigator.userAgent))) showInstallBanner(false);
 
   history.replaceState({ tab: 'calendar' }, '');
