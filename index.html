@@ -319,6 +319,11 @@
           <button id="filterBtnPast" onclick="switchEventFilter('past')" class="px-4 py-2 rounded-xl text-xs font-bold bg-[#121722] text-gray-400 border border-[#1f293d] hover:text-white transition">Passés</button>
         </div>
       </div>
+      <div class="flex gap-2">
+        <button id="catFilterAll" onclick="switchCategoryFilter('all')" class="px-4 py-2 rounded-xl text-xs font-bold bg-red-600 text-white shadow transition">Tous</button>
+        <button id="catFilterNvg" onclick="switchCategoryFilter('nvg')" class="px-4 py-2 rounded-xl text-xs font-bold bg-[#121722] text-gray-400 border border-[#1f293d] hover:text-white transition">NVG</button>
+        <button id="catFilterNieuwheim" onclick="switchCategoryFilter('nieuwheim')" class="px-4 py-2 rounded-xl text-xs font-bold bg-[#121722] text-gray-400 border border-[#1f293d] hover:text-white transition">Nieuwheim</button>
+      </div>
       <div id="publicEventsList" class="events-grid">
         <!-- Rendu dynamique -->
       </div>

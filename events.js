@@ -2,6 +2,20 @@
 
 let editingEventId = null;
 let currentEventFilter = 'upcoming';
+let currentCategoryFilter = 'all';
+
+function switchCategoryFilter(filter) {
+  currentCategoryFilter = filter;
+  const buttons = { all: 'catFilterAll', nvg: 'catFilterNvg', nieuwheim: 'catFilterNieuwheim' };
+  Object.entries(buttons).forEach(([key, id]) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.className = key === filter
+      ? "px-4 py-2 rounded-xl text-xs font-bold bg-red-600 text-white shadow transition"
+      : "px-4 py-2 rounded-xl text-xs font-bold bg-[#121722] text-gray-400 border border-[#1f293d] hover:text-white transition";
+  });
+  renderPublicEvents();
+}
 
 function switchEventFilter(filter) {
   currentEventFilter = filter;
@@ -85,7 +99,9 @@ function renderPublicEvents() {
   const filteredEvents = db.events.filter(ev => {
     const evDate = ev.date_debut || todayStr;
     const isUpcoming = evDate >= todayStr;
-    return currentEventFilter === 'upcoming' ? isUpcoming : !isUpcoming;
+    const categoryOk = currentCategoryFilter === 'all'
+      || (currentCategoryFilter === 'nvg' ? ev.category.startsWith('NVG') : ev.category === 'Nieuwheim');
+    return (currentEventFilter === 'upcoming' ? isUpcoming : !isUpcoming) && categoryOk;
   });
 
   filteredEvents.sort((a, b) => {
