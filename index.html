@@ -213,7 +213,7 @@
   </div>
 
   <!-- SIDEBAR / MENU DE NAVIGATION -->
-  <aside class="relative w-full md:w-64 bg-transparent md:bg-[#121722] border-0 md:border-r border-[#1f293d] p-0 md:p-5 flex flex-col justify-between shrink-0">
+  <aside class="relative w-full md:w-64 md:sticky md:top-0 md:h-screen bg-transparent md:bg-[#121722] border-0 md:border-r border-[#1f293d] p-0 md:p-5 flex flex-col justify-between shrink-0">
     <div>
       <div class="fixed top-0 left-0 right-0 z-40 md:static flex items-center gap-3 px-4 py-3 md:p-0 md:mb-8 bg-[#121722] md:bg-transparent border-b md:border-0 border-[#1f293d]">
         <img src="./Logos/logo-nvg.png" alt="Logo" class="w-14 h-14 md:w-16 md:h-16 object-contain bg-black/40 p-1 rounded-lg border border-[#1f293d]">
@@ -252,7 +252,7 @@
       </nav>
     </div>
     <!-- ZONE PROFIL & COMPTE UTILISATEUR CONNECTÉ (EN BAS) -->
-    <div id="userProfileBadge" class="hidden fixed top-3 right-4 z-50 max-w-[55vw] md:static md:max-w-none md:w-auto pt-0 md:pt-4 border-0 md:border-t border-[#1f293d] space-y-2">
+    <div id="userProfileBadge" class="hidden fixed top-3 right-4 z-50 max-w-[55vw] md:absolute md:top-auto md:bottom-5 md:left-5 md:right-5 md:max-w-none md:w-auto pt-0 md:pt-4 border-0 md:border-t border-[#1f293d] space-y-2">
       <!-- Bloc du profil avec l'avatar réel -->
       <div class="flex items-center gap-3 p-2 rounded-xl bg-white/5 overflow-hidden">
         <div id="sidebarUserAvatar" class="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-[#07090e] border border-[#1f293d] overflow-hidden flex items-center justify-center text-gray-500 font-bold shrink-0">
