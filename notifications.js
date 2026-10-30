@@ -33,19 +33,19 @@ async function loadNotifications() {
         <div class="flex flex-col gap-2">
           ${notif.image ? `<img src="${escapeHtmlSafe(notif.image)}" alt="" class="w-full max-h-40 object-cover rounded-lg">` : ''}
           <div class="flex items-center justify-between gap-2">
-            <span class="text-xs font-bold text-white">${escapeHtmlSafe(notif.title)}</span>
-            <div class="flex items-center gap-2 shrink-0">
-              ${unread ? '<span class="text-[10px] font-bold text-red-400 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>Non lue</span>' : ''}
-              <span class="text-[10px] text-gray-400">${formatDate(notif.time)}</span>
-            </div>
+            <span class="text-[11px] text-gray-400">${formatDate(notif.time)}</span>
+            ${unread ? '<span class="text-[10px] font-bold text-red-400 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>Non lue</span>' : ''}
           </div>
-          <p class="text-xs text-gray-300 line-clamp-2">${escapeHtmlSafe(notif.body)}</p>
+          <div class="text-center text-base md:text-lg font-black text-white">${escapeHtmlSafe(notif.title)}</div>
+          <p class="text-center text-sm text-gray-300 line-clamp-2">${escapeHtmlSafe(notif.body)}</p>
         </div>
+        ${isStaffUser() ? `
         <div class="flex items-center mt-1">
           <span class="text-[10px] px-2 py-0.5 rounded bg-red-600/10 text-red-400 border border-red-600/20">Cible : ${escapeHtmlSafe(notif.target || 'Tous')}</span>
-        </div>
+        </div>` : ''}
       </div>
     `;
+
     }).join('');
 
   const htmlCompact = (!notifications || notifications.length === 0)
@@ -217,6 +217,10 @@ async function openNotification(notifId) {
 function closeNotification() {
   const modal = document.getElementById('notifModal');
   if (modal) modal.classList.add('hidden');
+}
+
+function isStaffUser() {
+  return !!currentUser && (['Viking', 'Grand Jarl', 'Divinité'].includes(currentUser.rank) || ['admin', 'staff'].includes(currentUser.role));
 }
 
 function formatDate(isoString) {
