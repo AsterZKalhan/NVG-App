@@ -47,7 +47,16 @@ async function loadEvents() {
 function updateAdminLogisticsSelector() {
   const sel = document.getElementById('adminLogisticsEventSelector');
   if (sel) {
-    sel.innerHTML = db.events.map(e => `<option value="${e.id}">${e.title} (${e.date_debut || ''})</option>`).join('');
+    const todayStr = new Date().toISOString().split('T')[0];
+    const optionLabel = e => `${e.title} (${e.date_debut || ''})`;
+    const upcoming = db.events.filter(e => (e.date_debut || todayStr) >= todayStr).sort((a, b) => (a.date_debut || '').localeCompare(b.date_debut || ''));
+    const past = db.events.filter(e => (e.date_debut || todayStr) < todayStr).sort((a, b) => (b.date_debut || '').localeCompare(a.date_debut || ''));
+    sel.innerHTML = `
+      <optgroup label="À venir">${upcoming.map(e => `<option value="${e.id}">${optionLabel(e)}</option>`).join('')}</optgroup>
+      <optgroup label="Passés">${past.map(e => `<option value="${e.id}">${optionLabel(e)}</option>`).join('')}</optgroup>
+    `;
+    if (upcoming.length) sel.value = upcoming[0].id;
+    else if (past.length) sel.value = past[0].id;
     renderAdminLogisticsDetails();
   }
 }
