@@ -57,8 +57,8 @@ dans l'app.
 - `DEPLOIEMENT.md` — mise en ligne, vérifications et retour arrière.
 - `.github/docs/session-2026-11-02.md` — journal détaillé de la session du
   2 novembre 2026 (Vidéos, contact, confidentialité, nettoyage des notifications).
-- `.github/docs/sauvegarde-supabase.md` — sauvegarde complète et restauration
-  de Supabase (base, fonctions Edge, Storage, configuration).
+- `.github/docs/sauvegarde-supabase.md` — sauvegarde locale manuelle de Supabase
+  (base, fonctions Edge, Storage, configuration) et restauration.
 - `.github/edge-functions/` — code source des fonctions Edge.
 - `.github/sql/` — SQL de référence pour la base (`nvg_contact_messages`,
   nettoyage des notifications live).

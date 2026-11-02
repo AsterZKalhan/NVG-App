@@ -146,7 +146,7 @@ Pour déployer une fonction Edge : `curl` vers `/v1/projects/{ref}/functions/dep
 - **Compte de test** : `petitviking.test@nvg-test.fr` a été supprimé.
 - **Abonnements push** : les anciens abonnements d'appareils restent en base jusqu'à réabonnement. Les erreurs d'envoi éventuelles viennent de là.
 - **Photos boutique** : les versions transparentes (`*-transparent.png`) sont prêtes mais non utilisées.
-- **Sauvegarde Supabase** : un workflow mensuel (`.github/workflows/backup.yml`) exporte la base, les fonctions Edge, le Storage et la configuration, puis publie une archive chiffrée GPG dans les releases GitHub. Voir `.github/docs/sauvegarde-supabase.md`. Les valeurs des secrets Edge ne sont pas exportables : les garder dans un gestionnaire de mots de passe.
+- **Sauvegarde Supabase** : sauvegarde **locale et manuelle** sur le PC, dans `C:\Sauvegarde APP NVG`, par `Lancer_sauvegarde.bat` (script `.github/scripts/backup_local.ps1`). L'archive ZIP n'est pas chiffrée et n'est jamais publiée sur GitHub. Le mot de passe de la base est dans `db-password.txt`, chiffré avec le compte Windows. Les valeurs des secrets Edge ne sont pas exportables : les garder dans un gestionnaire de mots de passe. Voir `.github/docs/sauvegarde-supabase.md`.
 
 ## 8. Guide de modification (à lire avant de changer quelque chose)
 

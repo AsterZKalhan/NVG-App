@@ -1,197 +1,144 @@
-# Sauvegarde complète de Supabase
+# Sauvegarde locale de Supabase
 
-Ce document décrit la sauvegarde automatique du projet Supabase
-`fxewefwwpowhnacrxfdp` : base PostgreSQL, fonctions Edge, fichiers Storage et
-configuration. Elle sert de filet de sécurité si Supabase devient indisponible
-ou si le projet doit être migré vers un autre hébergement.
+Ce document décrit la sauvegarde manuelle du projet Supabase `fxewefwwpowhnacrxfdp`
+sur le PC de Normandy Viking Gaming. Elle sert de filet de sécurité si Supabase devient
+indisponible ou si le projet doit être migré vers un autre hébergement.
 
-Le dépôt GitHub est **public**. Les archives contiennent des données
-personnelles (comptes, messages de contact) et des secrets de configuration :
-elles sont donc **toujours chiffrées avec GPG (AES256)** avant publication.
+**Rien n'est publié sur GitHub.** L'archive reste uniquement dans `C:\Sauvegarde APP NVG`.
+Elle n'est **pas chiffrée** : elle contient des données personnelles (comptes, e-mails)
+et des clés de configuration (clé JWT, clés API). Ne la copie pas sur un espace partagé.
 
-## Ce qui est sauvegardé
+## Utilisation
 
-| Élément | Fichier dans l'archive |
-|---|---|
-| Base complète, tous schémas | `db/full.dump` (format personnalisé `pg_dump`) |
-| Schéma du schéma `public` (tables, index, RLS, triggers, fonctions) | `db/public-schema.sql` |
-| Données du schéma `public` | `db/public-data.sql` |
-| Comptes Auth (`auth.users`, identités, sessions) | `db/auth-data.sql` |
-| Métadonnées Storage | `db/storage-data.sql` |
-| Tâches `pg_cron` (dont le nettoyage des lives) | `db/cron-schema.sql`, `db/cron-data.sql` |
-| Fonctions Edge déployées | `functions/<nom>/index.ts` |
-| Fichiers Storage | `storage/<bucket>/...` |
-| Configuration Auth, Storage, Realtime, PostgREST, pooler | `config/*.json` |
-| Liste des secrets Edge (noms et empreintes, pas les valeurs) | `config/edge-secrets.json` |
-| Clés API du projet | `config/api-keys.json` |
-| Manifeste (date, tailles) | `MANIFEST.txt` |
+Double-clique sur `C:\Sauvegarde APP NVG\Lancer_sauvegarde.bat`.
 
-L'archive finale est `nvg-supabase-<date>.tar.gz.gpg`, accompagnée de son
-empreinte SHA256.
+- Au **premier lancement**, le script demande le mot de passe de la base, puis crée
+  `C:\Sauvegarde APP NVG\db-password.txt`. Ce fichier est chiffré avec ton compte Windows :
+  il n'est lisible que sur ce PC, sous ton compte.
+- Les lancements suivants n'ont rien à demander.
+- Si le mot de passe est refusé, le fichier est supprimé et le script le redemande
+  (trois essais maximum).
+- À la fin, la fenêtre reste ouverte jusqu'à ce que tu appuies sur une touche.
 
-## Ce qui n'est PAS sauvegardé automatiquement
+L'archive créée est `C:\Sauvegarde APP NVG\nvg-supabase-<date>_<heure>.zip`.
 
-- **Valeurs des secrets Edge** (`TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`,
-  `TWITCH_EVENTSUB_SECRET`, `TWITCH_NOTIFY_TARGET`). L'API Supabase ne les
-  renvoie pas en clair. Les conserver dans un gestionnaire de mots de passe.
-- **Configuration de la plateforme Supabase** non exposée par l'API (plan,
-  sauvegardes physiques, réglages du tableau de bord).
-- **Nom de domaine et hébergement statique** : `app.nvg-tv.com` et le SFTP
-  IONOS sont indépendants de Supabase.
-- **Abonnement Twitch EventSub** : à recréer avec la nouvelle URL de fonction
-  après une migration.
-- **Sauvegardes continues / PITR** : cette sauvegarde est un instantané
-  logique, pas un point de restauration à la seconde.
+Si tu changes le mot de passe de la base dans le tableau de bord, supprime
+`db-password.txt` : le script le redemandera.
 
-## Mise en place (une seule fois)
+## Contenu de l'archive
 
-### 1. Récupérer l'URL de connexion PostgreSQL
+| Chemin dans le ZIP | Contenu | Usage |
+|---|---|---|
+| `db/full.dump` | Base complète, tous schémas (format `pg_dump` personnalisé) | Restauration complète avec `pg_restore` |
+| `db/public-schema.sql` | Tables, index, politiques RLS, triggers, fonctions du schéma `public` | Recréer la structure |
+| `db/public-data.sql` | Données du schéma `public` (8 tables) | Recréer les données |
+| `db/auth-data.sql` | Comptes Auth (`auth.users`, identités) | Recréer les comptes |
+| `db/storage-data.sql` | Métadonnées Storage | Recréer les références aux fichiers |
+| `db/cron-jobs.sql` | Définition des tâches `pg_cron` (nettoyage des lives) | Recréer les tâches planifiées |
+| `functions/<nom>/index.ts` | Source des fonctions Edge déployées | Redéployer les fonctions |
+| `storage/<bucket>/...` | Fichiers Storage (bucket `notifs`) | Remettre les fichiers |
+| `config/*.json` | Configuration du projet : Auth, Storage, Realtime, PostgREST, pooler, clés API, noms et empreintes des secrets Edge | Référence pour reconfigurer |
+| `MANIFEST.txt` | Date, projet et liste des fichiers avec leur taille | Vérification |
 
-Dans le tableau de bord Supabase : **Project Settings → Database → Connect**,
-puis **Session pooler**. Copier l'URL et remplacer `[YOUR-PASSWORD]` par le mot
-de passe de la base (s'il est perdu, le réinitialiser depuis
-**Database → Settings → Reset database password**).
+**Non inclus :**
+- les **valeurs** des secrets Edge (`TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`,
+  `TWITCH_EVENTSUB_SECRET`, `TWITCH_NOTIFY_TARGET`) : l'API ne les renvoie pas en clair ;
+  il faut les garder dans un gestionnaire de mots de passe ;
+- la configuration du tableau de bord non exposée par l'API (plan, sauvegardes, domaines) ;
+- le nom de domaine `app.nvg-tv.com` et l'hébergement statique IONOS, indépendants de Supabase ;
+- l'abonnement Twitch EventSub, à recréer avec la nouvelle URL de fonction après migration ;
+- un point de restauration à la seconde (c'est un instantané, pas un PITR).
 
-L'URL ressemble à :
+## Prérequis sur le PC
 
-```
-postgresql://postgres.fxewefwwpowhnacrxfdp:MOT_DE_PASSE@aws-0-eu-west-1.pooler.supabase.com:5432/postgres
-```
+- **Outils clients PostgreSQL 17** dans `C:\Program Files\PostgreSQL\17\bin`
+  (`pg_dump`, `psql`, `pg_restore`). Les composants serveur ne sont pas nécessaires.
+- **CLI Supabase** dans `%LOCALAPPDATA%\Programs\Supabase CLI\supabase.exe`.
+- **Variable utilisateur Windows** `SUPABASE_ACCESS_TOKEN` (jeton personnel Supabase, `sbp_...`).
+- **Variable utilisateur Windows** `SUPABASE_DB_URL`, modèle sans mot de passe :
+  `postgresql://postgres.fxewefwwpowhnacrxfdp:[YOUR-PASSWORD]@aws-0-eu-west-1.pooler.supabase.com:5432/postgres`
+  (le port 5432 est celui du « Session pooler », à ne pas remplacer par 6543).
 
-Le port **5432** (session) est important : le port 6543 (transaction) ne
-convient pas à `pg_dump`.
+Le script lui-même est dans le dépôt : `.github/scripts/backup_local.ps1`.
+Le `.bat` l'appelle depuis `C:\Users\aster\NVG-App\.github\scripts\` : si le dépôt
+est déplacé, il faut modifier le chemin dans le `.bat`.
 
-### 2. Choisir une phrase secrète
+## Restaurer
 
-Générer une phrase longue et aléatoire, par exemple :
+Restaurer dans une **base vide** sur le nouvel hébergement. Les commandes utilisent
+`$NEW_DB_URL`, à remplacer par l'URL de connexion de la nouvelle base (avec son mot de passe).
 
-```bash
-openssl rand -base64 32
-```
+### Restauration complète
 
-La conserver dans le gestionnaire de mots de passe. **Sans elle, les archives
-sont irrécupérables.** Elle ne doit jamais être écrite dans le dépôt.
-
-### 3. Ajouter les secrets GitHub
-
-Dans **GitHub → Settings → Secrets and variables → Actions** :
-
-| Secret | Contenu |
-|---|---|
-| `SUPABASE_ACCESS_TOKEN` | Jeton personnel Supabase (`sbp_...`), créé dans **Account → Access Tokens** |
-| `SUPABASE_DB_URL` | URL de connexion complète de l'étape 1 |
-| `BACKUP_PASSPHRASE` | Phrase secrète de l'étape 2 |
-
-En ligne de commande :
-
-```bash
-gh secret set SUPABASE_ACCESS_TOKEN --repo AsterZKalhan/NVG-App
-gh secret set SUPABASE_DB_URL --repo AsterZKalhan/NVG-App
-gh secret set BACKUP_PASSPHRASE --repo AsterZKalhan/NVG-App
+```powershell
+pg_restore --no-owner --no-privileges --clean --if-exists --dbname "$NEW_DB_URL" db\full.dump
 ```
 
-## Lancer une sauvegarde
+Sur une base PostgreSQL nue, les schémas internes de Supabase (`auth`, `storage`, `cron`,
+extensions) peuvent poser problème. Dans ce cas, restaure seulement les parties utiles :
 
-- **Automatique** : le 1er de chaque mois à 03:23 UTC.
-- **Manuelle** : onglet **Actions → Sauvegarde Supabase → Run workflow**.
-
-Le workflow :
-
-1. vérifie la présence des trois secrets ;
-2. télécharge la base avec `pg_dump` 17 (image Docker officielle) ;
-3. télécharge le source des fonctions Edge avec la CLI Supabase (`--use-api`) ;
-4. télécharge les buckets Storage ;
-5. récupère la configuration du projet ;
-6. crée l'archive, la chiffre avec GPG et calcule son SHA256 ;
-7. publie l'archive chiffrée dans une **release** GitHub (`backup-<date>`) ;
-8. conserve les **12 dernières** releases et un artefact de 90 jours.
-
-## Vérifier et déchiffrer une archive
-
-Télécharger les deux fichiers depuis la release, puis :
-
-```bash
-sha256sum -c nvg-supabase-2026-11-02_032300.tar.gz.gpg.sha256
-gpg --output nvg-supabase-2026-11-02.tar.gz --decrypt nvg-supabase-2026-11-02_032300.tar.gz.gpg
-tar -xzf nvg-supabase-2026-11-02.tar.gz
+```powershell
+psql "$NEW_DB_URL" -f db\public-schema.sql
+psql "$NEW_DB_URL" -f db\public-data.sql
+psql "$NEW_DB_URL" -f db\auth-data.sql
+psql "$NEW_DB_URL" -f db\storage-data.sql
 ```
 
-GPG demande la phrase secrète. Vérifier ensuite le contenu de `MANIFEST.txt`.
+### Tâches planifiées
 
-## Restaurer vers un autre hébergement
-
-### Base PostgreSQL classique
-
-Créer une base vide, puis restaurer uniquement le schéma `public` :
-
-```bash
-psql "$NEW_DATABASE_URL" -f db/public-schema.sql
-psql "$NEW_DATABASE_URL" -f db/public-data.sql
+```powershell
+psql "$NEW_DB_URL" -f db\cron-jobs.sql
 ```
 
-Pour une restauration complète sur un PostgreSQL compatible Supabase :
+Le fichier contient des `select cron.schedule(...)`. L'extension `pg_cron` doit être
+activée sur la nouvelle base d'abord.
 
-```bash
-pg_restore --no-owner --no-privileges --clean --if-exists \
-  --dbname "$NEW_DATABASE_URL" db/full.dump
+### Fonctions Edge
+
+Sur le nouveau projet, redéployer chaque fonction depuis `functions\<nom>\` avec la CLI
+(`supabase functions deploy <nom> --project-ref <nouvelle-ref>`). Vérifier le
+`verify_jwt` : les fonctions `contact-message`, `twitch-eventsub`, `twitch-live` et
+`youtube-videos` sont sans JWT, `send-push` et `steam-header` avec JWT.
+
+Les six fonctions ont aussi leur `index.ts` et leur `metadata.json` dans
+`.github/edge-functions/`, à jour avec le projet.
+
+### Secrets Edge
+
+Les valeurs viennent du gestionnaire de mots de passe :
+
+```powershell
+supabase secrets set --project-ref <nouvelle-ref> TWITCH_CLIENT_ID=... TWITCH_CLIENT_SECRET=... TWITCH_EVENTSUB_SECRET=... TWITCH_NOTIFY_TARGET=...
 ```
 
-`full.dump` contient les schémas internes Supabase (`auth`, `storage`,
-`cron`, extensions). Sur un PostgreSQL nu, restaurer plutôt `public`, puis
-recréer `auth`/`storage` avec les outils de la nouvelle plateforme.
+### Storage
 
-### Nouveau projet Supabase
+Recréer le bucket `notifs` (public), puis envoyer les fichiers :
 
-1. Créer le projet et récupérer son URL Session pooler.
-2. Restaurer `public-schema.sql` puis `public-data.sql`.
-3. Recréer les buckets Storage, puis envoyer les fichiers :
+```powershell
+supabase storage cp -r storage\notifs ss:///notifs --project-ref <nouvelle-ref> --experimental
+```
 
-   ```bash
-   supabase storage cp -r storage/notifs ss:///notifs --project-ref NEW_REF --experimental
-   ```
+### Auth et configuration
 
-4. Recréer les fonctions Edge :
+Reprendre dans `config\auth.json` : Site URL `https://app.nvg-tv.com`, URL de redirection,
+fournisseurs et SMTP (les secrets SMTP ne sont pas recopiés automatiquement).
 
-   ```bash
-   for slug in contact-message send-push steam-header twitch-eventsub twitch-live youtube-videos; do
-     supabase functions deploy "$slug" --project-ref NEW_REF
-   done
-   ```
+### Application
 
-   Vérifier `verify_jwt` dans chaque `metadata.json` (les fonctions
-   `contact-message`, `twitch-eventsub`, `twitch-live` et `youtube-videos` sont
-   sans JWT).
-
-5. Remettre les secrets Edge depuis le gestionnaire de mots de passe :
-
-   ```bash
-   supabase secrets set --project-ref NEW_REF \
-     TWITCH_CLIENT_ID=... \
-     TWITCH_CLIENT_SECRET=... \
-     TWITCH_EVENTSUB_SECRET=... \
-     TWITCH_NOTIFY_TARGET=...
-   ```
-
-6. Recréer le job `pg_cron` avec `.github/sql/cleanup-live-notifications.sql`.
-
-7. Reconfigurer Auth : Site URL `https://app.nvg-tv.com`, URL de redirection,
-   fournisseurs éventuels et SMTP.
-
-8. Mettre à jour `supabase-config.js` avec la nouvelle URL et la nouvelle clé
-   `anon`, puis pousser sur `main`.
-
-9. Recréer l'abonnement Twitch EventSub avec l'URL de la nouvelle fonction
-   `twitch-eventsub`.
-
-10. Vérifier : connexion, calendrier, notifications push, formulaire de
-    contact, vidéos, live Twitch.
+- Mettre à jour `supabase-config.js` avec la nouvelle URL et la nouvelle clé `anon`,
+  puis pousser sur `main` pour le déploiement SFTP.
+- Recréer l'abonnement Twitch EventSub avec la nouvelle URL de `twitch-eventsub`.
+- Vérifier : connexion, calendrier, notifications push, formulaire de contact,
+  vidéos, live Twitch.
 
 ## Bonnes pratiques
 
-- Télécharger une archive de temps en temps et la conserver **hors GitHub**
-  (disque chiffré, OneDrive, sauvegarde locale).
-- Vérifier le SHA256 avant toute restauration.
+- Lancer une sauvegarde après chaque grosse modification de la base, et au moins une
+  fois par mois.
+- Garder les archives **hors de ce PC** aussi (disque externe), car un seul disque n'est
+  pas une sauvegarde.
+- Vérifier de temps en temps le contenu d'une archive (`MANIFEST.txt`).
 - Tester une restauration sur une base jetable au moins une fois par an.
-- Ne jamais committer une archive déchiffrée ni la phrase secrète.
-- La sauvegarde mensuelle ne remplace pas les sauvegardes automatiques de
-  Supabase (quotidiennes selon le plan) ni PITR.
+- Le fichier `db-password.txt` ne sert qu'à lancer la sauvegarde : il ne contient pas de
+  secret utilisable hors de ton compte Windows.
