@@ -36,9 +36,30 @@
   li { margin-bottom: 6px; }
   a { color: #f87171; }
   .note { background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--red); border-radius: 8px; padding: 14px 16px; margin: 16px 0; }
-  footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   footer a { color: #d1d5db; text-decoration: none; }
   footer a:hover { color: #fff; }
+  footer .back-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    padding: 12px 18px;
+    border-radius: 10px;
+    transition: background .15s, border-color .15s;
+  }
+  footer .back-link:hover { background: #1b2230; border-color: var(--red); color: #fff; }
+  @media (max-width: 520px) {
+    footer { flex-direction: column; align-items: stretch; }
+    footer .back-link { width: 100%; padding: 14px 18px; }
+  }
 </style>
 </head>
 <body>
@@ -87,7 +108,8 @@
 
   <footer>
     <span>© 2019-2026 Normandy Viking Gaming — association loi 1901</span>
-    <span><a href="privacy.html">Confidentialité</a> · <a href="index.html">Retour à l'application</a></span>
+    <span><a href="privacy.html">Confidentialité</a></span>
+    <a class="back-link" href="index.html">← Retour à l'application</a>
   </footer>
 
 </div>
