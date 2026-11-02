@@ -350,6 +350,29 @@ function gameVoteBlock(game) {
     ${button}`;
 }
 
+async function resetGameVotes(gameId) {
+  if (!isGamesAdmin()) return;
+  const game = gamesCache.find(g => g.id === gameId);
+  if (!game) return;
+  if (!confirm(`Remettre à zéro les votes de « ${game.title} » ?`)) return;
+
+  const { data, error } = await supabaseClient
+    .from('nvg_games')
+    .update({ votes: 0, voters: [] })
+    .eq('id', gameId)
+    .select()
+    .single();
+
+  if (error || !data) {
+    console.error("Erreur reset votes :", error);
+    alert("Les votes n'ont pas pu être réinitialisés.");
+    return;
+  }
+
+  Object.assign(game, data);
+  renderGamesList();
+}
+
 function renderGamesList() {
   const container = document.getElementById('gamesList');
   if (!container) return;
@@ -394,6 +417,7 @@ function renderGamesList() {
 
         ${isAdmin ? `
           <div class="flex gap-2">
+            <button onclick="resetGameVotes('${game.id}')" class="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-gray-300 text-[11px] font-bold rounded-lg transition">Reset votes ↺</button>
             <button onclick="editGame('${game.id}')" class="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-black text-[11px] font-bold rounded-lg transition">Éditer ✏️</button>
             <button onclick="deleteGame('${game.id}')" class="px-2.5 py-1 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-[11px] font-bold rounded-lg transition">Supprimer 🗑️</button>
           </div>
