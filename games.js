@@ -61,15 +61,16 @@ function upcomingNvgEvents() {
     .sort((a, b) => (a.date_debut || '').localeCompare(b.date_debut || ''));
 }
 
-// Valeur de formulaire correspondant à un jeu : '', 'nieuwheim' ou 'event:<id>'.
+// Valeur de formulaire correspondant à un jeu : '', 'nieuwheim', 'idea' ou 'event:<id>'.
 function targetValueOf(game) {
   if (!game) return '';
   if (game.target_type === 'nieuwheim') return 'nieuwheim';
+  if (game.target_type === 'idea') return 'idea';
   if (game.event_id) return 'event:' + game.event_id;
   return '';
 }
 
-// --- FILTRES (Tous / Nieuwheim / un événement) ---
+// --- FILTRES (Tous / Nieuwheim / Idées / un événement) ---
 
 function setGamesFilter(key) {
   gamesFilter = key;
@@ -79,6 +80,7 @@ function setGamesFilter(key) {
 
 function filteredGames() {
   if (gamesFilter === 'nieuwheim') return gamesCache.filter(g => g.target_type === 'nieuwheim');
+  if (gamesFilter === 'idea') return gamesCache.filter(g => g.target_type === 'idea');
   if (gamesFilter.startsWith('event:')) {
     const eventId = gamesFilter.slice(6);
     return gamesCache.filter(g => g.event_id === eventId);
@@ -101,6 +103,10 @@ function renderGameFilters() {
     { key: 'all', label: 'Tous', count: gamesCache.length },
     { key: 'nieuwheim', label: 'Nieuwheim', count: gamesCache.filter(g => g.target_type === 'nieuwheim').length, img: NIEUWHEIM_LOGO }
   ];
+  const ideaCount = gamesCache.filter(g => g.target_type === 'idea').length;
+  if (ideaCount > 0) {
+    pills.push({ key: 'idea', label: '💡 Idées NVG', count: ideaCount });
+  }
   events.forEach(ev => {
     pills.push({
       key: 'event:' + ev.id,
@@ -141,11 +147,10 @@ function renderGameTargetSelect(selectedValue) {
   let html = `<option value="">— Choisir une destination —</option>
     <option value="nieuwheim">Nieuwheim (soirée en ligne)</option>`;
 
-  if (events.length > 0) {
-    html += `<optgroup label="Événements NVG à venir">` + events.map(ev =>
-      `<option value="event:${ev.id}">${escapeHtml(gameEventLabel(ev))}${ev.date_debut ? ' — ' + escapeHtml(ev.date_debut) : ''}</option>`
-    ).join('') + `</optgroup>`;
-  }
+  // L'idée « sans événement » reste dans le groupe des événements NVG à venir.
+  html += `<optgroup label="Événements NVG à venir">` + events.map(ev =>
+    `<option value="event:${ev.id}">${escapeHtml(gameEventLabel(ev))}${ev.date_debut ? ' — ' + escapeHtml(ev.date_debut) : ''}</option>`
+  ).join('') + `<option value="idea">Un événement quelconque NVG (Juste une idée)</option></optgroup>`;
 
   select.innerHTML = html;
 
@@ -227,11 +232,12 @@ async function addGameProposal() {
   }
 
   if (!target) {
-    alert("Choisis « Nieuwheim » ou un événement NVG à venir.");
+    alert("Choisis « Nieuwheim », un événement NVG à venir ou « Juste une idée ».");
     return;
   }
 
   const isNieuwheim = target === 'nieuwheim';
+  const isIdea = target === 'idea';
   const eventId = target.startsWith('event:') ? target.slice(6) : null;
   const comment = isNieuwheim ? (document.getElementById('gameComment')?.value || '').trim() : '';
   const releaseDate = isNieuwheim ? (document.getElementById('gameReleaseDate')?.value || '').trim() : '';
@@ -245,8 +251,8 @@ async function addGameProposal() {
     title: title,
     link: link,
     img: finalImg,
-    target_type: isNieuwheim ? 'nieuwheim' : 'event',
-    event_id: isNieuwheim ? null : eventId,
+    target_type: isNieuwheim ? 'nieuwheim' : (isIdea ? 'idea' : 'event'),
+    event_id: isNieuwheim || isIdea ? null : eventId,
     comment: isNieuwheim && comment ? comment : null,
     release_date: isNieuwheim && releaseDate ? releaseDate : null
   };
@@ -293,6 +299,14 @@ function gameTargetBadge(game) {
     return `<img src="${NIEUWHEIM_LOGO}" alt="Nieuwheim" title="Nieuwheim" class="h-5 w-auto object-contain shrink-0">`;
   }
 
+  if (game.target_type === 'idea') {
+    return `
+      <span class="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/40 rounded-lg px-2 py-1 shrink-0" title="Idée en attente : à rattacher au prochain événement via Éditer">
+        <span class="text-[10px] font-bold text-amber-400 whitespace-nowrap">💡 Idée NVG</span>
+      </span>
+    `;
+  }
+
   if (game.event_id) {
     const ev = (db.events || []).find(e => e.id === game.event_id);
     if (!ev) return '';
@@ -315,9 +329,11 @@ function renderGamesList() {
   const isAdmin = isGamesAdmin();
 
   if (games.length === 0) {
-    const emptyLabel = gamesFilter === 'all'
-      ? "Aucun jeu proposé pour le moment."
-      : "Aucun jeu proposé pour cette destination pour le moment.";
+    const emptyLabel = gamesFilter === 'idea'
+      ? "Aucune idée en attente de rattachement."
+      : (gamesFilter === 'all'
+        ? "Aucun jeu proposé pour le moment."
+        : "Aucun jeu proposé pour cette destination pour le moment.");
     container.innerHTML = `<p class="text-xs text-gray-400 md:col-span-3 p-4 bg-[#121722]/70 border border-[#1f293d] rounded-xl italic">${emptyLabel}</p>`;
     return;
   }
