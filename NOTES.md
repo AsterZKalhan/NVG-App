@@ -100,7 +100,9 @@ Fonction Edge `youtube-videos` (sans JWT) : liste les dernières vidéos de la c
 ### Vidéos YouTube
 - Le module « Vidéos » affiche les **3 dernières vidéos** publiées : la première est lue dans le lecteur intégré (YouTube nocookie), les trois vignettes sous le lecteur permettent de changer de vidéo sans quitter l'application.
 - Sous le lecteur : titre, vues, date et bouton « Ouvrir sur YouTube ». En bas de page : bouton « Aller sur la page YouTube de la NVG ».
-- Mise à jour **une fois par jour** : cache 24 h dans la fonction `youtube-videos` (en-tête `Cache-Control: max-age=86400`) et 24 h dans le navigateur (`videos.js`). Le module se rafraîchit seul si la page reste ouverte plus de 24 h.
+- **Mise à jour à la publication** : la fonction `youtube-videos` renvoie un `ETag` calculé uniquement à partir des identifiants des vidéos. Tant qu'aucune nouvelle vidéo n'est publiée, la réponse est `304` (0 octet) et l'affichage ne change pas, même si le nombre de vues évolue. Dès qu'une vidéo sort, l'`ETag` change et l'onglet se met à jour.
+- Le navigateur garde les vidéos connues (`localStorage`, clé `nvg_youtube_videos_v2`) pour un affichage immédiat, et revérifie au maximum toutes les 5 minutes, à l'ouverture de l'onglet et au retour sur l'application.
+- **Pas de webhook YouTube** : le flux `feeds/videos.xml` de YouTube renvoie 404 (pour toutes les chaînes aujourd'hui), donc l'abonnement « nouvelle vidéo » (PubSubHubbub) n'est pas possible. La vérification `ETag` est la solution la plus proche, avec un coût réseau quasi nul.
 - Si la chaîne change, seule la fonction est à modifier (constante `CHANNEL_ID`).
 
 ### Menu

@@ -1,16 +1,48 @@
 // --- MODULE « VIDÉOS YOUTUBE » ---
 // Les 3 dernières vidéos de la chaîne @nvgamingtv, lisibles directement dans l'application.
 // Données : fonction Edge youtube-videos (API publique YouTube, sans clé API).
-// Mise à jour une fois par jour (cache serveur et navigateur : 24 h).
+//
+// Mise à jour « à la publication » : la fonction renvoie un ETag basé uniquement sur
+// les identifiants des vidéos. Tant qu'aucune nouvelle vidéo n'est publiée, YouTube
+// répond 304 (rien à télécharger) et l'affichage ne bouge pas, même si le nombre de
+// vues change. Dès qu'une vidéo sort, la réponse change et l'onglet se met à jour.
 
 const VIDEOS_MAX = 3;
-const VIDEOS_CACHE_MS = 24 * 60 * 60 * 1000;
 const VIDEOS_CHANNEL_URL = 'https://www.youtube.com/@nvgamingtv';
+const VIDEOS_STORAGE_KEY = 'nvg_youtube_videos_v2';
+const VIDEOS_CHECK_MS = 5 * 60 * 1000; // vérification légère au maximum toutes les 5 min
 
-let videosCache = { at: 0, data: null };
+let videosCache = loadStoredVideos();
 let videosLoading = false;
 let selectedVideoId = null;
+let selectedByUser = false;
 let loadedVideoId = null;
+
+function loadStoredVideos() {
+  try {
+    const raw = localStorage.getItem(VIDEOS_STORAGE_KEY);
+    if (!raw) return { data: null, etag: null, checkedAt: 0 };
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.data || !Array.isArray(parsed.data.videos)) {
+      return { data: null, etag: null, checkedAt: 0 };
+    }
+    return { data: parsed.data, etag: parsed.etag || null, checkedAt: parsed.checkedAt || 0 };
+  } catch (_err) {
+    return { data: null, etag: null, checkedAt: 0 };
+  }
+}
+
+function saveStoredVideos() {
+  try {
+    localStorage.setItem(VIDEOS_STORAGE_KEY, JSON.stringify({
+      data: videosCache.data,
+      etag: videosCache.etag,
+      checkedAt: videosCache.checkedAt
+    }));
+  } catch (_err) {
+    // Stockage indisponible (navigation privée saturée) : le module fonctionne quand même.
+  }
+}
 
 function escapeVideoText(str) {
   if (str === null || str === undefined) return '';
@@ -26,40 +58,64 @@ async function loadVideos(force = false) {
   const grid = document.getElementById('videosGrid');
   if (!grid || videosLoading) return;
 
-  const fresh = videosCache.data && Date.now() - videosCache.at < VIDEOS_CACHE_MS;
-  if (fresh && !force) {
-    renderVideos(videosCache.data);
-    return;
-  }
+  // Affichage immédiat de ce qui est déjà connu (aucune attente).
+  if (videosCache.data) renderVideos(videosCache.data);
+
+  const checkedRecently = Date.now() - (videosCache.checkedAt || 0) < VIDEOS_CHECK_MS;
+  if (!force && checkedRecently) return;
 
   videosLoading = true;
-  grid.innerHTML = `
-    <div class="col-span-full flex flex-col items-center justify-center gap-3 py-12 text-xs text-gray-500 italic">
-      <span class="w-8 h-8 rounded-full border-2 border-[#1f293d] border-t-red-500 animate-spin"></span>
-      Chargement des dernières vidéos…
-    </div>
-  `;
+  if (!videosCache.data) {
+    grid.innerHTML = `
+      <div class="col-span-full flex flex-col items-center justify-center gap-3 py-12 text-xs text-gray-500 italic">
+        <span class="w-8 h-8 rounded-full border-2 border-[#1f293d] border-t-red-500 animate-spin"></span>
+        Chargement des dernières vidéos…
+      </div>
+    `;
+  }
 
   try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/youtube-videos?limit=${VIDEOS_MAX}`, {
-      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
-    });
+    const headers = {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+    };
+    if (videosCache.etag) headers['If-None-Match'] = videosCache.etag;
+
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/youtube-videos?limit=${VIDEOS_MAX}`, { headers });
+
+    // 304 : aucune nouvelle vidéo, on ne touche à rien.
+    if (res.status === 304) {
+      videosCache.checkedAt = Date.now();
+      saveStoredVideos();
+      return;
+    }
+
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const data = await res.json();
     if (!data || !Array.isArray(data.videos) || data.videos.length === 0) throw new Error('aucune vidéo');
 
-    videosCache = { at: Date.now(), data };
+    videosCache = {
+      data,
+      etag: res.headers.get('ETag') || null,
+      checkedAt: Date.now()
+    };
+    saveStoredVideos();
     renderVideos(data);
   } catch (err) {
     console.error('Erreur chargement des vidéos YouTube :', err);
-    showVideosPlayerError();
-    grid.innerHTML = `
-      <div class="col-span-full flex flex-col items-center justify-center gap-3 py-10 text-center">
-        <p class="text-xs text-gray-400 italic">Impossible de charger les vidéos pour le moment.</p>
-        <button type="button" onclick="loadVideos(true)" class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-200 text-xs font-bold transition">Réessayer</button>
-      </div>
-    `;
+    // Les vidéos déjà affichées restent en place ; l'erreur n'apparaît que si la page est vide.
+    if (!videosCache.data) {
+      showVideosPlayerError();
+      grid.innerHTML = `
+        <div class="col-span-full flex flex-col items-center justify-center gap-3 py-10 text-center">
+          <p class="text-xs text-gray-400 italic">Impossible de charger les vidéos pour le moment.</p>
+          <button type="button" onclick="loadVideos(true)" class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-200 text-xs font-bold transition">Réessayer</button>
+        </div>
+      `;
+    }
+    videosCache.checkedAt = Date.now();
+    saveStoredVideos();
   } finally {
     videosLoading = false;
   }
@@ -76,8 +132,10 @@ function renderVideos(data) {
   const channelLink = document.getElementById('videosChannelLink');
   if (channelLink) channelLink.href = data.channelUrl || VIDEOS_CHANNEL_URL;
 
-  if (!videos.some(v => v.id === selectedVideoId)) {
+  // Tant que l'utilisateur n'a rien choisi, on suit la vidéo la plus récente.
+  if (!selectedByUser || !videos.some(v => v.id === selectedVideoId)) {
     selectedVideoId = videos[0].id;
+    selectedByUser = false;
   }
 
   renderVideosPlayer(videos);
@@ -131,6 +189,7 @@ function renderVideosPlayer(videos) {
 
 function selectVideo(videoId) {
   selectedVideoId = videoId;
+  selectedByUser = true;
   if (videosCache.data) renderVideos(videosCache.data);
 }
 
@@ -147,9 +206,16 @@ function showVideosPlayerError() {
   if (linkEl) linkEl.href = VIDEOS_CHANNEL_URL;
 }
 
-// Le module se rafraîchit de lui-même si la page reste ouverte plus de 24 h.
+// Vérification légère quand l'onglet reste ouvert (et uniquement s'il est visible).
 setInterval(() => {
   const section = document.getElementById('videos');
   if (document.hidden || !section || section.classList.contains('hidden')) return;
-  if (videosCache.data && Date.now() - videosCache.at >= VIDEOS_CACHE_MS) loadVideos(true);
+  loadVideos();
 }, 60 * 60 * 1000);
+
+// Au retour sur l'application (PWA remise au premier plan), on revérifie.
+document.addEventListener('visibilitychange', () => {
+  const section = document.getElementById('videos');
+  if (document.hidden || !section || section.classList.contains('hidden')) return;
+  loadVideos();
+});

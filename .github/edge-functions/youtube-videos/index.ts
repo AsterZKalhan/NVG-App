@@ -1,21 +1,19 @@
 // Dernières vidéos de la chaîne YouTube NVG.
 // Source : API publique de la page YouTube (Innertube), sans clé API ni secret.
-// Mise en cache 10 minutes pour limiter les appels.
+// L'ETag ne dépend que des identifiants des vidéos : l'affichage ne change donc
+// que lorsqu'une nouvelle vidéo est publiée (pas à chaque variation du nombre de vues).
+// Cache mémoire court (5 min) pour détecter une publication rapidement.
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, if-none-match",
+  "Access-Control-Expose-Headers": "ETag",
 };
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
-// Réponse normale : gardée 24 h (mise à jour une fois par jour).
-const cacheableJson = (body: unknown) =>
-  new Response(JSON.stringify(body), {
-    status: 200,
-    headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "public, max-age=86400" },
-  });
+const CACHE_MS = 5 * 60 * 1000;
 
 const CHANNEL_ID = Deno.env.get("YOUTUBE_CHANNEL_ID") ?? "UC7WH5BSCYpme0_6NLBWiAiw";
 const CHANNEL_URL = "https://www.youtube.com/@nvgamingtv";
@@ -23,7 +21,6 @@ const CHANNEL_HANDLE = "@nvgamingtv";
 const INNERTUBE_KEY = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
 // Onglet « Vidéos » de la chaîne.
 const VIDEOS_TAB_PARAMS = "EgZ2aWRlb3PyBgQKAjoA";
-const CACHE_MS = 24 * 60 * 60 * 1000;
 
 let cache: { key: string; at: number; data: unknown } | null = null;
 
@@ -83,6 +80,31 @@ function parseVideos(data: any, limit: number): Video[] {
   return videos;
 }
 
+function videoEtag(videos: Video[]): string {
+  // Ne dépend que des identifiants : stable tant qu'aucune vidéo n'est publiée.
+  return `"${videos.map((v) => v.id).join(".")}"`;
+}
+
+// Le gateway peut préfixer l'ETag par W/ et/ou retirer les guillemets : on normalise.
+const normalizeEtag = (value: string | null) =>
+  (value ?? "").trim().replace(/^W\//i, "").replace(/^"(.*)"$/, "$1");
+
+function videosResponse(payload: any, req: Request): Response {
+  const etag = videoEtag(payload.videos ?? []);
+  const headers = {
+    ...cors,
+    "Content-Type": "application/json",
+    ETag: etag,
+    // Le navigateur doit revérifier : la réponse est minuscule (304) si rien n'a changé.
+    "Cache-Control": "no-cache",
+  };
+
+  if (normalizeEtag(req.headers.get("if-none-match")) === normalizeEtag(etag)) {
+    return new Response(null, { status: 304, headers });
+  }
+  return new Response(JSON.stringify(payload), { status: 200, headers });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
@@ -92,7 +114,7 @@ Deno.serve(async (req) => {
 
   const cacheKey = `${CHANNEL_ID}:${limit}`;
   if (cache && cache.key === cacheKey && Date.now() - cache.at < CACHE_MS) {
-    return cacheableJson(cache.data);
+    return videosResponse(cache.data, req);
   }
 
   try {
@@ -147,7 +169,7 @@ Deno.serve(async (req) => {
     };
 
     cache = { key: cacheKey, at: Date.now(), data: payload };
-    return cacheableJson(payload);
+    return videosResponse(payload, req);
   } catch (_err) {
     return json({ error: "youtube indisponible" }, 502);
   }
