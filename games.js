@@ -297,13 +297,11 @@ async function addGameProposal() {
 
 function gameTargetBadge(game) {
   if (game.target_type === 'nieuwheim') {
-    // Logo complet sur pastille blanche (le wordmark est sombre, illisible sur la carte).
+    // Logo complet affiché directement sur la carte : le lettrage est blanc avec un contour noir.
     // Recadrage : le fichier 1920x1080 a des marges transparentes, le contenu est centré.
     return `
-      <span class="flex items-center justify-center bg-white rounded-lg px-2 py-1 shrink-0" title="Nieuwheim">
-        <span class="relative overflow-hidden" style="width:61px;height:20px;">
-          <img src="${NIEUWHEIM_CARD_LOGO}" alt="Nieuwheim" class="absolute max-w-none" style="width:127.5%;left:50%;top:50%;transform:translate(-50%,-50%);">
-        </span>
+      <span class="relative overflow-hidden shrink-0" style="width:74px;height:24px;" title="Nieuwheim">
+        <img src="${NIEUWHEIM_CARD_LOGO}" alt="Nieuwheim" class="absolute max-w-none" style="width:127.5%;left:50%;top:50%;transform:translate(-50%,-50%);">
       </span>
     `;
   }
