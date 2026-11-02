@@ -20,6 +20,8 @@ Document de reprise du projet. À lire avant toute modification.
 | `events.js` | Calendrier, présence, logistique, création des événements (admin) |
 | `catalog.js` | Catalogue de matériel (admin) |
 | `games.js` | Propositions de jeux et bannières |
+| `streams.js` | Module « Streams NVG » (membres avec chaîne Twitch, statut en direct) |
+| `videos.js` | Module « Vidéos » (dernières vidéos YouTube via la fonction `youtube-videos`) |
 | `notifications.js` | Notifications (liste, lu / non lu, envoi admin) |
 | `supabase-config.js` | URL du projet et clé publique (anon) |
 | `sw.js` | Service worker (notifications push) |
@@ -52,6 +54,8 @@ Fonction Edge `twitch-live` : statut et nombre de spectateurs de la chaîne NVG 
 - **twitch-eventsub** (Edge, sans JWT) : reçoit le passage en direct de la chaîne NVG (EventSub `stream.online`), vérifie la signature (secret `TWITCH_EVENTSUB_SECRET`), crée une notification (cible `TWITCH_NOTIFY_TARGET`, actuellement « Tous ») et l'envoie par push. Code source : `.github/edge-functions/twitch-eventsub/index.ts` (non déployé par SFTP). Abonnement créé auprès de Twitch (broadcaster 103197141). Pour restreindre l'envoi : changer le secret `TWITCH_NOTIFY_TARGET`.
 
 Fonction Edge `send-push` : envoie les notifications push. Déjà présente avant ce projet.
+
+Fonction Edge `youtube-videos` (sans JWT) : liste les dernières vidéos de la chaîne YouTube `@nvgamingtv` (`UC7WH5BSCYpme0_6NLBWiAiw`) via l'API publique de la page YouTube (Innertube, sans clé API), cache 10 minutes. Paramètre `?limit=` (1 à 20, 12 par défaut). Le flux RSS de cette chaîne renvoie 404, d'où cette méthode. Utilisée par `videos.js`.
 
 ## 4. Secrets et accès (les valeurs ne sont PAS ici)
 
@@ -93,8 +97,13 @@ Fonction Edge `send-push` : envoie les notifications push. Déjà présente avan
 ### Live Twitch
 - Statut via `twitch-live`, toutes les 30 secondes uniquement quand l'onglet est visible, et immédiatement au retour sur l'onglet.
 
+### Vidéos YouTube
+- Le module « Vidéos » liste les 12 dernières vidéos publiées (miniature, titre, vues, date), avec un lien vers YouTube.
+- Données servies par la fonction `youtube-videos` (cache 10 minutes côté serveur) et gardées 10 minutes dans le navigateur. Le bouton « Réessayer » apparaît si YouTube est indisponible.
+- Si la chaîne change ou si le propriétaire passe les vidéos en privé, seule la fonction est à modifier (constante `CHANNEL_ID`).
+
 ### Menu
-- Ordre : NVG en Live, Calendrier, Boutique, Propositions de jeux (Staff & Admin), Logistique (Admin), Administration (Admin).
+- Ordre : NVG en Live, Calendrier, Streams NVG, Vidéos, Boutique, Propositions de jeux (Staff & Admin), Logistique (Admin), Administration (Admin).
 - Sur téléphone : barre fixe en haut (logo, NVG-TV, profil), bouton ☰ fixe sous la barre, menu en panneau.
 
 ## 6. Procédure de déploiement
@@ -152,8 +161,8 @@ Pour déployer une fonction Edge : `curl` vers `/v1/projects/{ref}/functions/dep
 - **Cartes d'événements** : style dans la balise `<style>` de `index.html` (classe `.event-card` et `.ec-*`). Les tailles sont proportionnelles à la carte (unités `cqi`) et plafonnées (`min(...)`). Le ratio est 8:5 (`aspect-ratio`). La grille (`.events-grid`) passe de 1 à plusieurs colonnes entre 320 et 460 px.
 - **Notifications** : carte dans `notifications.js` (fonction `loadNotifications`, variable `htmlContent`). La liste admin compacte est `htmlCompact`.
 - **Propositions de jeux** : cartes, filtres (Tous / Nieuwheim / Idées / événement) et badges dans `games.js` (`renderGameFilters`, `renderGamesList`, `gameTargetBadge`). La cible est stockée dans `target_type` (`nieuwheim`, `idea` ou `event`) + `event_id`. « Juste une idée » (`idea`) sert aux jeux sans événement, à rattacher plus tard via Éditer. Le commentaire et la date de sortie (texte libre) ne s'affichent et ne sont enregistrés que pour Nieuwheim. Dans la fiche admin d'un événement, `renderAdminEventGames` (events.js) liste les jeux de l'événement et les idées avec des cases à cocher : un jeu décoché repart en idée à l'enregistrement, et le bouton « Rattacher toutes les idées » les ajoute à l'événement. Le calendrier public n'affiche aucun jeu. Sur les cartes Nieuwheim, le logo complet (`logo-nieuwheim-complet.png`) est affiché directement, sans fond : son lettrage est blanc avec un contour noir, donc lisible sur la carte sombre. Il est recadré en CSS (`gameTargetBadge`) : le fichier 1920x1080 a des marges transparentes avec un contenu centré, d'où la largeur de 127,5 %. Si le logo est remplacé par un cadrage différent, ajuster ces valeurs.
-- **Menu PC / mobile** : sur mobile (moins de 768 px), barre fixe en haut (`fixed top-0`), bouton ☰ fixe sous la barre, menu en panneau fixe. Sur PC (768 px et plus), colonne latérale `md:sticky md:h-screen`, et le bloc du compte en `md:absolute md:bottom-5`.
-- **Toujours tester les deux tailles** : ordinateur et téléphone.
+- **Vidéos** : grille `.videos-grid` (dans `<style>` de `index.html`), cartes générées par `renderVideos` (`videos.js`). Miniature 16:9, titre sur deux lignes maximum, vues et date en dessous.
+- **Menu PC / mobile** : sur mobile (moins de 768 px), barre fixe en haut (`fixed top-0`), bouton ☰ fixe sous la barre, menu en panneau fixe. Sur PC (768 px et plus), colonne latérale `md:sticky md:h-screen`, et le bloc du compte en `md:absolute md:bottom-5`.- **Toujours tester les deux tailles** : ordinateur et téléphone.
 
 ### 8.5 Modifier la base de données (Supabase)
 - **Accès** : SQL Editor du tableau de bord, ou la Management API avec `SUPABASE_ACCESS_TOKEN` (voir section 6).
@@ -164,7 +173,7 @@ Pour déployer une fonction Edge : `curl` vers `/v1/projects/{ref}/functions/dep
 - **Revenir en arrière** : `alter table public.<table> disable row level security;` ou `drop policy`.
 
 ### 8.6 Fonctions Edge (serveur Supabase)
-- Trois fonctions : `send-push` (notifications push, utilise la clé de service), `steam-header` (bannières de jeux), `twitch-live` (statut Twitch, cache 15 s).
+- Fonctions en service : `send-push` (notifications push, utilise la clé de service), `steam-header` (bannières de jeux), `twitch-live` (statut Twitch, cache 15 s), `twitch-eventsub` (passage en direct) et `youtube-videos` (dernières vidéos YouTube, cache 10 min).
 - **Déployer ou mettre à jour** une fonction : fichier `index.ts` + `metadata.json` (`{"entrypoint_path":"index.ts","name":"<nom>","verify_jwt":true|false}`), puis `curl.exe` vers `https://api.supabase.com/v1/projects/<ref>/functions/deploy?slug=<nom>` en multipart (`metadata` et `file`). Voir l'historique pour la commande exacte.
 - **Secrets** : `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` (dans Supabase, jamais dans le code).
 

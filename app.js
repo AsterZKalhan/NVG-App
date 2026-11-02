@@ -199,6 +199,10 @@ function showTab(tabId) {
     renderStreams();
   }
 
+  if (tabId === 'videos' && typeof loadVideos === 'function') {
+    loadVideos();
+  }
+
   // Rafraîchit les destinations (Nieuwheim / événements à venir) à l'ouverture de l'onglet Jeux.
   if (tabId === 'games' && typeof refreshGamesTab === 'function') {
     refreshGamesTab();

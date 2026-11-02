@@ -39,6 +39,7 @@
     .streams-player { aspect-ratio: 16 / 9; width: 100%; position: relative; }
     .streams-player iframe { position: absolute; inset: 0; border: 0; }
     .streams-player #streamsEmpty { position: absolute; inset: 0; }
+    .videos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; }
     .events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 460px)); justify-content: start; align-items: start; gap: 1rem; }
     .event-card { background: #000; border-color: #9b1c20; container-type: inline-size; padding: 4%; aspect-ratio: 8 / 5; }
     .event-card:has(details[open]) { z-index: 30; }
@@ -266,6 +267,9 @@
         <button onclick="showTab('streams')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap">
           👥 Streams NVG
         </button>
+        <button onclick="showTab('videos')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap">
+          🎬 Vidéos
+        </button>
         <button onclick="showTab('shop')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap">
           👕 Boutique
         </button>
@@ -370,6 +374,23 @@
           </div>
         </div>
       </div>
+    </section>
+
+    <!-- ONGLET VIDÉOS YOUTUBE -->
+    <section id="videos" class="tab-content hidden space-y-6">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h2 class="text-xl font-black text-white uppercase">Dernières vidéos</h2>
+        <div class="flex items-center gap-3">
+          <span class="text-xs text-gray-400 font-bold">Vidéos : <span id="videosCount">0</span></span>
+          <a id="videosChannelLink" href="https://www.youtube.com/@nvgamingtv" target="_blank" rel="noopener" class="px-3 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-bold shrink-0">Chaîne YouTube ↗</a>
+        </div>
+      </div>
+
+      <div id="videosGrid" class="videos-grid">
+        <!-- Rendu dynamique -->
+      </div>
+
+      <p class="text-[11px] text-gray-500 italic">Les vidéos sont récupérées automatiquement depuis la chaîne YouTube de la NVG et mises à jour toutes les 10 minutes.</p>
     </section>
 
     <section id="calendar" class="tab-content hidden space-y-6">
@@ -716,6 +737,7 @@
   <script src="catalog.js"></script>
   <script src="games.js"></script>
   <script src="streams.js"></script>
+  <script src="videos.js"></script>
   <script src="notifications.js"></script>
   <script src="users.js"></script>
   <script src="app.js"></script>
