@@ -195,6 +195,10 @@ function showTab(tabId) {
     }
   });
 
+  if (tabId === 'streams' && typeof renderStreams === 'function') {
+    renderStreams();
+  }
+
   if (tabId === 'notifications' && typeof loadNotifications === 'function') {
     loadNotifications();
   }

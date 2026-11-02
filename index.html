@@ -33,6 +33,12 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
   <style>
+    .streams-layout { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+    @media (min-width: 1024px) { .streams-layout { grid-template-columns: 280px 1fr; } }
+    .streams-members { max-height: 60vh; overflow-y: auto; }
+    .streams-player { aspect-ratio: 16 / 9; width: 100%; position: relative; }
+    .streams-player iframe { position: absolute; inset: 0; border: 0; }
+    .streams-player #streamsEmpty { position: absolute; inset: 0; }
     .events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 460px)); justify-content: start; align-items: start; gap: 1rem; }
     .event-card { background: #000; border-color: #9b1c20; container-type: inline-size; padding: 4%; aspect-ratio: 8 / 5; }
     .event-card:has(details[open]) { z-index: 30; }
@@ -235,6 +241,9 @@
 		<button id="navLiveBtn" onclick="showTab('live')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap text-red-500">
 		<span id="liveIndicator" class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span> NVG en Live <span id="liveViewers" class="text-[10px] text-gray-300 font-bold"></span>
 		</button>
+        <button onclick="showTab('streams')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap">
+          👥 Streams NVG
+        </button>
         <button onclick="showTab('calendar')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap">
           📅 Calendrier
         </button>
@@ -313,6 +322,37 @@
       </div>
     </section>
     <!-- ONGLET CALENDRIER -->
+    <section id="streams" class="tab-content hidden space-y-6">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-black text-white uppercase">Streams NVG</h2>
+        <span class="text-xs text-gray-400 font-bold">Membres : <span id="streamsCount">0</span></span>
+      </div>
+      <div class="streams-layout">
+        <aside class="bg-[#121722] border border-[#1f293d] rounded-2xl p-3 space-y-3">
+          <div class="rounded-xl overflow-hidden bg-[#07090e] border border-[#1f293d] flex items-center justify-center p-4">
+            <img src="./Logos/logo-nvg.png" alt="NVG" class="w-full max-w-[200px] object-contain">
+          </div>
+          <div id="streamsMembers" class="streams-members space-y-1"></div>
+        </aside>
+        <div class="space-y-3 min-w-0">
+          <div class="streams-player bg-black rounded-2xl overflow-hidden border border-[#1f293d]">
+            <iframe id="streamsPlayer" class="w-full h-full" allowfullscreen></iframe>
+            <div id="streamsEmpty" class="hidden w-full h-full flex items-center justify-center text-xs text-gray-500 italic">Aucun membre n'a encore renseigné sa chaîne Twitch.</div>
+          </div>
+          <div class="flex items-center gap-3 bg-[#121722] border border-[#1f293d] rounded-2xl p-3">
+            <img id="streamsInfoAvatar" alt="" class="hidden w-12 h-12 rounded-full object-cover shrink-0">
+            <div class="flex-1 min-w-0">
+              <div id="streamsInfoName" class="text-sm font-black text-white truncate"></div>
+              <div id="streamsInfoTitle" class="text-xs text-gray-300 truncate"></div>
+              <div id="streamsInfoGame" class="text-[11px] text-gray-400 truncate"></div>
+            </div>
+            <span id="streamsInfoViewers" class="hidden"></span>
+            <a id="streamsInfoLink" href="#" target="_blank" rel="noopener" class="px-3 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-bold shrink-0">Ouvrir sur Twitch ↗</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section id="calendar" class="tab-content hidden space-y-6">
       <div class="flex items-center justify-between">
         <h2 class="text-xl font-black text-white uppercase">Calendrier des Événements</h2>
@@ -618,6 +658,7 @@
   <script src="events.js"></script>
   <script src="catalog.js"></script>
   <script src="games.js"></script>
+  <script src="streams.js"></script>
   <script src="notifications.js"></script>
   <script src="users.js"></script>
   <script src="app.js"></script>
