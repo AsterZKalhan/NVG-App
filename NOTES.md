@@ -52,6 +52,7 @@ Fonctions et triggers :
 - `nvg_protect_roles` (trigger) : bloque la modification du rang ou du rôle par un non-admin.
 - `nvg_create_profile` (trigger sur `auth.users`) : crée le profil « Petit Viking » à chaque inscription.
 - `nvg_admin_set_email(target, new_email)` : permet à un admin de changer l'e-mail de connexion d'un membre.
+- `nvg_cleanup_live_notifications()` : supprime les notifications dont le titre est exactement `NVG est en live !` lorsqu'elles ont plus de 48 h, ainsi que les lignes correspondantes de `nvg_notification_reads`. Les autres notifications ne sont jamais touchées. Exécutée par le job `pg_cron` `nvg-cleanup-live-notifications` (`17 * * * *`, soit un décalage maximal de 48 h + 1 h). La colonne `time` étant du texte ISO, la fonction filtre d'abord avec `time ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T'` pour ignorer les valeurs invalides. SQL : `.github/sql/cleanup-live-notifications.sql`.
 
 Fonction Edge `steam-header` : récupère la bannière d'un jeu (Steam ou image de partage de la page). Sans authentification particulière.
 Fonction Edge `twitch-live` : statut et nombre de spectateurs de la chaîne NVG via l'API Twitch. Cache de 15 secondes. Utilise les secrets `TWITCH_CLIENT_ID` et `TWITCH_CLIENT_SECRET`.
@@ -99,6 +100,7 @@ Fonction Edge `contact-message` (sans JWT) : reçoit le formulaire public (`cont
 - Lu / non lu enregistré en base (`nvg_notification_reads`). Les notifications antérieures à `notif_baseline` sont considérées comme lues.
 - Activation des push : bannière après connexion (délai de 7 jours si refusée), et bouton dans « Mon compte » qui affiche l'état réel.
 - Un abonnement par appareil (clé : endpoint).
+- **Nettoyage automatique** : les notifications `NVG est en live !` disparaissent de l'historique 48 h après leur apparition (job `pg_cron` horaire, voir section 3). Les autres notifications restent.
 
 ### Live Twitch
 - Statut via `twitch-live`, toutes les 30 secondes uniquement quand l'onglet est visible, et immédiatement au retour sur l'onglet.
