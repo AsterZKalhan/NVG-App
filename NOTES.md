@@ -22,6 +22,9 @@ Document de reprise du projet. À lire avant toute modification.
 | `games.js` | Propositions de jeux et bannières |
 | `streams.js` | Module « Streams NVG » (membres avec chaîne Twitch, statut en direct) |
 | `videos.js` | Module « Vidéos » (dernières vidéos YouTube via la fonction `youtube-videos`) |
+| `contact.html` | Page publique autonome du formulaire de contact (accessible sans compte) |
+| `contact-form.js` | Logique du formulaire public (captcha, champs conditionnels, envoi à `contact-message`) |
+| `contact.js` | Boîte de réception « Contact » du panneau admin (lecture, lu/non lu, réponse `mailto`, suppression) |
 | `notifications.js` | Notifications (liste, lu / non lu, envoi admin) |
 | `supabase-config.js` | URL du projet et clé publique (anon) |
 | `sw.js` | Service worker (notifications push) |
@@ -42,6 +45,7 @@ Document de reprise du projet. À lire avant toute modification.
 | `nvg_notification_reads` | Notifications lues par utilisateur | **Active** |
 | `nvg_subscriptions` | Abonnements push des appareils | Active : chacun ne voit et ne gère que ses propres abonnements (la fonction `send-push` utilise la clé de service) |
 | `nvg_equipment_catalog` | Catalogue de matériel (`category`) | Active : lecture publique, écriture admin |
+| `nvg_contact_messages` | Messages du formulaire de contact (identité, e-mail, objet, message, réseaux sociaux, `is_read`, `read_at`) | Active : **lecture, mise à jour et suppression réservées aux admins**. Aucune policy `INSERT` : l'écriture passe uniquement par l'Edge Function `contact-message` (clé de service) |
 
 Fonctions et triggers :
 - `nvg_is_admin()` : vrai si l'utilisateur connecté est admin (`role = 'admin'` ou rang Grand Jarl / Divinité).
@@ -56,6 +60,8 @@ Fonction Edge `twitch-live` : statut et nombre de spectateurs de la chaîne NVG 
 Fonction Edge `send-push` : envoie les notifications push. Déjà présente avant ce projet.
 
 Fonction Edge `youtube-videos` (sans JWT) : liste les dernières vidéos de la chaîne YouTube `@nvgamingtv` (`UC7WH5BSCYpme0_6NLBWiAiw`) via l'API publique de la page YouTube (Innertube, sans clé API), cache 10 minutes. Paramètre `?limit=` (1 à 20, 12 par défaut). Le flux RSS de cette chaîne renvoie 404, d'où cette méthode. Utilisée par `videos.js`.
+
+Fonction Edge `contact-message` (sans JWT) : reçoit le formulaire public (`contact.html`). Le `GET` renvoie un défi anti-robot arithmétique signé (HMAC dérivé de `SUPABASE_SERVICE_ROLE_KEY`, valable 10 minutes). Le `POST` vérifie le défi, le honeypot `website`, les champs obligatoires, puis limite à 5 messages / 10 minutes par IP et 3 / heure par e-mail. Elle insère le message avec la clé de service (la table n'a **aucune** policy `INSERT`) et envoie un push aux admins (`Grand Jarl, Divinité`) via `send-push`, **sans** créer de ligne dans `nvg_notifications` (la lecture y est publique et le message contient des données personnelles). Code source : `.github/edge-functions/contact-message/index.ts`.
 
 ## 4. Secrets et accès (les valeurs ne sont PAS ici)
 
@@ -106,8 +112,16 @@ Fonction Edge `youtube-videos` (sans JWT) : liste les dernières vidéos de la c
 - **Pas de webhook YouTube** : le flux `feeds/videos.xml` de YouTube renvoie 404 (pour toutes les chaînes aujourd'hui), donc l'abonnement « nouvelle vidéo » (PubSubHubbub) n'est pas possible. La vérification `ETag` est la solution la plus proche, avec un coût réseau quasi nul.
 - Si la chaîne change, seule la fonction est à modifier (constante `CHANNEL_ID`).
 
+### Contact
+- **Formulaire public** (`contact.html`, accessible sans compte) : Prénom, Nom, Pseudo (facultatif), e-mail de contact (obligatoire), Objet (Demande d'information / Recrutement streameur / Prise de contact / Suggestion).
+- **Recrutement streameur** : la chaîne Twitch devient obligatoire, et Instagram, X, Discord et YouTube sont proposés en facultatif. Le message devient facultatif (présentation). Pour les autres objets, un simple message texte est obligatoire, sans limite de caractères (plafond technique de 50 000).
+- **Aucun SMTP, aucun e-mail automatique** : le message est stocké dans `nvg_contact_messages` et consultable dans **Administration → 📥 Contact**. Les admins répondent avec le bouton « ✉️ Répondre » (`mailto:` vers l'adresse saisie, objet prérempli), ce qui ouvre le logiciel de messagerie par défaut (Outlook sur le PC d'Aster). Un message peut aussi être marqué lu / non lu ou supprimé.
+- **Anti-spam** : captcha arithmétique signé côté serveur + honeypot + limites par IP et par e-mail. Ne jamais ajouter de policy `INSERT` sur la table : cela contournerait ces protections.
+- **Notification** : push aux admins uniquement (`Grand Jarl, Divinité`), titre `Nouveau contact app NVG - prénom "pseudo" nom - objet`. Pas d'insertion dans `nvg_notifications` (fuite de données personnelles, car cette table est lisible publiquement).
+- Le lien vers le formulaire est présent dans la fenêtre de connexion (accès public) et dans le menu latéral.
+
 ### Menu
-- Ordre : NVG en Live, Calendrier, Streams NVG, Vidéos, Boutique, Propositions de jeux (Staff & Admin), Logistique (Admin), Administration (Admin).
+- Ordre : NVG en Live, Calendrier, Streams NVG, Vidéos, Boutique, Propositions de jeux (Staff & Admin), Logistique (Admin), Administration (Admin), Contact.
 - Sur téléphone : barre fixe en haut (logo, NVG-TV, profil), bouton ☰ fixe sous la barre, menu en panneau.
 
 ## 6. Procédure de déploiement
@@ -150,8 +164,10 @@ Pour déployer une fonction Edge : `curl` vers `/v1/projects/{ref}/functions/dep
 - **Position des éléments** : le bloc du compte (`userProfileBadge`) est en `fixed` sur mobile et `absolute` sur PC. Quand on change ses classes, vérifier le `top` (`md:top-auto`) et le `right`.
 - **Cache du service worker** : `sw.js` ne met rien en cache (pas de `fetch`), mais le navigateur peut garder un ancien JavaScript. D'où le Ctrl+F5.
 - **Lecture de l'adresse au démarrage** : `handleSuccessfulAuth` ouvre le calendrier à la fin. Le module demandé (`#nom`) est donc lu tout au début de `DOMContentLoaded` (variable `initialHash`).
+- **Formulaire de contact public** : ne jamais ajouter de policy `INSERT` sur `nvg_contact_messages`. L'écriture doit passer par l'Edge Function `contact-message`, qui vérifie le captcha, le honeypot et les limites. Une policy publique ouvrirait l'insertion directe de spam avec la clé anon.
 
 ### 8.3 Ajouter un nouveau module (page)
+0. **Page autonome** (comme `contact.html` ou `privacy.html`) : pas besoin de Tailwind. Reprendre le style de `contact.html` (variables CSS sombres), charger `supabase-config.js` si un appel Supabase est nécessaire, et ajouter la page au menu par un simple lien `<a href="...">`.
 1. **HTML** (`index.html`) : ajouter une section dans `<main>` :
    `<section id="monmodule" class="tab-content hidden space-y-6"> ... </section>`
    La classe `hidden` est obligatoire.
@@ -177,7 +193,7 @@ Pour déployer une fonction Edge : `curl` vers `/v1/projects/{ref}/functions/dep
 - **Revenir en arrière** : `alter table public.<table> disable row level security;` ou `drop policy`.
 
 ### 8.6 Fonctions Edge (serveur Supabase)
-- Fonctions en service : `send-push` (notifications push, utilise la clé de service), `steam-header` (bannières de jeux), `twitch-live` (statut Twitch, cache 15 s), `twitch-eventsub` (passage en direct) et `youtube-videos` (dernières vidéos YouTube, cache 10 min).
+- Fonctions en service : `send-push` (notifications push, utilise la clé de service), `steam-header` (bannières de jeux), `twitch-live` (statut Twitch, cache 15 s), `twitch-eventsub` (passage en direct), `youtube-videos` (dernières vidéos YouTube, cache 10 min) et `contact-message` (formulaire de contact public, sans JWT).
 - **Déployer ou mettre à jour** une fonction : fichier `index.ts` + `metadata.json` (`{"entrypoint_path":"index.ts","name":"<nom>","verify_jwt":true|false}`), puis `curl.exe` vers `https://api.supabase.com/v1/projects/<ref>/functions/deploy?slug=<nom>` en multipart (`metadata` et `file`). Voir l'historique pour la commande exacte.
 - **Secrets** : `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` (dans Supabase, jamais dans le code).
 

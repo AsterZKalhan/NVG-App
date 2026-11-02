@@ -109,6 +109,12 @@
           S'inscrire 🚀
         </button>
       </form>
+      <!-- Accès public au formulaire de contact -->
+      <div class="mt-6 pt-4 border-t border-[#1f293d] text-center text-[11px] text-gray-400">
+        Une question ? <a href="contact.html" class="text-gray-200 hover:text-white font-bold underline underline-offset-2">Contacte l'équipe NVG</a>
+        <span class="text-gray-600 mx-1">·</span>
+        <a href="privacy.html" class="hover:text-white">Confidentialité</a>
+      </div>
     </div>
   </div>
   <!-- MODALE DE GESTION DE PRÉSENCE & MATÉRIEL -->
@@ -284,6 +290,9 @@
         <button id="navAdminBtn" onclick="showTab('admin')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap text-amber-400 hidden">
           ⚙️ <span class="flex flex-col leading-tight"><span>Administration</span><span class="italic text-[10px] font-normal opacity-70">(Admin)</span></span>
         </button>
+        <a href="contact.html" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap">
+          ✉️ Contact
+        </a>
       </nav>
     </div>
     <!-- ZONE PROFIL & COMPTE UTILISATEUR CONNECTÉ (EN BAS) -->
@@ -576,6 +585,9 @@
         <button data-admin-panel="evenements" onclick="showAdminPanel('evenements')" class="admin-subtab px-4 py-2 rounded-lg text-xs font-bold uppercase transition text-gray-300 bg-white/5 hover:bg-white/10">📅 Événements</button>
         <button data-admin-panel="notifications" onclick="showAdminPanel('notifications')" class="admin-subtab px-4 py-2 rounded-lg text-xs font-bold uppercase transition text-gray-300 bg-white/5 hover:bg-white/10">🔔 Notifications</button>
         <button data-admin-panel="catalogue" onclick="showAdminPanel('catalogue')" class="admin-subtab px-4 py-2 rounded-lg text-xs font-bold uppercase transition text-gray-300 bg-white/5 hover:bg-white/10">🎒 Catalogue</button>
+        <button data-admin-panel="contact" onclick="showAdminPanel('contact')" class="admin-subtab px-4 py-2 rounded-lg text-xs font-bold uppercase transition text-gray-300 bg-white/5 hover:bg-white/10">
+          📥 Contact <span id="contactUnreadBadge" class="hidden ml-1 min-w-[18px] h-[18px] px-1 items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-black align-middle">0</span>
+        </button>
       </div>
       <div id="adminPanel-membres" class="admin-panel space-y-4">
         <h3 class="text-sm font-bold text-white uppercase tracking-wider">👥 Gestion des Membres & Rôles</h3>
@@ -747,6 +759,25 @@
           <!-- Rendu dynamique -->
         </div>
       </div>
+      <div id="adminPanel-contact" class="admin-panel hidden space-y-4">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">📥 Messages de contact</h3>
+            <p class="text-[10px] text-gray-400 mt-1">Messages envoyés depuis le formulaire public. Réponds depuis ta messagerie habituelle.</p>
+            <p id="adminContactSummary" class="text-[10px] text-amber-400 font-bold mt-1"></p>
+          </div>
+          <div class="flex items-center gap-2">
+            <select id="adminContactFilter" onchange="setContactFilter(this.value)" class="bg-[#07090e] border border-[#1f293d] rounded-lg px-3 py-2 text-xs text-white focus:border-red-600 focus:outline-none">
+              <option value="all">Tous les messages</option>
+              <option value="unread">Non lus</option>
+            </select>
+            <button type="button" onclick="loadContactMessages()" title="Actualiser la liste" class="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-200 text-xs font-bold transition">🔄 Actualiser</button>
+          </div>
+        </div>
+        <div id="adminContactList" class="space-y-2">
+          <!-- Rendu dynamique -->
+        </div>
+      </div>
     </section>
   </main>
   <!-- 2. SCRIPTS MÉTIER -->
@@ -755,6 +786,7 @@
   <script src="games.js"></script>
   <script src="streams.js"></script>
   <script src="videos.js"></script>
+  <script src="contact.js"></script>
   <script src="notifications.js"></script>
   <script src="users.js"></script>
   <script src="app.js"></script>

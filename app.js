@@ -221,6 +221,11 @@ function showTab(tabId) {
   if (tabId === 'admin' && typeof loadUsers === 'function') {
     loadUsers();
   }
+
+  // Boîte de réception « Contact » (admins uniquement, la RLS protège les données).
+  if (tabId === 'admin' && typeof loadContactMessages === 'function') {
+    loadContactMessages();
+  }
 }
 
 // Gestion de l'authentification réussie

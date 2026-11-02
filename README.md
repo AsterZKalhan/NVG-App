@@ -21,11 +21,14 @@ dans l'app.
 /                     → racine du site (doc root)
 ├── index.html
 ├── app.js
-├── events.js / catalog.js / games.js / notifications.js / users.js
+├── events.js / catalog.js / games.js / notifications.js / users.js / videos.js
+├── contact.js         → boîte de réception admin des messages de contact
+├── contact-form.js    → formulaire public de contact
 ├── supabase-config.js
 ├── manifest.json
 ├── sw.js
 ├── Logos/
+├── contact.html       → formulaire de contact public
 ├── privacy.html      → page publique obligatoire pour le Play Store
 ├── .well-known/
 │   ├── assetlinks.json   → vérification du domaine pour le TWA

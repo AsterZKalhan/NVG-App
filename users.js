@@ -422,6 +422,11 @@ function showAdminPanel(name) {
     btn.classList.toggle('bg-white/5', !active);
     btn.classList.toggle('text-gray-300', !active);
   });
+
+  // Chargement de la boîte de réception Contact à l'ouverture du sous-onglet.
+  if (name === 'contact' && typeof loadContactMessages === 'function') {
+    loadContactMessages();
+  }
 }
 
 // --- GESTION DE L'ABONNEMENT NOTIFICATIONS PUSH (PROFIL) ---

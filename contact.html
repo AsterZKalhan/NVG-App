@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contact — Normandy Viking Gaming</title>
+<meta name="description" content="Contacte l'équipe de Normandy Viking Gaming : demande d'information, recrutement streameur, prise de contact ou suggestion.">
+<link rel="icon" type="image/png" href="./Logos/favicon.png">
+<link rel="apple-touch-icon" href="./Logos/favicon.png">
+<meta name="theme-color" content="#07090e">
+<style>
+  :root {
+    --bg: #07090e;
+    --card: #121722;
+    --field: #0b0f17;
+    --border: #1f293d;
+    --text: #e5e7eb;
+    --muted: #9ca3af;
+    --red: #dc2626;
+    --amber: #f59e0b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    font-size: 15px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 40px 20px 80px; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
+  header img { width: 48px; height: 48px; object-fit: contain; background: rgba(0,0,0,.4); border: 1px solid var(--border); border-radius: 12px; padding: 4px; }
+  h1 { font-size: 22px; margin: 0; text-transform: uppercase; letter-spacing: .5px; }
+  .sub { color: var(--muted); font-size: 12px; margin: 2px 0 0; }
+  .intro { color: #d1d5db; margin: 0 0 24px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px;
+  }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 600px) { .row { grid-template-columns: 1fr; } }
+  .field { margin-bottom: 16px; }
+  label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #d1d5db; margin-bottom: 6px; }
+  label .req { color: #f87171; }
+  input, select, textarea {
+    width: 100%;
+    background: var(--field);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 13px;
+    color: #fff;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--red); }
+  textarea { resize: vertical; min-height: 130px; }
+  .hint { color: var(--muted); font-size: 11px; margin: 5px 0 0; }
+  .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .captcha {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    background: var(--field);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+  }
+  .captcha .question { flex: 1; }
+  .captcha .question-text { color: #fff; font-weight: 700; font-size: 14px; }
+  .captcha input { margin-top: 6px; }
+  .captcha button {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 8px;
+    padding: 9px 11px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .captcha button:hover { color: #fff; border-color: #374151; }
+  .submit {
+    width: 100%;
+    border: 0;
+    border-radius: 12px;
+    padding: 14px;
+    background: var(--red);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .submit:hover:not(:disabled) { background: #ef4444; }
+  .submit:disabled { opacity: .6; cursor: not-allowed; }
+  .status {
+    display: none;
+    margin-top: 16px;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+  .status.error { display: block; background: rgba(220,38,38,.1); border: 1px solid rgba(220,38,38,.35); color: #fca5a5; }
+  .status.info { display: block; background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.3); color: #fcd34d; }
+  .success { text-align: center; padding: 18px 6px 8px; }
+  .success .icon { font-size: 42px; line-height: 1; margin-bottom: 12px; }
+  .success h2 { font-size: 18px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .5px; }
+  .success p { color: #d1d5db; margin: 0 0 20px; }
+  .success a {
+    display: inline-block;
+    background: var(--red);
+    color: #fff;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    padding: 12px 20px;
+    border-radius: 10px;
+  }
+  .success a:hover { background: #ef4444; }
+  .recruit {
+    background: var(--field);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .recruit .title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--amber); margin: 0 0 12px; }
+  a { color: #f87171; }
+  footer { margin-top: 36px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  footer a { color: #d1d5db; text-decoration: none; }
+  footer a:hover { color: #fff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <img src="./Logos/logo-nvg.png" alt="Logo Normandy Viking Gaming">
+    <div>
+      <h1>Contact</h1>
+      <p class="sub">Normandy Viking Gaming — Application Companion</p>
+    </div>
+  </header>
+
+  <p class="intro">
+    Une question, une suggestion ou envie de rejoindre l'aventure NVG ? Écris-nous ici.
+    Ton message est transmis directement aux administrateurs de l'association. Aucun e-mail n'est envoyé automatiquement.
+  </p>
+
+  <div class="card">
+    <form id="contactForm" novalidate>
+      <!-- Piège à robots : champ invisible, jamais rempli par un humain. -->
+      <div class="hp" aria-hidden="true">
+        <label for="contactWebsite">Ne pas remplir ce champ</label>
+        <input type="text" id="contactWebsite" name="website" tabindex="-1" autocomplete="off">
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="contactFirstName">Prénom <span class="req">*</span></label>
+          <input type="text" id="contactFirstName" name="first_name" maxlength="80" autocomplete="given-name" required>
+        </div>
+        <div class="field">
+          <label for="contactLastName">Nom <span class="req">*</span></label>
+          <input type="text" id="contactLastName" name="last_name" maxlength="80" autocomplete="family-name" required>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="contactPseudo">Pseudo (facultatif)</label>
+          <input type="text" id="contactPseudo" name="pseudo" maxlength="60" autocomplete="nickname" placeholder="Ton pseudo en ligne">
+        </div>
+        <div class="field">
+          <label for="contactEmail">E-mail de contact <span class="req">*</span></label>
+          <input type="email" id="contactEmail" name="email" maxlength="254" autocomplete="email" placeholder="nom@exemple.com" required>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="contactSubject">Objet de la demande <span class="req">*</span></label>
+        <select id="contactSubject" name="subject" required>
+          <option value="">— Choisir un objet —</option>
+          <option value="Demande d'information">Demande d'information</option>
+          <option value="Recrutement streameur">Recrutement streameur</option>
+          <option value="Prise de contact">Prise de contact</option>
+          <option value="Suggestion">Suggestion</option>
+        </select>
+      </div>
+
+      <!-- Champs affichés uniquement pour « Recrutement streameur ». -->
+      <div id="recruitFields" class="recruit" style="display:none">
+        <p class="title">Candidature streameur</p>
+        <div class="field">
+          <label for="contactTwitch">Chaîne Twitch <span class="req">*</span></label>
+          <input type="text" id="contactTwitch" name="twitch_channel" maxlength="100" autocomplete="off" placeholder="https://twitch.tv/tonpseudo ou tonpseudo">
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="contactInstagram">Instagram (facultatif)</label>
+            <input type="text" id="contactInstagram" name="instagram" maxlength="300" autocomplete="off" placeholder="@toncompte ou lien">
+          </div>
+          <div class="field">
+            <label for="contactX">X / Twitter (facultatif)</label>
+            <input type="text" id="contactX" name="x_account" maxlength="300" autocomplete="off" placeholder="@toncompte ou lien">
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="contactDiscord">Discord (facultatif)</label>
+            <input type="text" id="contactDiscord" name="discord" maxlength="300" autocomplete="off" placeholder="Pseudo ou invitation Discord">
+          </div>
+          <div class="field">
+            <label for="contactYoutube">YouTube (facultatif)</label>
+            <input type="text" id="contactYoutube" name="youtube" maxlength="300" autocomplete="off" placeholder="@tachaine ou lien">
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="contactMessage" id="contactMessageLabel">Message <span class="req">*</span></label>
+        <textarea id="contactMessage" name="message" maxlength="50000" placeholder="Écris ton message ici…" required></textarea>
+        <p class="hint" id="contactMessageHint">Aucune limite de caractères (dans la limite de 50 000).</p>
+      </div>
+
+      <div class="field">
+        <label>Vérification anti-robot <span class="req">*</span></label>
+        <div class="captcha">
+          <div class="question">
+            <div class="question-text" id="contactCaptchaQuestion">Chargement de la question…</div>
+            <input type="number" id="contactCaptchaAnswer" inputmode="numeric" autocomplete="off" placeholder="Ta réponse" aria-label="Réponse à la vérification anti-robot">
+          </div>
+          <button type="button" id="contactCaptchaRefresh" title="Changer de question">↻ Nouvelle question</button>
+        </div>
+      </div>
+
+      <button type="submit" id="contactSubmit" class="submit">Envoyer le message</button>
+
+      <div id="contactStatus" class="status" role="status" aria-live="polite"></div>
+    </form>
+
+    <div id="contactSuccess" class="success" style="display:none">
+      <div class="icon">✅</div>
+      <h2>Message envoyé</h2>
+      <p>Merci ! Ton message a bien été transmis aux administrateurs de Normandy Viking Gaming.<br>Une réponse te sera apportée à l'adresse indiquée.</p>
+      <a href="./index.html">Retour à l'application</a>
+    </div>
+  </div>
+
+  <footer>
+    <span>© 2026 Normandy Viking Gaming — association loi 1901</span>
+    <span><a href="./privacy.html">Confidentialité</a> · <a href="./index.html">Retour à l'application</a></span>
+  </footer>
+
+</div>
+
+<script src="supabase-config.js"></script>
+<script src="contact-form.js"></script>
+</body>
+</html>
