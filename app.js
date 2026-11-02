@@ -333,6 +333,13 @@ async function handleSuccessfulAuth(authUser) {
     else gamesNavBtn.classList.add('hidden');
   }
 
+  // Bouton « Forcer l'actualisation » du module Vidéos : admins uniquement.
+  const videosRefreshBtn = document.getElementById('videosRefreshBtn');
+  if (videosRefreshBtn) {
+    if (hasAdminRights) videosRefreshBtn.classList.remove('hidden');
+    else videosRefreshBtn.classList.add('hidden');
+  }
+
   await renderAll();
 }
 

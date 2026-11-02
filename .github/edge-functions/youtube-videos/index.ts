@@ -89,7 +89,7 @@ function videoEtag(videos: Video[]): string {
 const normalizeEtag = (value: string | null) =>
   (value ?? "").trim().replace(/^W\//i, "").replace(/^"(.*)"$/, "$1");
 
-function videosResponse(payload: any, req: Request): Response {
+function videosResponse(payload: any, req: Request, force = false): Response {
   const etag = videoEtag(payload.videos ?? []);
   const headers = {
     ...cors,
@@ -99,7 +99,7 @@ function videosResponse(payload: any, req: Request): Response {
     "Cache-Control": "no-cache",
   };
 
-  if (normalizeEtag(req.headers.get("if-none-match")) === normalizeEtag(etag)) {
+  if (!force && normalizeEtag(req.headers.get("if-none-match")) === normalizeEtag(etag)) {
     return new Response(null, { status: 304, headers });
   }
   return new Response(JSON.stringify(payload), { status: 200, headers });
@@ -113,8 +113,9 @@ Deno.serve(async (req) => {
   const limit = Number.isFinite(requested) ? Math.min(Math.max(Math.trunc(requested), 1), 20) : 3;
 
   const cacheKey = `${CHANNEL_ID}:${limit}`;
-  if (cache && cache.key === cacheKey && Date.now() - cache.at < CACHE_MS) {
-    return videosResponse(cache.data, req);
+  const forced = params.get("refresh") === "1";
+  if (!forced && cache && cache.key === cacheKey && Date.now() - cache.at < CACHE_MS) {
+    return videosResponse(cache.data, req, forced);
   }
 
   try {
@@ -169,7 +170,7 @@ Deno.serve(async (req) => {
     };
 
     cache = { key: cacheKey, at: Date.now(), data: payload };
-    return videosResponse(payload, req);
+    return videosResponse(payload, req, forced);
   } catch (_err) {
     return json({ error: "youtube indisponible" }, 502);
   }

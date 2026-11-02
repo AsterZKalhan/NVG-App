@@ -56,13 +56,14 @@ function escapeVideoText(str) {
 
 async function loadVideos(force = false) {
   const grid = document.getElementById('videosGrid');
-  if (!grid || videosLoading) return;
+  if (!grid) return 'error';
+  if (videosLoading) return 'busy';
 
   // Affichage immédiat de ce qui est déjà connu (aucune attente).
   if (videosCache.data) renderVideos(videosCache.data);
 
   const checkedRecently = Date.now() - (videosCache.checkedAt || 0) < VIDEOS_CHECK_MS;
-  if (!force && checkedRecently) return;
+  if (!force && checkedRecently) return 'cached';
 
   videosLoading = true;
   if (!videosCache.data) {
@@ -79,15 +80,17 @@ async function loadVideos(force = false) {
       apikey: SUPABASE_ANON_KEY,
       Authorization: `Bearer ${SUPABASE_ANON_KEY}`
     };
-    if (videosCache.etag) headers['If-None-Match'] = videosCache.etag;
+    // En actualisation forcée (admin), on ignore la version connue et le cache serveur.
+    if (videosCache.etag && !force) headers['If-None-Match'] = videosCache.etag;
 
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/youtube-videos?limit=${VIDEOS_MAX}`, { headers });
+    const url = `${SUPABASE_URL}/functions/v1/youtube-videos?limit=${VIDEOS_MAX}${force ? '&refresh=1' : ''}`;
+    const res = await fetch(url, { headers });
 
     // 304 : aucune nouvelle vidéo, on ne touche à rien.
     if (res.status === 304) {
       videosCache.checkedAt = Date.now();
       saveStoredVideos();
-      return;
+      return 'unchanged';
     }
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -95,13 +98,18 @@ async function loadVideos(force = false) {
     const data = await res.json();
     if (!data || !Array.isArray(data.videos) || data.videos.length === 0) throw new Error('aucune vidéo');
 
+    const previousEtag = videosCache.etag;
+    const freshEtag = res.headers.get('ETag') || null;
+
     videosCache = {
       data,
-      etag: res.headers.get('ETag') || null,
+      etag: freshEtag,
       checkedAt: Date.now()
     };
     saveStoredVideos();
     renderVideos(data);
+
+    return previousEtag && freshEtag && previousEtag === freshEtag ? 'unchanged' : 'updated';
   } catch (err) {
     console.error('Erreur chargement des vidéos YouTube :', err);
     // Les vidéos déjà affichées restent en place ; l'erreur n'apparaît que si la page est vide.
@@ -116,8 +124,34 @@ async function loadVideos(force = false) {
     }
     videosCache.checkedAt = Date.now();
     saveStoredVideos();
+    return 'error';
   } finally {
     videosLoading = false;
+  }
+}
+
+// Bouton réservé aux admins : force une vraie récupération (ignore ETag et cache serveur).
+async function forceRefreshVideos() {
+  const btn = document.getElementById('videosRefreshBtn');
+  if (!btn || btn.disabled) return;
+
+  const originalHtml = btn.innerHTML;
+  const showResult = (text) => {
+    btn.innerHTML = text;
+    setTimeout(() => { btn.innerHTML = originalHtml; }, 2500);
+  };
+
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Actualisation…';
+
+  try {
+    const result = await loadVideos(true);
+    if (result === 'updated') showResult('✅ Vidéos actualisées');
+    else if (result === 'unchanged') showResult('✅ Déjà à jour');
+    else if (result === 'busy') showResult('⏳ En cours…');
+    else showResult('⚠️ Échec');
+  } finally {
+    btn.disabled = false;
   }
 }
 
