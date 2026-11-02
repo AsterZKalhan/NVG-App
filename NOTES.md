@@ -35,7 +35,7 @@ Document de reprise du projet. À lire avant toute modification.
 |---|---|---|
 | `nvg_users` | Profils (pseudo, grade, rôle, avatar, chaîne Twitch, `notif_baseline`) | **Active** |
 | `nvg_events` | Événements, présences (`attendance` en JSON), `watch_mode`, `streams` | Active : lecture publique, création et suppression admin, mise à jour par les membres connectés (présences) |
-| `nvg_games` | Propositions de jeux | Active : lecture publique, proposition et vote connectés, suppression admin |
+| `nvg_games` | Propositions de jeux, rattachées à `Nieuwheim` ou à un événement NVG (`target_type`, `event_id`), avec `comment` et `release_date` (texte, Nieuwheim uniquement) | Active : lecture publique, proposition et vote connectés, suppression admin |
 | `nvg_notifications` | Notifications envoyées | Active : lecture publique, envoi et suppression admin |
 | `nvg_notification_reads` | Notifications lues par utilisateur | **Active** |
 | `nvg_subscriptions` | Abonnements push des appareils | Active : chacun ne voit et ne gère que ses propres abonnements (la fonction `send-push` utilise la clé de service) |
@@ -49,7 +49,7 @@ Fonctions et triggers :
 
 Fonction Edge `steam-header` : récupère la bannière d'un jeu (Steam ou image de partage de la page). Sans authentification particulière.
 Fonction Edge `twitch-live` : statut et nombre de spectateurs de la chaîne NVG via l'API Twitch. Cache de 15 secondes. Utilise les secrets `TWITCH_CLIENT_ID` et `TWITCH_CLIENT_SECRET`.
-- **twitch-eventsub** (Edge, sans JWT) : reçoit le passage en direct de la chaîne NVG (EventSub `stream.online`), vérifie la signature (secret `TWITCH_EVENTSUB_SECRET`), crée une notification (cible `TWITCH_NOTIFY_TARGET`, actuellement « Divinité » pour les tests) et l'envoie par push. Code source : `.github/edge-functions/twitch-eventsub/index.ts` (non déployé par SFTP). Abonnement créé auprès de Twitch (broadcaster 103197141). Pour élargir l'envoi à tous : changer le secret `TWITCH_NOTIFY_TARGET` en « Tous ».
+- **twitch-eventsub** (Edge, sans JWT) : reçoit le passage en direct de la chaîne NVG (EventSub `stream.online`), vérifie la signature (secret `TWITCH_EVENTSUB_SECRET`), crée une notification (cible `TWITCH_NOTIFY_TARGET`, actuellement « Tous ») et l'envoie par push. Code source : `.github/edge-functions/twitch-eventsub/index.ts` (non déployé par SFTP). Abonnement créé auprès de Twitch (broadcaster 103197141). Pour restreindre l'envoi : changer le secret `TWITCH_NOTIFY_TARGET`.
 
 Fonction Edge `send-push` : envoie les notifications push. Déjà présente avant ce projet.
 
@@ -151,6 +151,7 @@ Pour déployer une fonction Edge : `curl` vers `/v1/projects/{ref}/functions/dep
 - **Couleurs** : le site utilise Tailwind (CDN). Fond `#07090e`, cartes `#121722`, bordures `#1f293d`, accent rouge `red-600`, or `amber-500`. Garder ces couleurs pour rester cohérent.
 - **Cartes d'événements** : style dans la balise `<style>` de `index.html` (classe `.event-card` et `.ec-*`). Les tailles sont proportionnelles à la carte (unités `cqi`) et plafonnées (`min(...)`). Le ratio est 8:5 (`aspect-ratio`). La grille (`.events-grid`) passe de 1 à plusieurs colonnes entre 320 et 460 px.
 - **Notifications** : carte dans `notifications.js` (fonction `loadNotifications`, variable `htmlContent`). La liste admin compacte est `htmlCompact`.
+- **Propositions de jeux** : cartes, filtres (Tous / Nieuwheim / événement) et badges dans `games.js` (`renderGameFilters`, `renderGamesList`, `gameTargetBadge`). La cible est stockée dans `target_type` (`nieuwheim` ou `event`) + `event_id`. Le commentaire et la date de sortie (texte libre) ne s'affichent et ne sont enregistrés que pour Nieuwheim.
 - **Menu PC / mobile** : sur mobile (moins de 768 px), barre fixe en haut (`fixed top-0`), bouton ☰ fixe sous la barre, menu en panneau fixe. Sur PC (768 px et plus), colonne latérale `md:sticky md:h-screen`, et le bloc du compte en `md:absolute md:bottom-5`.
 - **Toujours tester les deux tailles** : ordinateur et téléphone.
 

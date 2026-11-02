@@ -405,13 +405,43 @@
     </section>
     <!-- ONGLET JEUX -->
     <section id="games" class="tab-content hidden space-y-6">
-      <h2 class="text-xl font-black text-white uppercase">Propositions de Jeux & Votes</h2>
-      <div class="bg-[#121722] border border-[#1f293d] rounded-xl p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <input type="text" id="gameTitle" placeholder="Nom du jeu (ex: It Takes Two)" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-        <input type="text" id="gameLink" placeholder="Lien Steam / Web" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-        <input type="text" id="gameImg" placeholder="URL de l'image (optionnel)" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-        <button onclick="addGameProposal()" class="py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs uppercase shadow transition md:col-span-3">Proposer ce jeu</button>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h2 class="text-xl font-black text-white uppercase">Propositions de Jeux & Votes</h2>
+        <span class="text-xs text-gray-400 font-bold">Jeux proposés : <span id="gamesCount">0</span></span>
       </div>
+
+      <!-- Filtres : tous les jeux, Nieuwheim, ou un événement NVG -->
+      <div id="gamesFilters" class="flex flex-wrap gap-2"></div>
+
+      <div id="gameFormCard" class="bg-[#121722] border border-[#1f293d] rounded-xl p-6 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <input type="text" id="gameTitle" placeholder="Nom du jeu (ex: It Takes Two)" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <input type="text" id="gameLink" placeholder="Lien Steam / Web" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <input type="text" id="gameImg" placeholder="URL de l'image (optionnel)" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="md:col-span-2">
+            <label for="gameTarget" class="block text-[10px] uppercase font-bold text-gray-400 mb-1">Pour</label>
+            <select id="gameTarget" onchange="onGameTargetChange()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white"></select>
+          </div>
+          <div id="gameReleaseDateWrap" class="hidden">
+            <label for="gameReleaseDate" class="block text-[10px] uppercase font-bold text-gray-400 mb-1">Date de sortie</label>
+            <input type="text" id="gameReleaseDate" placeholder="ex : 4e trimestre 2026" autocomplete="off" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          </div>
+        </div>
+
+        <div id="gameCommentWrap" class="hidden">
+          <label for="gameComment" class="block text-[10px] uppercase font-bold text-gray-400 mb-1">Commentaire</label>
+          <textarea id="gameComment" rows="2" placeholder="Pourquoi ce jeu ? Précisions pour la soirée Nieuwheim…" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white resize-y"></textarea>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-3">
+          <button id="gameSubmitBtn" onclick="addGameProposal()" class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs uppercase shadow transition">Proposer ce jeu</button>
+          <button id="gameCancelEditBtn" onclick="cancelGameEdit()" class="hidden px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-300 font-bold text-xs uppercase transition">Annuler</button>
+        </div>
+      </div>
+
       <div id="gamesList" class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <!-- Rendu dynamique -->
       </div>

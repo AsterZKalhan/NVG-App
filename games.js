@@ -1,5 +1,11 @@
 // --- GESTION DES PROPOSITIONS DE JEUX ---
 
+const NIEUWHEIM_LOGO = './Logos/logo-nieuwheim.png';
+
+let gamesCache = [];
+let gamesFilter = 'all';
+let editingGameId = null;
+
 function isGameLink(link) {
   return /^https:\/\//i.test(link || '');
 }
@@ -30,27 +36,291 @@ async function hydrateGameBanners(root) {
   }
 }
 
-// Charger et afficher la liste des jeux proposés
-async function loadGames() {
-  const { data: games, error } = await supabaseClient
-    .from('nvg_games')
-    .select('*')
-    .order('votes', { ascending: false });
+function isGamesAdmin() {
+  return !!currentUser && (
+    currentUser.role === 'admin' ||
+    currentUser.rank === 'Grand Jarl' ||
+    currentUser.rank === 'Divinité'
+  );
+}
 
-  if (error) {
-    console.error("Erreur chargement jeux :", error);
+// Libellé court d'un événement : on retire le préfixe [NVG] (la saison reste dans le logo).
+function gameEventLabel(event) {
+  return (event.title || '').replace(/^\[NVG\]\s*/, '');
+}
+
+function gameEventLogo(event) {
+  const map = typeof eventLogos !== 'undefined' ? eventLogos : {};
+  return `./Logos/${map[event.category] || 'logo-nvg.png'}`;
+}
+
+function upcomingNvgEvents() {
+  const todayStr = new Date().toISOString().split('T')[0];
+  return (db.events || [])
+    .filter(e => (e.category || '').startsWith('NVG') && (e.date_debut || todayStr) >= todayStr)
+    .sort((a, b) => (a.date_debut || '').localeCompare(b.date_debut || ''));
+}
+
+// Valeur de formulaire correspondant à un jeu : '', 'nieuwheim' ou 'event:<id>'.
+function targetValueOf(game) {
+  if (!game) return '';
+  if (game.target_type === 'nieuwheim') return 'nieuwheim';
+  if (game.event_id) return 'event:' + game.event_id;
+  return '';
+}
+
+// --- FILTRES (Tous / Nieuwheim / un événement) ---
+
+function setGamesFilter(key) {
+  gamesFilter = key;
+  renderGameFilters();
+  renderGamesList();
+}
+
+function filteredGames() {
+  if (gamesFilter === 'nieuwheim') return gamesCache.filter(g => g.target_type === 'nieuwheim');
+  if (gamesFilter.startsWith('event:')) {
+    const eventId = gamesFilter.slice(6);
+    return gamesCache.filter(g => g.event_id === eventId);
+  }
+  return gamesCache;
+}
+
+function renderGameFilters() {
+  const container = document.getElementById('gamesFilters');
+  if (!container) return;
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const eventsWithGames = new Set(gamesCache.filter(g => g.event_id).map(g => g.event_id));
+  const events = (db.events || [])
+    .filter(e => (e.category || '').startsWith('NVG') &&
+      ((e.date_debut || todayStr) >= todayStr || eventsWithGames.has(e.id)))
+    .sort((a, b) => (a.date_debut || '').localeCompare(b.date_debut || ''));
+
+  const pills = [
+    { key: 'all', label: 'Tous', count: gamesCache.length },
+    { key: 'nieuwheim', label: 'Nieuwheim', count: gamesCache.filter(g => g.target_type === 'nieuwheim').length, img: NIEUWHEIM_LOGO }
+  ];
+  events.forEach(ev => {
+    pills.push({
+      key: 'event:' + ev.id,
+      label: gameEventLabel(ev),
+      count: gamesCache.filter(g => g.event_id === ev.id).length,
+      img: gameEventLogo(ev)
+    });
+  });
+
+  // Si le filtre actif n'existe plus (événement supprimé), on revient sur « Tous ».
+  if (!pills.some(p => p.key === gamesFilter)) gamesFilter = 'all';
+
+  container.innerHTML = pills.map(pill => {
+    const active = pill.key === gamesFilter;
+    const cls = active
+      ? 'bg-red-600 text-white border-red-500 shadow'
+      : 'bg-[#121722] text-gray-400 border-[#1f293d] hover:text-white';
+    return `
+      <button type="button" onclick="setGamesFilter('${pill.key}')" class="flex items-center gap-2 px-3 py-2 rounded-xl border text-[11px] font-bold transition ${cls}">
+        ${pill.img ? `<img src="${pill.img}" alt="" class="h-4 w-auto object-contain">` : ''}
+        <span>${escapeHtml(pill.label)}</span>
+        <span class="opacity-60">${pill.count}</span>
+      </button>
+    `;
+  }).join('');
+
+  const counter = document.getElementById('gamesCount');
+  if (counter) counter.textContent = gamesCache.length;
+}
+
+// --- FORMULAIRE ---
+
+function renderGameTargetSelect(selectedValue) {
+  const select = document.getElementById('gameTarget');
+  if (!select) return;
+
+  const events = upcomingNvgEvents();
+  let html = `<option value="">— Choisir une destination —</option>
+    <option value="nieuwheim">Nieuwheim (soirée en ligne)</option>`;
+
+  if (events.length > 0) {
+    html += `<optgroup label="Événements NVG à venir">` + events.map(ev =>
+      `<option value="event:${ev.id}">${escapeHtml(gameEventLabel(ev))}${ev.date_debut ? ' — ' + escapeHtml(ev.date_debut) : ''}</option>`
+    ).join('') + `</optgroup>`;
+  }
+
+  select.innerHTML = html;
+
+  // Événement passé encore rattaché au jeu en cours d'édition : on ajoute son option.
+  if (selectedValue && selectedValue.startsWith('event:') && !Array.from(select.options).some(o => o.value === selectedValue)) {
+    const ev = (db.events || []).find(e => e.id === selectedValue.slice(6));
+    if (ev) {
+      const option = document.createElement('option');
+      option.value = selectedValue;
+      option.textContent = `${gameEventLabel(ev)}${ev.date_debut ? ' — ' + ev.date_debut : ''}`;
+      select.appendChild(option);
+    }
+  }
+
+  select.value = selectedValue || '';
+  onGameTargetChange();
+}
+
+function onGameTargetChange() {
+  const select = document.getElementById('gameTarget');
+  const isNieuwheim = !!select && select.value === 'nieuwheim';
+  ['gameReleaseDateWrap', 'gameCommentWrap'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden', !isNieuwheim);
+  });
+}
+
+function resetGameForm() {
+  editingGameId = null;
+  ['gameTitle', 'gameLink', 'gameImg', 'gameComment', 'gameReleaseDate'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const submitBtn = document.getElementById('gameSubmitBtn');
+  if (submitBtn) submitBtn.textContent = 'Proposer ce jeu';
+  const cancelBtn = document.getElementById('gameCancelEditBtn');
+  if (cancelBtn) cancelBtn.classList.add('hidden');
+  renderGameTargetSelect('');
+}
+
+function cancelGameEdit() {
+  resetGameForm();
+}
+
+function editGame(gameId) {
+  const game = gamesCache.find(g => g.id === gameId);
+  if (!game) return;
+
+  editingGameId = gameId;
+  document.getElementById('gameTitle').value = game.title || '';
+  document.getElementById('gameLink').value = game.link || '';
+  document.getElementById('gameImg').value = game.img && game.img.startsWith('http') ? game.img : '';
+  document.getElementById('gameComment').value = game.comment || '';
+  document.getElementById('gameReleaseDate').value = game.release_date || '';
+  renderGameTargetSelect(targetValueOf(game));
+
+  const submitBtn = document.getElementById('gameSubmitBtn');
+  if (submitBtn) submitBtn.textContent = 'Enregistrer les modifications';
+  const cancelBtn = document.getElementById('gameCancelEditBtn');
+  if (cancelBtn) cancelBtn.classList.remove('hidden');
+
+  const card = document.getElementById('gameFormCard');
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// Proposer un nouveau jeu ou enregistrer les modifications.
+async function addGameProposal() {
+  const titleInput = document.getElementById('gameTitle');
+  if (!titleInput) return;
+
+  const title = titleInput.value.trim();
+  const link = (document.getElementById('gameLink')?.value || '').trim();
+  const imgUrl = (document.getElementById('gameImg')?.value || '').trim();
+  const target = document.getElementById('gameTarget')?.value || '';
+
+  if (!title) {
+    alert("Veuillez saisir au moins le nom du jeu.");
     return;
   }
 
+  if (!target) {
+    alert("Choisis « Nieuwheim » ou un événement NVG à venir.");
+    return;
+  }
+
+  const isNieuwheim = target === 'nieuwheim';
+  const eventId = target.startsWith('event:') ? target.slice(6) : null;
+  const comment = isNieuwheim ? (document.getElementById('gameComment')?.value || '').trim() : '';
+  const releaseDate = isNieuwheim ? (document.getElementById('gameReleaseDate')?.value || '').trim() : '';
+
+  let finalImg = imgUrl;
+  if (!finalImg && isGameLink(link)) {
+    finalImg = await fetchGameImage(link);
+  }
+
+  const payload = {
+    title: title,
+    link: link,
+    img: finalImg,
+    target_type: isNieuwheim ? 'nieuwheim' : 'event',
+    event_id: isNieuwheim ? null : eventId,
+    comment: isNieuwheim && comment ? comment : null,
+    release_date: isNieuwheim && releaseDate ? releaseDate : null
+  };
+
+  if (editingGameId) {
+    const { error } = await supabaseClient
+      .from('nvg_games')
+      .update(payload)
+      .eq('id', editingGameId);
+
+    if (error) {
+      alert("Erreur lors de la modification : " + error.message);
+      return;
+    }
+
+    resetGameForm();
+    alert("Proposition mise à jour.");
+    loadGames();
+    return;
+  }
+
+  payload.id = 'game_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+  payload.author = currentUser ? currentUser.name : 'Viking Anonyme';
+  payload.votes = 0;
+
+  const { error } = await supabaseClient
+    .from('nvg_games')
+    .insert([payload]);
+
+  if (error) {
+    alert("Erreur lors de la proposition du jeu : " + error.message);
+    return;
+  }
+
+  resetGameForm();
+  alert("Jeu proposé avec succès !");
+  loadGames();
+}
+
+// --- AFFICHAGE ---
+
+function gameTargetBadge(game) {
+  if (game.target_type === 'nieuwheim') {
+    return `<img src="${NIEUWHEIM_LOGO}" alt="Nieuwheim" title="Nieuwheim" class="h-5 w-auto object-contain shrink-0">`;
+  }
+
+  if (game.event_id) {
+    const ev = (db.events || []).find(e => e.id === game.event_id);
+    if (!ev) return '';
+    return `
+      <span class="flex items-center gap-1.5 bg-white/5 border border-[#1f293d] rounded-lg px-2 py-1 shrink-0 max-w-[55%]" title="${escapeHtml(ev.title || '')}">
+        <img src="${gameEventLogo(ev)}" alt="" class="h-3.5 w-auto object-contain">
+        <span class="text-[10px] font-bold text-gray-300 truncate">${escapeHtml(gameEventLabel(ev))}</span>
+      </span>
+    `;
+  }
+
+  return '';
+}
+
+function renderGamesList() {
   const container = document.getElementById('gamesList');
   if (!container) return;
 
-  if (!games || games.length === 0) {
-    container.innerHTML = `<p class="text-xs text-gray-400 md:col-span-3">Aucun jeu proposé pour le moment.</p>`;
+  const games = filteredGames();
+  const isAdmin = isGamesAdmin();
+
+  if (games.length === 0) {
+    const emptyLabel = gamesFilter === 'all'
+      ? "Aucun jeu proposé pour le moment."
+      : "Aucun jeu proposé pour cette destination pour le moment.";
+    container.innerHTML = `<p class="text-xs text-gray-400 md:col-span-3 p-4 bg-[#121722]/70 border border-[#1f293d] rounded-xl italic">${emptyLabel}</p>`;
     return;
   }
-
-  const isAdmin = currentUser && (currentUser.role === 'admin' || currentUser.role === 'Divinité');
 
   container.innerHTML = games.map(game => `
     <div class="bg-[#121722] border border-[#1f293d] rounded-2xl overflow-hidden flex flex-col justify-between shadow-lg group">
@@ -61,8 +331,13 @@ async function loadGames() {
           </div>
         ` : ''}
         <div class="p-5 space-y-2">
-          <h3 class="text-sm font-black text-white uppercase tracking-wider">${escapeHtml(game.title)}</h3>
-          ${game.link && game.link !== 'NULL' ? `<a href="${game.link.startsWith('http') ? escapeHtml(game.link) : 'https://' + escapeHtml(game.link)}" target="_blank" class="text-xs text-red-400 hover:underline inline-block truncate max-w-full">🔗 Lien externe</a>` : ''}
+          <div class="flex items-start justify-between gap-2">
+            <h3 class="text-sm font-black text-white uppercase tracking-wider min-w-0">${escapeHtml(game.title)}</h3>
+            ${gameTargetBadge(game)}
+          </div>
+          ${game.link && game.link !== 'NULL' ? `<a href="${game.link.startsWith('http') ? escapeHtml(game.link) : 'https://' + escapeHtml(game.link)}" target="_blank" rel="noopener" class="text-xs text-red-400 hover:underline inline-block truncate max-w-full">🔗 Lien externe</a>` : ''}
+          ${game.target_type === 'nieuwheim' && game.release_date ? `<p class="text-[11px] text-gray-400">📅 Sortie : <span class="text-gray-200 font-bold">${escapeHtml(game.release_date)}</span></p>` : ''}
+          ${game.target_type === 'nieuwheim' && game.comment ? `<p class="text-xs text-gray-300 whitespace-pre-line break-words">💬 ${escapeHtml(game.comment)}</p>` : ''}
           <p class="text-[11px] text-gray-400 pt-1">Proposé par : <span class="text-white font-bold">${escapeHtml(game.author || 'Anonyme')}</span></p>
         </div>
       </div>
@@ -75,8 +350,7 @@ async function loadGames() {
 
         ${isAdmin ? `
           <div class="flex gap-2">
-            <!-- Modification ici pour transmettre l'URL de l'image actuelle à la fonction d'édition -->
-            <button onclick="editGamePrompt('${game.id}', '${escapeHtml(game.title).replace(/'/g, "\\'")}', '${escapeHtml(game.link || '').replace(/'/g, "\\'")}', '${escapeHtml(game.img || '').replace(/'/g, "\\'")}')" class="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-black text-[11px] font-bold rounded-lg transition">Éditer ✏️</button>
+            <button onclick="editGame('${game.id}')" class="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-black text-[11px] font-bold rounded-lg transition">Éditer ✏️</button>
             <button onclick="deleteGame('${game.id}')" class="px-2.5 py-1 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-[11px] font-bold rounded-lg transition">Supprimer 🗑️</button>
           </div>
         ` : ''}
@@ -87,53 +361,26 @@ async function loadGames() {
   hydrateGameBanners(container);
 }
 
-// Proposer un nouveau jeu
-async function addGameProposal() {
-  const titleInput = document.getElementById('gameTitle');
-  const linkInput = document.getElementById('gameLink');
-  const imgInput = document.getElementById('gameImg'); // Récupération du nouveau champ
-
-  if (!titleInput) return;
-
-  const title = titleInput.value.trim();
-  const link = linkInput ? linkInput.value.trim() : '';
-  const imgUrl = imgInput ? imgInput.value.trim() : '';
-
-  if (!title) {
-    alert("Veuillez saisir au moins le nom du jeu.");
-    return;
-  }
-
-  const uniqueId = 'game_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-
-  let finalImg = imgUrl;
-  if (!finalImg && isGameLink(link)) {
-    finalImg = await fetchGameImage(link);
-  }
-
-  const gameObj = {
-    id: uniqueId,
-    title: title,
-    link: link,
-    img: finalImg, // Enregistrement direct en base
-    author: currentUser ? currentUser.name : 'Viking Anonyme',
-    votes: 0
-  };
-
-  const { error } = await supabaseClient
+// Charger et afficher la liste des jeux proposés
+async function loadGames() {
+  const { data: games, error } = await supabaseClient
     .from('nvg_games')
-    .insert([gameObj]);
+    .select('*');
 
   if (error) {
-    alert("Erreur lors de la proposition du jeu : " + error.message);
+    console.error("Erreur chargement jeux :", error);
     return;
   }
 
-  titleInput.value = '';
-  if (linkInput) linkInput.value = '';
-  if (imgInput) imgInput.value = '';
-  
-  alert("🎮 Jeu proposé avec succès !");
+  gamesCache = (games || []).sort((a, b) => (b.votes || 0) - (a.votes || 0));
+  renderGameFilters();
+  renderGamesList();
+}
+
+// Appelé à l'ouverture de l'onglet : rafraîchit les événements proposés dans la liste déroulante.
+function refreshGamesTab() {
+  const select = document.getElementById('gameTarget');
+  renderGameTargetSelect(select ? select.value : '');
   loadGames();
 }
 
@@ -166,35 +413,7 @@ async function deleteGame(gameId) {
     return;
   }
 
-  loadGames();
-}
-
-// Fonction pour éditer un jeu (Admin)
-async function editGamePrompt(gameId, currentTitle, currentLink, currentImg) {
-  const newTitle = prompt("Modifier le nom du jeu :", currentTitle);
-  if (newTitle === null) return;
-
-  const newLink = prompt("Modifier le lien (Steam / Web) :", currentLink);
-  if (newLink === null) return;
-  
-  // Demande l'URL de l'image lors de l'édition
-  const newImg = prompt("Modifier l'URL de l'image :", currentImg !== 'NULL' && currentImg !== 'null' ? currentImg : '');
-  if (newImg === null) return;
-
-  const { error } = await supabaseClient
-    .from('nvg_games')
-    .update({ 
-      title: newTitle.trim(), 
-      link: newLink.trim(),
-      img: newImg.trim()
-    })
-    .eq('id', gameId);
-
-  if (error) {
-    alert("Erreur lors de la modification : " + error.message);
-    return;
-  }
-
+  if (editingGameId === gameId) resetGameForm();
   loadGames();
 }
 
