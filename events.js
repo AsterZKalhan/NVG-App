@@ -674,6 +674,107 @@ function adminEditEvent(id) {
     createBtn.innerText = "💾 Enregistrer les modifications";
     createBtn.className = "px-4 py-2 bg-emerald-600 text-white font-bold text-xs rounded-lg hover:bg-emerald-500 transition md:col-span-2";
   }
+
+  renderAdminEventGames();
+}
+
+// --- JEUX LIÉS À L'ÉVÉNEMENT (visible uniquement dans le panneau admin) ---
+// Coché = le jeu reste / revient sur cet événement. Décoché = le jeu repart dans « Idées NVG ».
+
+function renderAdminEventGames() {
+  const box = document.getElementById('adminEventGamesBox');
+  const list = document.getElementById('adminEventGamesList');
+  if (!box || !list) return;
+
+  if (!editingEventId) {
+    box.classList.add('hidden');
+    list.innerHTML = '';
+    return;
+  }
+
+  box.classList.remove('hidden');
+
+  const games = (typeof gamesCache !== 'undefined' && Array.isArray(gamesCache)) ? gamesCache : [];
+  const byVotes = (a, b) => ((b.votes || 0) - (a.votes || 0)) || (a.title || '').localeCompare(b.title || '');
+  const eventGames = games.filter(g => g.target_type === 'event' && g.event_id === editingEventId).sort(byVotes);
+  const ideas = games.filter(g => g.target_type === 'idea').sort(byVotes);
+
+  const row = (game, checked) => `
+    <label class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-[#121722] border border-[#1f293d] cursor-pointer hover:border-gray-500 transition">
+      <input type="checkbox" data-game-id="${escapeHtml(game.id)}" ${checked ? 'checked' : ''} class="accent-red-600 shrink-0">
+      <span class="flex-1 min-w-0 text-xs text-white truncate">${escapeHtml(game.title)}</span>
+      <span class="text-[10px] text-gray-400 shrink-0">${escapeHtml(game.author || '')}</span>
+      ${game.votes ? `<span class="text-[10px] text-amber-400 font-bold shrink-0">${game.votes}</span>` : ''}
+    </label>
+  `;
+
+  list.innerHTML = `
+    <div class="text-[10px] uppercase font-bold text-gray-400 pt-1">Jeux de cet événement (${eventGames.length})</div>
+    ${eventGames.length ? eventGames.map(g => row(g, true)).join('') : `<p class="text-[11px] text-gray-500 italic px-1">Aucun jeu rattaché pour le moment.</p>`}
+    <div class="text-[10px] uppercase font-bold text-gray-400 pt-2">Idées en attente (${ideas.length})</div>
+    ${ideas.length ? ideas.map(g => row(g, false)).join('') : `<p class="text-[11px] text-gray-500 italic px-1">Aucune idée en attente.</p>`}
+  `;
+
+  const attachBtn = document.getElementById('adminAttachIdeasBtn');
+  if (attachBtn) attachBtn.classList.toggle('hidden', ideas.length === 0);
+}
+
+async function adminAttachAllIdeas() {
+  if (!editingEventId) return;
+
+  const games = (typeof gamesCache !== 'undefined' && Array.isArray(gamesCache)) ? gamesCache : [];
+  const ideas = games.filter(g => g.target_type === 'idea');
+  if (ideas.length === 0) return;
+
+  if (!confirm(`Rattacher ${ideas.length} idée(s) à cet événement ?`)) return;
+
+  const { error } = await supabaseClient
+    .from('nvg_games')
+    .update({ target_type: 'event', event_id: editingEventId })
+    .eq('target_type', 'idea');
+
+  if (error) {
+    alert("Erreur lors du rattachement des idées : " + error.message);
+    return;
+  }
+
+  await loadGames();
+  renderAdminEventGames();
+}
+
+// Applique les cases cochées à l'enregistrement de l'événement.
+async function applyAdminEventGames() {
+  if (!editingEventId) return;
+
+  const boxes = Array.from(document.querySelectorAll('#adminEventGamesList input[type="checkbox"][data-game-id]'));
+  if (boxes.length === 0) return;
+
+  const checkedIds = boxes.filter(b => b.checked).map(b => b.dataset.gameId);
+  const uncheckedIds = boxes.filter(b => !b.checked).map(b => b.dataset.gameId);
+
+  if (checkedIds.length > 0) {
+    const { error } = await supabaseClient
+      .from('nvg_games')
+      .update({ target_type: 'event', event_id: editingEventId })
+      .in('id', checkedIds);
+    if (error) {
+      alert("Événement enregistré, mais erreur sur les jeux : " + error.message);
+      return;
+    }
+  }
+
+  if (uncheckedIds.length > 0) {
+    const { error } = await supabaseClient
+      .from('nvg_games')
+      .update({ target_type: 'idea', event_id: null })
+      .in('id', uncheckedIds);
+    if (error) {
+      alert("Événement enregistré, mais erreur sur les jeux : " + error.message);
+      return;
+    }
+  }
+
+  await loadGames();
 }
 
 // Création / modification d'un événement. Le titre reçoit le préfixe [NVG] (pour les 4 saisons) ou [Nieuwheim]. Nieuwheim : un seul jour avec heure de départ obligatoire.
@@ -751,6 +852,8 @@ async function adminSaveEventForm() {
   }
 
   if (editingEventId) {
+    // Applique les cases « jeux joués » avant de quitter le mode édition.
+    await applyAdminEventGames();
     alert("✅ Événement mis à jour sur Supabase !");
     editingEventId = null;
     const createBtn = document.getElementById('adminEventSubmitBtn');
@@ -774,6 +877,7 @@ async function adminSaveEventForm() {
   adminStreams = [];
   adminWatchModeChanged();
   renderAdminStreams();
+  renderAdminEventGames();
 
   await loadEvents();
 }
@@ -832,6 +936,10 @@ async function adminDeleteEvent(id) {
     alert("Erreur lors de la suppression : " + error.message);
     return;
   }
+
+  // Les jeux rattachés à l'événement supprimé repartent dans les idées.
+  await supabaseClient.from('nvg_games').update({ target_type: 'idea', event_id: null }).eq('event_id', id);
+  await loadGames();
 
   alert("🗑️ Événement supprimé !");
   await loadEvents();

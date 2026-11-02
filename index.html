@@ -640,6 +640,14 @@
               <p class="text-[10px] text-gray-500">Maximum 10 chaînes.</p>
             </div>
           </div>
+          <div id="adminEventGamesBox" class="hidden md:col-span-2 space-y-2 bg-[#07090e] border border-[#1f293d] rounded-xl p-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <label class="block text-[10px] text-gray-400 uppercase font-bold">Jeux liés à cet événement</label>
+              <button type="button" id="adminAttachIdeasBtn" onclick="adminAttachAllIdeas()" class="hidden px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-bold hover:bg-amber-500 hover:text-black transition">💡 Rattacher toutes les idées</button>
+            </div>
+            <div id="adminEventGamesList" class="space-y-1.5 max-h-64 overflow-y-auto pr-1"></div>
+            <p class="text-[10px] text-gray-500">Coche ce qui a été fait. Un jeu décoché repart dans « Idées NVG » à l'enregistrement.</p>
+          </div>
           <button id="adminEventSubmitBtn" onclick="adminSaveEventForm()" class="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-lg hover:bg-amber-400 transition md:col-span-2">Créer l'événement</button>
         </div>
         <div id="adminEventsList" class="space-y-2">
