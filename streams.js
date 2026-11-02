@@ -17,7 +17,9 @@ async function renderStreams() {
     console.error("Erreur chargement des streamers :", error);
     return;
   }
-  streamsMembers = (data || []).filter(s => s.twitch_channel);
+  // Seuls les Viking, Grand Jarl et Divinité sont listés (les Petits Vikings sont exclus).
+  const allowedRanks = ['Viking', 'Grand Jarl', 'Divinité'];
+  streamsMembers = (data || []).filter(s => s.twitch_channel && allowedRanks.includes(s.rank));
   await refreshStreamsStatus();
 }
 
