@@ -205,3 +205,7 @@ Pour déployer une fonction Edge : `curl` vers `/v1/projects/{ref}/functions/dep
 - Récupérer les modifications faites sur GitHub avant de travailler : `git pull origin main`.
 - Les modifications faites directement sur GitHub (par exemple l'ajout de photos) déclenchent aussi le déploiement.
 - Ne jamais committer de secret : vérifier avec une recherche avant de pousser si besoin.
+
+## 9. Journal des évolutions
+
+- **2 novembre 2026** — Module Vidéos (3 dernières vidéos, lecteur intégré, ETag, actualisation admin), formulaire de contact public avec captcha et Edge Function `contact-message`, boîte de réception admin `📥 Contact`, mise à jour de la page de confidentialité et nettoyage automatique des notifications `NVG est en live !` après 48 h. Détail complet : `.github/docs/session-2026-11-02.md` (non déployé sur le serveur).

@@ -50,3 +50,13 @@ dans l'app.
 - `supabase-config.js` contient la clé `anon`, publique par conception : ne pas y
   mettre autre chose.
 - Ne pas modifier les fichiers métier (`events.js`, `users.js`, …) pour l'empaquetage Android.
+
+## Documentation
+
+- `NOTES.md` — architecture, base de données, règles métier, procédures et pièges.
+- `DEPLOIEMENT.md` — mise en ligne, vérifications et retour arrière.
+- `.github/docs/session-2026-11-02.md` — journal détaillé de la session du
+  2 novembre 2026 (Vidéos, contact, confidentialité, nettoyage des notifications).
+- `.github/edge-functions/` — code source des fonctions Edge.
+- `.github/sql/` — SQL de référence pour la base (`nvg_contact_messages`,
+  nettoyage des notifications live).
