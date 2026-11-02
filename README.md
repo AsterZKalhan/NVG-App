@@ -57,6 +57,8 @@ dans l'app.
 - `DEPLOIEMENT.md` — mise en ligne, vérifications et retour arrière.
 - `.github/docs/session-2026-11-02.md` — journal détaillé de la session du
   2 novembre 2026 (Vidéos, contact, confidentialité, nettoyage des notifications).
+- `.github/docs/propriete-intellectuelle.md` — marque, dessin et droit d'auteur,
+  texte de mentions légales pour le site.
 - `.github/docs/sauvegarde-supabase.md` — sauvegarde locale manuelle de Supabase
   (base, fonctions Edge, Storage, configuration) et restauration.
 - `.github/edge-functions/` — code source des fonctions Edge.
