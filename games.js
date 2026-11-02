@@ -328,6 +328,28 @@ function gameTargetBadge(game) {
   return '';
 }
 
+function gameVoteBlock(game) {
+  const voters = Array.isArray(game.voters) ? game.voters : [];
+  const hasVoted = !!currentUser && voters.some(v => v.id === currentUser.id);
+  let tip;
+  if (voters.length) {
+    tip = `<p class="votes-tip-title">Ont voté</p><ul>${voters.map(v => `<li>${escapeHtml(v.name || 'Anonyme')}</li>`).join('')}</ul>`;
+  } else if ((game.votes || 0) > 0) {
+    tip = `<p class="votes-tip-title">${game.votes} vote(s)</p><p>Détail non disponible pour les votes antérieurs.</p>`;
+  } else {
+    tip = `<p class="votes-tip-title">Aucun vote pour le moment</p>`;
+  }
+  const button = hasVoted
+    ? `<span class="px-2.5 py-1 text-gray-500 text-xs font-bold">✓ Voté</span>`
+    : `<button onclick="voteGame('${game.id}')" class="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-lg transition">+1</button>`;
+  return `
+    <span class="votes-wrap">
+      <span class="text-xs font-bold text-amber-400 cursor-default">🔥 ${game.votes || 0} votes</span>
+      <span class="votes-tip">${tip}</span>
+    </span>
+    ${button}`;
+}
+
 function renderGamesList() {
   const container = document.getElementById('gamesList');
   if (!container) return;
@@ -367,8 +389,7 @@ function renderGamesList() {
 
       <div class="p-5 pt-0 flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <span class="text-xs font-bold text-amber-400">🔥 ${game.votes || 0} votes</span>
-          <button onclick="voteGame('${game.id}', ${game.votes || 0})" class="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-lg transition">+1</button>
+          ${gameVoteBlock(game)}
         </div>
 
         ${isAdmin ? `
@@ -408,18 +429,34 @@ function refreshGamesTab() {
 }
 
 // Voter pour un jeu (+1)
-async function voteGame(gameId, currentVotes) {
-  const { error } = await supabaseClient
-    .from('nvg_games')
-    .update({ votes: (currentVotes || 0) + 1 })
-    .eq('id', gameId);
+async function voteGame(gameId) {
+  if (!currentUser) {
+    alert("Connecte-toi pour voter.");
+    return;
+  }
+  const game = gamesCache.find(g => g.id === gameId);
+  if (!game) return;
+  const voters = Array.isArray(game.voters) ? game.voters : [];
+  if (voters.some(v => v.id === currentUser.id)) return;
 
-  if (error) {
+  const { data, error } = await supabaseClient
+    .from('nvg_games')
+    .update({
+      votes: (game.votes || 0) + 1,
+      voters: [...voters, { id: currentUser.id, name: currentUser.name }]
+    })
+    .eq('id', gameId)
+    .select()
+    .single();
+
+  if (error || !data) {
     console.error("Erreur vote :", error);
+    alert("Le vote n'a pas pu être enregistré.");
     return;
   }
 
-  loadGames();
+  Object.assign(game, data);
+  renderGamesList();
 }
 
 // Fonction pour supprimer un jeu (Admin)
