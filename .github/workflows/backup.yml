@@ -1,0 +1,107 @@
+name: Sauvegarde Supabase
+
+# Sauvegarde mensuelle complète : base PostgreSQL, fonctions Edge, Storage et
+# configuration. L'archive est chiffrée avec GPG avant d'être publiée.
+# Documentation : .github/docs/sauvegarde-supabase.md
+
+on:
+  schedule:
+    # Le 1er de chaque mois à 03:23 UTC.
+    - cron: '23 3 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: backup-supabase
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Sauvegarde complète
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Vérifier les secrets
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          missing=0
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_URL BACKUP_PASSPHRASE; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Secret GitHub manquant : $name"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Voir .github/docs/sauvegarde-supabase.md pour la configuration."
+            exit 1
+          fi
+
+      - name: Installer la CLI Supabase
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Horodatage
+        id: stamp
+        run: echo "stamp=$(date -u +%Y-%m-%d_%H%M%S)" >> "$GITHUB_OUTPUT"
+
+      - name: Créer et chiffrer la sauvegarde
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          BACKUP_STAMP: ${{ steps.stamp.outputs.stamp }}
+        run: bash .github/scripts/backup_supabase.sh
+
+      - name: Publier l'archive chiffrée (release)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: backup-${{ steps.stamp.outputs.stamp }}
+          name: Sauvegarde Supabase ${{ steps.stamp.outputs.stamp }}
+          body: |
+            Sauvegarde automatique du projet Supabase NVG.
+
+            Archive chiffrée GPG (AES256). Le mot de passe est stocké dans le
+            gestionnaire de mots de passe et dans le secret GitHub
+            `BACKUP_PASSPHRASE`. Vérifier l'empreinte avec le fichier `.sha256`
+            avant de déchiffrer.
+
+            Restauration : voir `.github/docs/sauvegarde-supabase.md`.
+          files: |
+            backups/*.gpg
+            backups/*.sha256
+          make_latest: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Conserver les 12 dernières sauvegardes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release list --repo "$GITHUB_REPOSITORY" --limit 100 \
+            --json tagName --jq '.[].tagName' \
+            | grep '^backup-' \
+            | tail -n +13 \
+            | while read -r tag; do
+                echo "Suppression de l'ancienne sauvegarde $tag"
+                gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag
+              done || true
+
+      - name: Conserver aussi 90 jours en artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sauvegarde-supabase-${{ steps.stamp.outputs.stamp }}
+          path: |
+            backups/*.gpg
+            backups/*.sha256
+          retention-days: 90
+          if-no-files-found: error

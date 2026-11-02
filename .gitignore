@@ -10,3 +10,10 @@ build/
 node_modules/
 .DS_Store
 Thumbs.db
+
+# Sauvegardes locales (ne jamais committer de dump déchiffré)
+backups/
+*.dump
+*.sql.gz
+*.tar.gz
+*.tar.gz.gpg
