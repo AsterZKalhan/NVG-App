@@ -98,9 +98,10 @@ Fonction Edge `youtube-videos` (sans JWT) : liste les dernières vidéos de la c
 - Statut via `twitch-live`, toutes les 30 secondes uniquement quand l'onglet est visible, et immédiatement au retour sur l'onglet.
 
 ### Vidéos YouTube
-- Le module « Vidéos » liste les 12 dernières vidéos publiées (miniature, titre, vues, date), avec un lien vers YouTube.
-- Données servies par la fonction `youtube-videos` (cache 10 minutes côté serveur) et gardées 10 minutes dans le navigateur. Le bouton « Réessayer » apparaît si YouTube est indisponible.
-- Si la chaîne change ou si le propriétaire passe les vidéos en privé, seule la fonction est à modifier (constante `CHANNEL_ID`).
+- Le module « Vidéos » affiche les **3 dernières vidéos** publiées : la première est lue dans le lecteur intégré (YouTube nocookie), les trois vignettes sous le lecteur permettent de changer de vidéo sans quitter l'application.
+- Sous le lecteur : titre, vues, date et bouton « Ouvrir sur YouTube ». En bas de page : bouton « Aller sur la page YouTube de la NVG ».
+- Mise à jour **une fois par jour** : cache 24 h dans la fonction `youtube-videos` (en-tête `Cache-Control: max-age=86400`) et 24 h dans le navigateur (`videos.js`). Le module se rafraîchit seul si la page reste ouverte plus de 24 h.
+- Si la chaîne change, seule la fonction est à modifier (constante `CHANNEL_ID`).
 
 ### Menu
 - Ordre : NVG en Live, Calendrier, Streams NVG, Vidéos, Boutique, Propositions de jeux (Staff & Admin), Logistique (Admin), Administration (Admin).
@@ -161,7 +162,7 @@ Pour déployer une fonction Edge : `curl` vers `/v1/projects/{ref}/functions/dep
 - **Cartes d'événements** : style dans la balise `<style>` de `index.html` (classe `.event-card` et `.ec-*`). Les tailles sont proportionnelles à la carte (unités `cqi`) et plafonnées (`min(...)`). Le ratio est 8:5 (`aspect-ratio`). La grille (`.events-grid`) passe de 1 à plusieurs colonnes entre 320 et 460 px.
 - **Notifications** : carte dans `notifications.js` (fonction `loadNotifications`, variable `htmlContent`). La liste admin compacte est `htmlCompact`.
 - **Propositions de jeux** : cartes, filtres (Tous / Nieuwheim / Idées / événement) et badges dans `games.js` (`renderGameFilters`, `renderGamesList`, `gameTargetBadge`). La cible est stockée dans `target_type` (`nieuwheim`, `idea` ou `event`) + `event_id`. « Juste une idée » (`idea`) sert aux jeux sans événement, à rattacher plus tard via Éditer. Le commentaire et la date de sortie (texte libre) ne s'affichent et ne sont enregistrés que pour Nieuwheim. Dans la fiche admin d'un événement, `renderAdminEventGames` (events.js) liste les jeux de l'événement et les idées avec des cases à cocher : un jeu décoché repart en idée à l'enregistrement, et le bouton « Rattacher toutes les idées » les ajoute à l'événement. Le calendrier public n'affiche aucun jeu. Sur les cartes Nieuwheim, le logo complet (`logo-nieuwheim-complet.png`) est affiché directement, sans fond : son lettrage est blanc avec un contour noir, donc lisible sur la carte sombre. Il est recadré en CSS (`gameTargetBadge`) : le fichier 1920x1080 a des marges transparentes avec un contenu centré, d'où la largeur de 127,5 %. Si le logo est remplacé par un cadrage différent, ajuster ces valeurs.
-- **Vidéos** : grille `.videos-grid` (dans `<style>` de `index.html`), cartes générées par `renderVideos` (`videos.js`). Miniature 16:9, titre sur deux lignes maximum, vues et date en dessous.
+- **Vidéos** : lecteur `.videos-player` (16:9, iframe YouTube nocookie) puis vignettes `.videos-grid` (3 colonnes, `auto-fit`) ; rendu par `renderVideos` / `renderVideosPlayer` / `selectVideo` (`videos.js`).
 - **Menu PC / mobile** : sur mobile (moins de 768 px), barre fixe en haut (`fixed top-0`), bouton ☰ fixe sous la barre, menu en panneau fixe. Sur PC (768 px et plus), colonne latérale `md:sticky md:h-screen`, et le bloc du compte en `md:absolute md:bottom-5`.- **Toujours tester les deux tailles** : ordinateur et téléphone.
 
 ### 8.5 Modifier la base de données (Supabase)

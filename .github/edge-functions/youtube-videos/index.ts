@@ -10,13 +10,20 @@ const cors = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
+// Réponse normale : gardée 24 h (mise à jour une fois par jour).
+const cacheableJson = (body: unknown) =>
+  new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "public, max-age=86400" },
+  });
+
 const CHANNEL_ID = Deno.env.get("YOUTUBE_CHANNEL_ID") ?? "UC7WH5BSCYpme0_6NLBWiAiw";
 const CHANNEL_URL = "https://www.youtube.com/@nvgamingtv";
 const CHANNEL_HANDLE = "@nvgamingtv";
 const INNERTUBE_KEY = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
 // Onglet « Vidéos » de la chaîne.
 const VIDEOS_TAB_PARAMS = "EgZ2aWRlb3PyBgQKAjoA";
-const CACHE_MS = 10 * 60 * 1000;
+const CACHE_MS = 24 * 60 * 60 * 1000;
 
 let cache: { key: string; at: number; data: unknown } | null = null;
 
@@ -80,12 +87,12 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
   const params = new URL(req.url).searchParams;
-  const requested = Number(params.get("limit") ?? 12);
-  const limit = Number.isFinite(requested) ? Math.min(Math.max(Math.trunc(requested), 1), 20) : 12;
+  const requested = Number(params.get("limit") ?? 3);
+  const limit = Number.isFinite(requested) ? Math.min(Math.max(Math.trunc(requested), 1), 20) : 3;
 
   const cacheKey = `${CHANNEL_ID}:${limit}`;
   if (cache && cache.key === cacheKey && Date.now() - cache.at < CACHE_MS) {
-    return json(cache.data);
+    return cacheableJson(cache.data);
   }
 
   try {
@@ -140,7 +147,7 @@ Deno.serve(async (req) => {
     };
 
     cache = { key: cacheKey, at: Date.now(), data: payload };
-    return json(payload);
+    return cacheableJson(payload);
   } catch (_err) {
     return json({ error: "youtube indisponible" }, 502);
   }

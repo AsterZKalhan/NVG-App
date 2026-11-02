@@ -39,7 +39,9 @@
     .streams-player { aspect-ratio: 16 / 9; width: 100%; position: relative; }
     .streams-player iframe { position: absolute; inset: 0; border: 0; }
     .streams-player #streamsEmpty { position: absolute; inset: 0; }
-    .videos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; }
+    .videos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+    .videos-player { aspect-ratio: 16 / 9; width: 100%; position: relative; }
+    .videos-player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
     .events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 460px)); justify-content: start; align-items: start; gap: 1rem; }
     .event-card { background: #000; border-color: #9b1c20; container-type: inline-size; padding: 4%; aspect-ratio: 8 / 5; }
     .event-card:has(details[open]) { z-index: 30; }
@@ -380,17 +382,29 @@
     <section id="videos" class="tab-content hidden space-y-6">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h2 class="text-xl font-black text-white uppercase">Dernières vidéos</h2>
-        <div class="flex items-center gap-3">
-          <span class="text-xs text-gray-400 font-bold">Vidéos : <span id="videosCount">0</span></span>
-          <a id="videosChannelLink" href="https://www.youtube.com/@nvgamingtv" target="_blank" rel="noopener" class="px-3 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-bold shrink-0">Chaîne YouTube ↗</a>
+        <span class="text-xs text-gray-400 font-bold">Vidéos : <span id="videosCount">3</span></span>
+      </div>
+
+      <div class="videos-player bg-black rounded-2xl overflow-hidden border border-[#1f293d]">
+        <iframe id="videosPlayer" title="Lecteur vidéo YouTube" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+      </div>
+
+      <div class="flex flex-wrap items-start justify-between gap-3 bg-[#121722] border border-[#1f293d] rounded-2xl p-3">
+        <div class="min-w-0">
+          <div id="videosCurrentTitle" class="text-sm font-black text-white"></div>
+          <div id="videosCurrentMeta" class="text-[11px] text-gray-400"></div>
         </div>
+        <a id="videosCurrentLink" href="https://www.youtube.com/@nvgamingtv" target="_blank" rel="noopener" class="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-200 text-xs font-bold shrink-0">Ouvrir sur YouTube ↗</a>
       </div>
 
       <div id="videosGrid" class="videos-grid">
         <!-- Rendu dynamique -->
       </div>
 
-      <p class="text-[11px] text-gray-500 italic">Les vidéos sont récupérées automatiquement depuis la chaîne YouTube de la NVG et mises à jour toutes les 10 minutes.</p>
+      <div class="flex flex-col items-center gap-2 pt-2">
+        <a id="videosChannelLink" href="https://www.youtube.com/@nvgamingtv" target="_blank" rel="noopener" class="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition">Aller sur la page YouTube de la NVG ↗</a>
+        <p class="text-[11px] text-gray-500 italic text-center">Les 3 dernières vidéos sont mises à jour une fois par jour.</p>
+      </div>
     </section>
 
     <section id="calendar" class="tab-content hidden space-y-6">
