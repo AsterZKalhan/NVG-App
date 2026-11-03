@@ -563,8 +563,11 @@ function renderAdminLogisticsDetails() {
     looking_for_seat: '🙋‍♂️ Cherche une place'
   };
 
-  const filterActive = logisticsCategoryFilter.size > 0;
-  const chips = LOGISTICS_CATEGORIES.map(cat => {
+  // Les événements Nieuwheim ne collectent pas de matériel : on masque tout ce qui s'y rapporte.
+  const isNieuwheim = ev.category === 'Nieuwheim';
+
+  const filterActive = !isNieuwheim && logisticsCategoryFilter.size > 0;
+  const chips = isNieuwheim ? '' : LOGISTICS_CATEGORIES.map(cat => {
     const active = logisticsCategoryFilter.has(cat);
     return `<button type="button" onclick="toggleLogisticsCategory('${cat}')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${active ? 'bg-amber-500 text-black' : 'bg-white/5 text-gray-300 hover:bg-white/10'}">${LOGISTICS_ICONS[cat]} ${cat}</button>`;
   }).join('');
@@ -572,7 +575,7 @@ function renderAdminLogisticsDetails() {
   const visible = ev.attendance
     .map(a => ({
       a,
-      gears: (a.gearItems || []).filter(g => !filterActive || logisticsCategoryFilter.has(categoryOf(g.name)))
+      gears: isNieuwheim ? [] : (a.gearItems || []).filter(g => !filterActive || logisticsCategoryFilter.has(categoryOf(g.name)))
     }))
     .filter(x => !filterActive || x.gears.length > 0);
 
@@ -590,6 +593,7 @@ function renderAdminLogisticsDetails() {
             </div>
           </div>
 
+          ${isNieuwheim ? '' : `
           <div>
             <span class="text-[10px] text-gray-400 uppercase font-bold block mb-1.5">📦 Matériel apporté :</span>
             ${gears.length > 0 ? `
@@ -608,13 +612,13 @@ function renderAdminLogisticsDetails() {
                 `).join('')}
               </div>
             ` : `<p class="text-gray-500 italic text-[11px]">Rien de particulier apporté.</p>`}
-          </div>
+          </div>`}
         </div>
       `).join('');
 
   container.innerHTML = `
-    <div class="flex flex-wrap gap-2">${chips}</div>
-    <h3 class="text-xs font-bold text-white uppercase tracking-wider mb-3">Liste des inscrits, transports et matériel apporté :</h3>
+    ${chips ? `<div class="flex flex-wrap gap-2">${chips}</div>` : ''}
+    <h3 class="text-xs font-bold text-white uppercase tracking-wider mb-3">${isNieuwheim ? 'Liste des inscrits et transports :' : 'Liste des inscrits, transports et matériel apporté :'}</h3>
     <div class="space-y-4">${list}</div>
   `;
 }
