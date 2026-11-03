@@ -340,7 +340,7 @@ function gameVoteBlock(game) {
     tip = `<p class="votes-tip-title">Aucun vote pour le moment</p>`;
   }
   const button = hasVoted
-    ? `<span class="px-2.5 py-1 text-gray-500 text-xs font-bold">✓ Voté</span>`
+    ? `<button onclick="unvoteGame('${game.id}')" title="Retirer mon vote" class="px-2.5 py-1 bg-emerald-500/10 hover:bg-red-500/20 text-emerald-400 hover:text-red-400 text-xs font-bold rounded-lg transition">✓ Voté</button>`
     : `<button onclick="voteGame('${game.id}')" class="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-lg transition">+1</button>`;
   return `
     <span class="votes-wrap">
@@ -466,7 +466,7 @@ async function voteGame(gameId) {
   const { data, error } = await supabaseClient
     .from('nvg_games')
     .update({
-      votes: (game.votes || 0) + 1,
+      votes: Number(game.votes || 0) + 1,
       voters: [...voters, { id: currentUser.id, name: currentUser.name }]
     })
     .eq('id', gameId)
@@ -476,6 +476,35 @@ async function voteGame(gameId) {
   if (error || !data) {
     console.error("Erreur vote :", error);
     alert("Le vote n'a pas pu être enregistré.");
+    return;
+  }
+
+  Object.assign(game, data);
+  renderGamesList();
+}
+
+// Retirer son propre vote
+async function unvoteGame(gameId) {
+  if (!currentUser) return;
+  const game = gamesCache.find(g => g.id === gameId);
+  if (!game) return;
+  const voters = Array.isArray(game.voters) ? game.voters : [];
+  if (!voters.some(v => v.id === currentUser.id)) return;
+  if (!confirm(`Retirer ton vote pour « ${game.title} » ?`)) return;
+
+  const { data, error } = await supabaseClient
+    .from('nvg_games')
+    .update({
+      votes: Math.max(0, Number(game.votes || 0) - 1),
+      voters: voters.filter(v => v.id !== currentUser.id)
+    })
+    .eq('id', gameId)
+    .select()
+    .single();
+
+  if (error || !data) {
+    console.error("Erreur retrait vote :", error);
+    alert("Ton vote n'a pas pu être retiré.");
     return;
   }
 
