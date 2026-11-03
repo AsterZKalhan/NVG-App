@@ -227,6 +227,15 @@ function selectVideo(videoId) {
   if (videosCache.data) renderVideos(videosCache.data);
 }
 
+function stopVideosPlayer() {
+  const player = document.getElementById('videosPlayer');
+  if (!player) return;
+  if (!player.getAttribute('src')) return;
+  // Vider la source arrête la lecture ; elle sera remise au retour sur l'onglet.
+  player.removeAttribute('src');
+  loadedVideoId = null;
+}
+
 function showVideosPlayerError() {
   const player = document.getElementById('videosPlayer');
   if (!player) return;

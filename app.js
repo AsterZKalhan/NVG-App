@@ -167,6 +167,11 @@ function showTab(tabId) {
 	}
   }
 
+  // Coupe la lecture vidéo dès qu'on quitte l'onglet Vidéos.
+  if (tabId !== 'videos' && typeof stopVideosPlayer === 'function') {
+    stopVideosPlayer();
+  }
+
   if (window.innerWidth < 768) {
     document.getElementById('mainNav').classList.add('hidden');
   }
