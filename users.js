@@ -208,6 +208,21 @@ function handleAvatarUpload(input) {
 }
 
 // --- ADMINISTRATION DES UTILISATEURS (ONGLET ADMIN) ---
+let adminUsersSort = 'rank';
+
+const ADMIN_RANK_ORDER = {
+  'Divinité': 0,
+  'Grand Jarl': 1,
+  'Jarl': 1,
+  'Viking': 2,
+  'Petit Viking': 3
+};
+
+function setAdminUserSort(value) {
+  adminUsersSort = value === 'name' ? 'name' : 'rank';
+  loadUsers();
+}
+
 async function loadUsers() {
   const isSuperAdmin = currentUser && (currentUser.rank === 'Grand Jarl' || currentUser.rank === 'Divinité' || currentUser.role === 'admin');
   if (!isSuperAdmin) return;
@@ -220,6 +235,17 @@ async function loadUsers() {
   if (error) {
     console.error("Erreur chargement utilisateurs :", error);
     return;
+  }
+
+  // Tri : par rôle (admin → membre) puis par pseudo, ou uniquement par pseudo.
+  if (users) {
+    users.sort((a, b) => {
+      if (adminUsersSort === 'rank') {
+        const diff = (ADMIN_RANK_ORDER[a.rank] ?? 4) - (ADMIN_RANK_ORDER[b.rank] ?? 4);
+        if (diff !== 0) return diff;
+      }
+      return (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' });
+    });
   }
 
   window.adminUsersCache = users || [];
@@ -437,17 +463,11 @@ async function updateUserRankAndRole(userId, newRank) {
       window.location.reload();
       return;
     }
-    // Mise à jour immédiate du badge sans refermer le panneau.
-    const cached = (window.adminUsersCache || []).find(u => u.id === userId);
-    if (cached) {
-      cached.rank = newRank;
-      cached.role = newRole;
-    }
-    const badge = document.getElementById('adminUserRankBadge-' + userId);
-    if (badge) {
-      badge.textContent = adminRankShortLabel(newRank);
-      badge.className = 'shrink-0 px-1.5 py-0.5 rounded border text-[9px] font-bold uppercase tracking-wide ' + adminRankBadgeClass(newRank);
-    }
+    // Recharge la liste pour respecter le tri par rôle, en laissant le panneau ouvert.
+    const panel = document.getElementById('adminUserDetails-' + userId);
+    const wasOpen = panel && !panel.classList.contains('hidden');
+    await loadUsers();
+    if (wasOpen) toggleAdminUserDetails(userId);
   }
 }
 

@@ -599,7 +599,16 @@
         </button>
       </div>
       <div id="adminPanel-membres" class="admin-panel space-y-4">
-        <h3 class="text-sm font-bold text-white uppercase tracking-wider">👥 Gestion des Membres & Rôles</h3>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h3 class="text-sm font-bold text-white uppercase tracking-wider">👥 Gestion des Membres & Rôles</h3>
+          <div class="flex items-center gap-2">
+            <label for="adminUsersSort" class="text-[10px] text-gray-400 uppercase font-bold">Trier par</label>
+            <select id="adminUsersSort" onchange="setAdminUserSort(this.value)" class="bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-1.5 text-xs text-white focus:border-red-600 focus:outline-none">
+              <option value="rank" selected>Rôle</option>
+              <option value="name">Nom</option>
+            </select>
+          </div>
+        </div>
         <div class="bg-[#121722] border border-[#1f293d] rounded-xl overflow-hidden">
           <div id="adminUsersTable" class="divide-y divide-[#1f293d]">
             <!-- Rendu dynamique -->
