@@ -227,47 +227,88 @@ async function loadUsers() {
   if (!tbody) return;
 
   if (!users || users.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-xs text-gray-400">Aucun utilisateur trouvé.</td></tr>`;
+    tbody.innerHTML = `<div class="p-4 text-center text-xs text-gray-400">Aucun utilisateur trouvé.</div>`;
     return;
   }
 
-  tbody.innerHTML = users.map(user => `
-    <tr class="block md:table-row border-b border-[#1f293d] hover:bg-white/5 transition p-3 md:p-0 space-y-2 md:space-y-0">
-      <td class="p-0 md:p-3 flex items-center gap-3 md:table-cell">
-        <div class="w-8 h-8 rounded-lg bg-[#07090e] border border-[#1f293d] flex items-center justify-center overflow-hidden shrink-0">
+  tbody.innerHTML = users.map(user => {
+    const rank = user.rank || 'Petit Viking';
+    const twitch = user.twitch_channel
+      ? `<div class="flex items-center gap-2 min-w-0"><img data-twitch-avatar="${escapeHtmlSafe(user.twitch_channel)}" alt="" class="w-7 h-7 rounded-lg bg-[#07090e] border border-[#1f293d] object-cover shrink-0"><span class="font-bold text-white truncate">${escapeHtmlSafe(user.twitch_channel)}</span></div>`
+      : `<span class="text-gray-500">Non renseigné</span>`;
+
+    return `
+    <div class="admin-user">
+      <button type="button" id="adminUserToggle-${user.id}" aria-expanded="false" onclick="toggleAdminUserDetails('${user.id}')" class="w-full flex items-center gap-3 p-3 text-left hover:bg-white/5 transition">
+        <div class="w-9 h-9 rounded-lg bg-[#07090e] border border-[#1f293d] flex items-center justify-center overflow-hidden shrink-0">
           ${user.avatar_url && user.avatar_url !== 'EMPTY' ? `<img src="${escapeHtmlSafe(user.avatar_url)}" class="w-full h-full object-cover">` : '👤'}
         </div>
-        <div>
-          <div class="text-xs font-bold text-white">${escapeHtmlSafe(user.name)}</div>
-          <div class="text-[10px] text-gray-400">${escapeHtmlSafe(user.email)}</div>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-xs font-bold text-white truncate">${escapeHtmlSafe(user.name)}</span>
+            <span id="adminUserRankBadge-${user.id}" class="shrink-0 px-1.5 py-0.5 rounded border text-[9px] font-bold uppercase tracking-wide ${adminRankBadgeClass(rank)}">${adminRankShortLabel(rank)}</span>
+          </div>
+          <div class="text-[10px] text-gray-400 truncate">${escapeHtmlSafe(user.email)}</div>
         </div>
-      </td>
-      <td data-label="Vérification" class="block md:table-cell p-0 md:p-3 text-xs before:content-[attr(data-label)] before:block before:text-[10px] before:text-gray-500 before:uppercase before:font-bold before:mb-1 md:before:content-none">
-        <button onclick="toggleUserVerification('${user.id}', ${user.verified})" class="px-2 py-1 rounded border ${user.verified ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' : 'border-amber-500/30 text-amber-400 bg-amber-500/10'} hover:bg-white/10 transition">
-          ${user.verified ? '✓ Vérifié' : '⏳ En attente'}
-        </button>
-      </td>
-      <td data-label="Rang" class="block md:table-cell p-0 md:p-3 before:content-[attr(data-label)] before:block before:text-[10px] before:text-gray-500 before:uppercase before:font-bold before:mb-1 md:before:content-none">
-        <!-- LISTE DÉROULANTE UNIFIÉE (Grade + Rôle) -->
-        <select onchange="updateUserRankAndRole('${user.id}', this.value)" class="w-full md:w-auto bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-1.5 text-xs text-white focus:border-red-600 focus:outline-none">
-          <option value="Petit Viking" ${user.rank === 'Petit Viking' ? 'selected' : ''}>Petit Viking (Membre)</option>
-          <option value="Viking" ${user.rank === 'Viking' ? 'selected' : ''}>Viking (Staff)</option>
-          <option value="Grand Jarl" ${user.rank === 'Grand Jarl' || user.rank === 'Jarl' ? 'selected' : ''}>Grand Jarl (Admin)</option>
-          <option value="Divinité" ${user.rank === 'Divinité' ? 'selected' : ''}>Divinité (Admin)</option>
-        </select>
-      </td>
-      <td data-label="Actions" class="block md:table-cell p-0 md:p-3 before:content-[attr(data-label)] before:block before:text-[10px] before:text-gray-500 before:uppercase before:font-bold before:mb-1 md:before:content-none">
-        <button onclick="openAdminUserModal('${user.id}')" class="w-full md:w-auto px-3 py-2 md:py-1.5 mb-2 md:mb-0 md:mr-1 bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-black text-[10px] font-bold rounded-xl transition">Modifier ✏️</button>
-        <button onclick="deleteUser('${user.id}')" class="w-full md:w-auto px-3 py-2 md:py-1.5 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-[10px] font-bold rounded-xl transition">
-          Supprimer 🗑️
-        </button>
-      </td>
-      <td data-label="Twitch" class="block md:table-cell p-0 md:p-3 text-xs before:content-[attr(data-label)] before:block before:text-[10px] before:text-gray-500 before:uppercase before:font-bold before:mb-1 md:before:content-none">
-        ${user.twitch_channel ? `<div class="flex items-center gap-2"><img data-twitch-avatar="${escapeHtmlSafe(user.twitch_channel)}" alt="" class="w-7 h-7 rounded-lg bg-[#07090e] border border-[#1f293d] object-cover shrink-0"><span class="font-bold text-white">${escapeHtmlSafe(user.twitch_channel)}</span></div>` : '<span class="text-gray-500">-</span>'}
-      </td>
-    </tr>
-  `).join('');
+        <span class="shrink-0 px-2 py-1 rounded border text-[10px] font-bold ${user.verified ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' : 'border-amber-500/30 text-amber-400 bg-amber-500/10'}">${user.verified ? '✓ Vérifié' : '⏳ Attente'}</span>
+        <span id="adminUserChevron-${user.id}" class="shrink-0 text-gray-400 text-xs">▾</span>
+      </button>
+
+      <div id="adminUserDetails-${user.id}" class="hidden border-t border-[#1f293d] bg-[#07090e]/50 p-3 space-y-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="block text-[10px] text-gray-400 uppercase font-bold">Rang</label>
+            <select onchange="updateUserRankAndRole('${user.id}', this.value)" class="w-full bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-1.5 text-xs text-white focus:border-red-600 focus:outline-none">
+              <option value="Petit Viking" ${user.rank === 'Petit Viking' ? 'selected' : ''}>Petit Viking (Membre)</option>
+              <option value="Viking" ${user.rank === 'Viking' ? 'selected' : ''}>Viking (Staff)</option>
+              <option value="Grand Jarl" ${user.rank === 'Grand Jarl' || user.rank === 'Jarl' ? 'selected' : ''}>Grand Jarl (Admin)</option>
+              <option value="Divinité" ${user.rank === 'Divinité' ? 'selected' : ''}>Divinité (Admin)</option>
+            </select>
+          </div>
+          <div class="space-y-1">
+            <label class="block text-[10px] text-gray-400 uppercase font-bold">Twitch</label>
+            <div class="flex items-center min-h-[34px] text-xs bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-1.5">${twitch}</div>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2 pt-1">
+          <button onclick="toggleUserVerification('${user.id}', ${user.verified})" class="px-3 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-200 text-[10px] font-bold rounded-xl transition">${user.verified ? 'Retirer la vérification' : 'Marquer comme vérifié'}</button>
+          <button onclick="openAdminUserModal('${user.id}')" class="px-3 py-2 bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-black text-[10px] font-bold rounded-xl transition">Modifier ✏️</button>
+          <button onclick="deleteUser('${user.id}')" class="px-3 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-[10px] font-bold rounded-xl transition">Supprimer 🗑️</button>
+        </div>
+      </div>
+    </div>
+  `;
+  }).join('');
   hydrateTwitchAvatars(tbody);
+}
+
+const ADMIN_RANK_LABELS = {
+  'Petit Viking': 'Petit Viking',
+  'Viking': 'Viking',
+  'Grand Jarl': 'Grand Jarl',
+  'Jarl': 'Grand Jarl',
+  'Divinité': 'Divinité'
+};
+
+function adminRankShortLabel(rank) {
+  return ADMIN_RANK_LABELS[rank] || rank || 'Petit Viking';
+}
+
+function adminRankBadgeClass(rank) {
+  if (rank === 'Divinité' || rank === 'Grand Jarl' || rank === 'Jarl') return 'border-amber-500/30 text-amber-400 bg-amber-500/10';
+  if (rank === 'Viking') return 'border-red-500/30 text-red-400 bg-red-500/10';
+  return 'border-[#1f293d] text-gray-300 bg-white/5';
+}
+
+function toggleAdminUserDetails(id) {
+  const panel = document.getElementById('adminUserDetails-' + id);
+  const chevron = document.getElementById('adminUserChevron-' + id);
+  const toggle = document.getElementById('adminUserToggle-' + id);
+  if (!panel) return;
+  panel.classList.toggle('hidden');
+  const open = !panel.classList.contains('hidden');
+  if (chevron) chevron.textContent = open ? '▴' : '▾';
+  if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
 let editingAdminUserId = null;
@@ -394,14 +435,32 @@ async function updateUserRankAndRole(userId, newRank) {
   } else {
     if (currentUser && currentUser.id === userId) {
       window.location.reload();
+      return;
+    }
+    // Mise à jour immédiate du badge sans refermer le panneau.
+    const cached = (window.adminUsersCache || []).find(u => u.id === userId);
+    if (cached) {
+      cached.rank = newRank;
+      cached.role = newRole;
+    }
+    const badge = document.getElementById('adminUserRankBadge-' + userId);
+    if (badge) {
+      badge.textContent = adminRankShortLabel(newRank);
+      badge.className = 'shrink-0 px-1.5 py-0.5 rounded border text-[9px] font-bold uppercase tracking-wide ' + adminRankBadgeClass(newRank);
     }
   }
 }
 
 async function toggleUserVerification(userId, currentStatus) {
   const { error } = await supabaseClient.from('nvg_users').update({ verified: !currentStatus }).eq('id', userId);
-  if (error) alert("Erreur : " + error.message);
-  else loadUsers();
+  if (error) {
+    alert("Erreur : " + error.message);
+    return;
+  }
+  const panel = document.getElementById('adminUserDetails-' + userId);
+  const wasOpen = panel && !panel.classList.contains('hidden');
+  await loadUsers();
+  if (wasOpen) toggleAdminUserDetails(userId);
 }
 
 async function deleteUser(userId) {
