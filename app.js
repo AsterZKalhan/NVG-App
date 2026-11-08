@@ -16,12 +16,41 @@ window.currentUser = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
   const initialHash = location.hash.replace('#', '');
+  const hashEl = document.getElementById(initialHash);
+  const startTab = hashEl && hashEl.classList.contains('tab-content') ? initialHash : 'calendar';
+  history.replaceState({ tab: startTab }, '', '#' + startTab);
+
+  // Affiche immédiatement les derniers événements connus (cache local), puis
+  // la requête Supabase les rafraîchit en arrière-plan.
+  try {
+    const cachedEvents = JSON.parse(localStorage.getItem('nvg_events_cache_v1') || 'null');
+    if (cachedEvents && Array.isArray(cachedEvents.data) && cachedEvents.data.length > 0) {
+      db.events = cachedEvents.data;
+      if (typeof renderPublicEvents === 'function') renderPublicEvents();
+    }
+  } catch (e) {
+    // Cache illisible : on laisse le message de chargement.
+  }
+
+  // Affichage immédiat de l'onglet public : le calendrier ne doit pas attendre
+  // les requêtes de profil et de données. Les onglets réservés attendent l'auth.
+  const authOnlyTabs = ['admin', 'logistics', 'games'];
+  const canShowBeforeAuth = !authOnlyTabs.includes(startTab);
+  if (canShowBeforeAuth) showTab(startTab);
+
   // Vérification de la session Supabase existante au démarrage
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (session && session.user) {
     await handleSuccessfulAuth(session.user);
   } else {
     showAuthModal();
+  }
+
+  if (!canShowBeforeAuth) {
+    showTab(startTab);
+    // Accès refusé (onglet réservé) : on retombe sur le calendrier.
+    const target = document.getElementById(startTab);
+    if (target && target.classList.contains('hidden')) showTab('calendar');
   }
   
   // Enregistrement du Service Worker pour les notifications Push
@@ -40,12 +69,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   setInterval(() => { if (!document.hidden) refreshLiveStatus(); }, 30000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshLiveStatus(); });
   if (/iphone|ipad|ipod/i.test(navigator.userAgent) || (/android/i.test(navigator.userAgent) && /firefox/i.test(navigator.userAgent))) showInstallBanner(false);
-
-  const hashTab = initialHash;
-  const hashEl = document.getElementById(hashTab);
-  const startTab = hashEl && hashEl.classList.contains('tab-content') ? hashTab : 'calendar';
-  history.replaceState({ tab: startTab }, '', '#' + startTab);
-  showTab(startTab);
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', (e) => {
@@ -304,7 +327,6 @@ async function handleSuccessfulAuth(authUser) {
     }]);
   }
 
-  loadNotifications();
   showNotifPrompt();
 
   const authModal = document.getElementById('authModal');
@@ -364,11 +386,19 @@ async function handleSuccessfulAuth(authUser) {
 }
 
 async function renderAll() {
-  try { if (typeof loadEvents === 'function') await loadEvents(); } catch(e) { console.error("Erreur loadEvents", e); }
-  try { if (typeof loadCatalog === 'function') await loadCatalog(); } catch(e) { console.error("Erreur loadCatalog", e); }
-  try { if (typeof loadGames === 'function') await loadGames(); } catch(e) { console.error("Erreur loadGames", e); }
-  try { if (typeof loadNotifications === 'function') await loadNotifications(); } catch(e) { console.error("Erreur loadNotifications", e); }
-  try { if (typeof loadUsers === 'function') await loadUsers(); } catch(e) { console.error("Erreur loadUsers", e); }
+  // Les chargements sont indépendants : les lancer en parallèle évite d'attendre
+  // cinq requêtes successives au démarrage.
+  const tasks = [
+    ['loadEvents', typeof loadEvents === 'function' ? loadEvents() : null],
+    ['loadCatalog', typeof loadCatalog === 'function' ? loadCatalog() : null],
+    ['loadGames', typeof loadGames === 'function' ? loadGames() : null],
+    ['loadNotifications', typeof loadNotifications === 'function' ? loadNotifications() : null],
+    ['loadUsers', typeof loadUsers === 'function' ? loadUsers() : null]
+  ].filter(([, promise]) => promise);
+  const results = await Promise.allSettled(tasks.map(([, promise]) => promise));
+  results.forEach((result, i) => {
+    if (result.status === 'rejected') console.error(`Erreur ${tasks[i][0]}`, result.reason);
+  });
 }
 
 function showAuthModal() {

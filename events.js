@@ -39,6 +39,11 @@ async function loadEvents() {
     return;
   }
   db.events = data || [];
+  try {
+    localStorage.setItem('nvg_events_cache_v1', JSON.stringify({ data: db.events, at: Date.now() }));
+  } catch (e) {
+    // Stockage indisponible : l'affichage reste correct, sans cache local.
+  }
   renderPublicEvents();
   if (typeof renderEventsAdmin === 'function') renderEventsAdmin();
   updateAdminLogisticsSelector();
