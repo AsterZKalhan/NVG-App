@@ -102,6 +102,11 @@ Fonction Edge `contact-message` (sans JWT) : reçoit le formulaire public (`cont
 - Un abonnement par appareil (clé : endpoint).
 - **Nettoyage automatique** : les notifications `NVG est en live !` disparaissent de l'historique 48 h après leur apparition (job `pg_cron` horaire, voir section 3). Les autres notifications restent.
 
+### Streams NVG
+- Liste des membres avec chaîne Twitch (`nvg_streamers`), triés en direct d'abord, puis par spectateurs et pseudo (`streams.js`). Le lecteur ne se recharge que lorsqu'on change de membre.
+- **Mini-lecteur** : en quittant l'onglet Streams, la section reste affichée en bas à droite de l'application (classe `streams-pip-mode` sur `#streams`, voir `enterStreamsPip` / `exitStreamsPip` dans `streams.js`). Le flux continue sans rechargement, car l'iframe n'est pas déplacée. Elle reprend sa place au retour sur l'onglet. Le bouton ✕ (`closeStreamsPip`) arrête le flux et ferme le mini-lecteur ; il se recharge à la prochaine ouverture de l'onglet.
+- Ce mini-lecteur est interne à l'application : les iframes Twitch ne peuvent pas utiliser le Picture-in-Picture natif du navigateur.
+
 ### Live Twitch
 - Statut via `twitch-live`, toutes les 30 secondes uniquement quand l'onglet est visible, et immédiatement au retour sur l'onglet.
 
@@ -212,3 +217,4 @@ Pour déployer une fonction Edge : `curl` vers `/v1/projects/{ref}/functions/dep
 - **2 novembre 2026** — Module Vidéos (3 dernières vidéos, lecteur intégré, ETag, actualisation admin), formulaire de contact public avec captcha et Edge Function `contact-message`, boîte de réception admin `📥 Contact`, mise à jour de la page de confidentialité et nettoyage automatique des notifications `NVG est en live !` après 48 h. Détail complet : `.github/docs/session-2026-11-02.md` (non déployé sur le serveur).
 - **3 novembre 2026** — Propositions de jeux : vote affiché immédiatement sans rechargement, un vote par membre, bulle au survol listant les votants, retrait de son propre vote, bouton admin de réinitialisation, trigger `nvg_games_guard_trg` limitant les membres à leur propre vote. Logistique : matériel masqué pour les événements Nieuwheim. Vidéos : la lecture s'arrête quand on quitte l'onglet. Détail complet : `.github/docs/session-2026-11-03.md`.
 - **7 novembre 2026** — Gestion des membres : liste compacte (avatar, pseudo, e-mail, rang, vérification) avec panneau dépliable pour modifier le rang, la vérification, Twitch, le profil ou supprimer le membre, et tri par rôle ou par nom. Détail complet : `.github/docs/session-2026-11-07.md`.
+- **8 novembre 2026** — Streams NVG : mini-lecteur flottant en bas à droite quand on quitte l'onglet, avec bouton ✕ pour arrêter le flux ; le lecteur reprend sa place au retour. Détail complet : `.github/docs/session-2026-11-08.md`.
