@@ -142,26 +142,133 @@ function enterStreamsPip() {
   if (!section || !player || !player.getAttribute('src')) return false;
   section.classList.remove('hidden');
   section.classList.add('streams-pip-mode');
+  restoreStreamsPipPosition();
   return true;
 }
 
 function exitStreamsPip() {
   const section = document.getElementById('streams');
-  if (section) section.classList.remove('streams-pip-mode');
+  if (section) {
+    section.classList.remove('streams-pip-mode');
+    section.classList.remove('streams-pip-dragging');
+    section.style.left = '';
+    section.style.top = '';
+    section.style.right = '';
+    section.style.bottom = '';
+  }
   streamsPipClosed = false;
 }
 
 function closeStreamsPip() {
   streamsPipClosed = true;
+  streamsPipDrag = null;
   const player = document.getElementById('streamsPlayer');
   if (player) player.removeAttribute('src');
   loadedPlayerChannel = null;
   const section = document.getElementById('streams');
   if (section) {
     section.classList.remove('streams-pip-mode');
+    section.classList.remove('streams-pip-dragging');
+    section.style.left = '';
+    section.style.top = '';
+    section.style.right = '';
+    section.style.bottom = '';
     section.classList.add('hidden');
   }
 }
+
+// --- Déplacement du mini-lecteur ---
+const STREAMS_PIP_POS_KEY = 'nvg_streams_pip_pos';
+let streamsPipDrag = null;
+
+function applyStreamsPipPosition(left, top) {
+  const section = document.getElementById('streams');
+  if (!section || !section.classList.contains('streams-pip-mode')) return;
+  const rect = section.getBoundingClientRect();
+  const margin = 8;
+  const width = rect.width || Math.min(360, window.innerWidth - 32);
+  const height = rect.height || (width * 9 / 16);
+  const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+  const maxTop = Math.max(margin, window.innerHeight - height - margin);
+  const x = Math.min(Math.max(left, margin), maxLeft);
+  const y = Math.min(Math.max(top, margin), maxTop);
+  section.style.left = x + 'px';
+  section.style.top = y + 'px';
+  section.style.right = 'auto';
+  section.style.bottom = 'auto';
+}
+
+function restoreStreamsPipPosition() {
+  let saved = null;
+  try {
+    saved = JSON.parse(localStorage.getItem(STREAMS_PIP_POS_KEY) || 'null');
+  } catch (e) {
+    saved = null;
+  }
+  if (!saved || !Number.isFinite(saved.left) || !Number.isFinite(saved.top)) return;
+  applyStreamsPipPosition(saved.left, saved.top);
+}
+
+function saveStreamsPipPosition() {
+  const section = document.getElementById('streams');
+  if (!section) return;
+  const rect = section.getBoundingClientRect();
+  try {
+    localStorage.setItem(STREAMS_PIP_POS_KEY, JSON.stringify({
+      left: Math.round(rect.left),
+      top: Math.round(rect.top)
+    }));
+  } catch (e) {
+    // Stockage indisponible : la position reste valable pour la session.
+  }
+}
+
+function startStreamsPipDrag(event) {
+  const section = document.getElementById('streams');
+  if (!section || !section.classList.contains('streams-pip-mode')) return;
+  event.preventDefault();
+  const rect = section.getBoundingClientRect();
+  streamsPipDrag = {
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top
+  };
+  section.classList.add('streams-pip-dragging');
+  const handle = event.currentTarget;
+  if (handle && handle.setPointerCapture) {
+    try { handle.setPointerCapture(event.pointerId); } catch (e) { /* ignore */ }
+  }
+}
+
+function moveStreamsPipDrag(event) {
+  if (!streamsPipDrag) return;
+  event.preventDefault();
+  applyStreamsPipPosition(
+    event.clientX - streamsPipDrag.offsetX,
+    event.clientY - streamsPipDrag.offsetY
+  );
+}
+
+function endStreamsPipDrag(event) {
+  if (!streamsPipDrag) return;
+  streamsPipDrag = null;
+  const section = document.getElementById('streams');
+  if (section) {
+    section.classList.remove('streams-pip-dragging');
+    saveStreamsPipPosition();
+  }
+  const handle = event.currentTarget;
+  if (handle && handle.releasePointerCapture) {
+    try { handle.releasePointerCapture(event.pointerId); } catch (e) { /* ignore */ }
+  }
+}
+
+// Garde le mini-lecteur dans l'écran si la fenêtre est redimensionnée.
+window.addEventListener('resize', () => {
+  const section = document.getElementById('streams');
+  if (!section || !section.classList.contains('streams-pip-mode')) return;
+  const rect = section.getBoundingClientRect();
+  applyStreamsPipPosition(rect.left, rect.top);
+});
 
 // Rafraîchit uniquement le statut (liste et infos), toutes les 30 s quand le module est affiché.
 setInterval(() => {
