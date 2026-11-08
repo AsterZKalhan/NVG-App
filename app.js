@@ -181,8 +181,18 @@ function showTab(tabId) {
     navDepth++;
   }
 
+  // Lecteur Twitch : en quittant l'onglet Streams, il passe en mini-lecteur au lieu
+  // d'être masqué (le flux continue). Au retour, il reprend sa place.
+  let streamsPipActive = false;
+  if (tabId === 'streams') {
+    if (typeof exitStreamsPip === 'function') exitStreamsPip();
+  } else if (typeof enterStreamsPip === 'function') {
+    streamsPipActive = enterStreamsPip();
+  }
+
   const tabs = document.querySelectorAll('.tab-content');
   tabs.forEach(tab => {
+    if (streamsPipActive && tab.id === 'streams') return;
     tab.classList.add('hidden');
   });
 

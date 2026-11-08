@@ -39,6 +39,46 @@
     .streams-player { aspect-ratio: 16 / 9; width: 100%; position: relative; }
     .streams-player iframe { position: absolute; inset: 0; border: 0; }
     .streams-player #streamsEmpty { position: absolute; inset: 0; }
+    /* Mini-lecteur : la section Streams reste visible, réduite dans un coin, quand on change d'onglet. */
+    #streams.streams-pip-mode {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      left: auto;
+      top: auto;
+      width: min(360px, calc(100vw - 32px));
+      z-index: 60;
+      margin: 0;
+      display: block;
+    }
+    #streams.streams-pip-mode .streams-header { display: none !important; }
+    #streams.streams-pip-mode .streams-layout { display: block; margin-top: 0 !important; }
+    #streams.streams-pip-mode .streams-layout > aside { display: none !important; }
+    #streams.streams-pip-mode .streams-meta { display: none !important; }
+    #streams.streams-pip-mode .streams-player {
+      border-radius: 12px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, .6);
+    }
+    #streamsPipClose {
+      display: none;
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 2;
+      width: 28px;
+      height: 28px;
+      border-radius: 9999px;
+      background: rgba(0, 0, 0, .75);
+      border: 1px solid rgba(255, 255, 255, .25);
+      color: #fff;
+      font-size: 14px;
+      line-height: 1;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    #streamsPipClose:hover { background: #dc2626; border-color: #dc2626; }
+    #streams.streams-pip-mode #streamsPipClose { display: flex; }
     .videos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
     .videos-player { aspect-ratio: 16 / 9; width: 100%; position: relative; }
     .videos-player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
@@ -366,7 +406,7 @@
     </section>
     <!-- ONGLET CALENDRIER -->
     <section id="streams" class="tab-content hidden space-y-6">
-      <div class="flex items-center justify-between">
+      <div class="streams-header flex items-center justify-between">
         <h2 class="text-xl font-black text-white uppercase">Streams NVG</h2>
         <span class="text-xs text-gray-400 font-bold">Membres : <span id="streamsCount">0</span></span>
       </div>
@@ -381,8 +421,9 @@
           <div class="streams-player bg-black rounded-2xl overflow-hidden border border-[#1f293d]">
             <iframe id="streamsPlayer" class="w-full h-full" allowfullscreen></iframe>
             <div id="streamsEmpty" class="hidden w-full h-full flex items-center justify-center text-xs text-gray-500 italic">Aucun membre n'a encore renseigné sa chaîne Twitch.</div>
+            <button type="button" id="streamsPipClose" onclick="closeStreamsPip()" title="Fermer le mini-lecteur" aria-label="Fermer le mini-lecteur">✕</button>
           </div>
-          <div class="flex items-center gap-3 bg-[#121722] border border-[#1f293d] rounded-2xl p-3">
+          <div class="streams-meta flex items-center gap-3 bg-[#121722] border border-[#1f293d] rounded-2xl p-3">
             <img id="streamsInfoAvatar" alt="" class="hidden w-12 h-12 rounded-full object-cover shrink-0">
             <div class="flex-1 min-w-0">
               <div id="streamsInfoName" class="text-sm font-black text-white truncate"></div>

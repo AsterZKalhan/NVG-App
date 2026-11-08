@@ -6,6 +6,7 @@ let streamsMembers = [];
 let streamsStatus = {};
 let selectedStreamChannel = null;
 let loadedPlayerChannel = null;
+let streamsPipClosed = false;
 
 function streamStatusOf(login) {
   return streamsStatus[login] || { live: false, viewers: 0, title: '', game: '', avatar: '' };
@@ -128,6 +129,38 @@ function updateStreamPlayer() {
   viewersEl.textContent = st.live ? `● ${st.viewers} spectateurs` : '';
   viewersEl.className = st.live ? 'text-xs font-bold text-red-500' : 'hidden';
   document.getElementById('streamsInfoLink').href = `https://twitch.tv/${login}`;
+}
+
+// --- MINI-LECTEUR (picture-in-picture de l'application) ---
+// On ne déplace pas l'iframe (cela rechargerait le flux) : la section Streams est
+// simplement réduite dans un coin quand on change d'onglet, puis remise en place.
+
+function enterStreamsPip() {
+  if (!loadedPlayerChannel || streamsPipClosed) return false;
+  const section = document.getElementById('streams');
+  const player = document.getElementById('streamsPlayer');
+  if (!section || !player || !player.getAttribute('src')) return false;
+  section.classList.remove('hidden');
+  section.classList.add('streams-pip-mode');
+  return true;
+}
+
+function exitStreamsPip() {
+  const section = document.getElementById('streams');
+  if (section) section.classList.remove('streams-pip-mode');
+  streamsPipClosed = false;
+}
+
+function closeStreamsPip() {
+  streamsPipClosed = true;
+  const player = document.getElementById('streamsPlayer');
+  if (player) player.removeAttribute('src');
+  loadedPlayerChannel = null;
+  const section = document.getElementById('streams');
+  if (section) {
+    section.classList.remove('streams-pip-mode');
+    section.classList.add('hidden');
+  }
 }
 
 // Rafraîchit uniquement le statut (liste et infos), toutes les 30 s quand le module est affiché.
