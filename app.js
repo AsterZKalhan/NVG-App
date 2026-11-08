@@ -211,6 +211,9 @@ function showTab(tabId) {
     if (typeof exitStreamsPip === 'function') exitStreamsPip();
   } else if (typeof enterStreamsPip === 'function') {
     streamsPipActive = enterStreamsPip();
+    // Mini-lecteur impossible (pause, arrêt, lecteur pas prêt) : on coupe le son
+    // au lieu de laisser le flux jouer dans un onglet masqué.
+    if (!streamsPipActive && typeof pauseStreamsIfNotPip === 'function') pauseStreamsIfNotPip();
   }
 
   const tabs = document.querySelectorAll('.tab-content');
