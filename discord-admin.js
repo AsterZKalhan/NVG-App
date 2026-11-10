@@ -151,9 +151,10 @@ async function saveDiscordGuild(guildId) {
 
   try {
     await callDiscordBot({ action: 'save_routes', guild_id: guildId, routes });
-    alert('✅ Configuration enregistrée.');
     const res = await callDiscordBot({ action: 'list_guilds' });
     discordRoutes = res.routes || [];
+    renderDiscordGuilds();
+    alert('✅ Configuration enregistrée.');
   } catch (err) {
     alert('Erreur : ' + err.message);
   }
