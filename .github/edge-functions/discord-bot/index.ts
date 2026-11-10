@@ -119,13 +119,13 @@ function eventMessage(e: any) {
   const fields: { name: string; value: string; inline: boolean }[] = [];
   if (e.location) fields.push({ name: "📍 Lieu", value: trunc(e.location, 1024), inline: true });
   if (e.category) fields.push({ name: "🏷️ Catégorie", value: trunc(e.category, 1024), inline: true });
-  if (e.watch_mode) fields.push({ name: "👀 Où regarder", value: trunc(e.watch_mode, 1024), inline: true });
 
   const logo = EVENT_LOGOS[e.category] ?? "logo-nvg.png";
   return {
+    content: "**NOUVEL ÉVÉNEMENT À VENIR**",
     embeds: [
       {
-        author: { name: dateLine || "Nouvel événement" },
+        author: { name: dateLine ? `Date : ${dateLine}` : "Nouvel événement" },
         title: trunc(`${prefix} ${title}`, 256),
         description: trunc(e.description || "", 4096) || undefined,
         url: CALENDAR_URL,
