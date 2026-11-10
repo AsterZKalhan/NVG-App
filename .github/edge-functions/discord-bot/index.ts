@@ -48,13 +48,12 @@ async function sb(path: string, init: RequestInit = {}): Promise<Response> {
 }
 
 async function discord(path: string, init: RequestInit = {}): Promise<any> {
+  const headers: Record<string, string> = { Authorization: `Bot ${BOT_TOKEN}` };
+  // Discord refuse un Content-Type JSON sans corps (DELETE notamment : « invalid JSON »).
+  if (init.body !== undefined && init.body !== null) headers["Content-Type"] = "application/json";
   const res = await fetch(`${DISCORD_API}${path}`, {
     ...init,
-    headers: {
-      Authorization: `Bot ${BOT_TOKEN}`,
-      "Content-Type": "application/json",
-      ...(init.headers as Record<string, string> | undefined),
-    },
+    headers: { ...headers, ...(init.headers as Record<string, string> | undefined) },
   });
   if (!res.ok) throw new Error(`Discord ${res.status} : ${await res.text()}`);
   return res.status === 204 ? null : res.json();
