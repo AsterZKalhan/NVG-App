@@ -15,6 +15,7 @@ const DISCORD_ANNOUNCE_KINDS = [
 let discordGuilds = [];
 let discordRoutes = [];
 const discordChannelsCache = {};
+const discordGuildsOpen = new Set();
 
 function setDiscordStatus(message, isError = false) {
   const el = document.getElementById('discordStatus');
@@ -108,25 +109,45 @@ function renderDiscordGuilds() {
         </div>`;
     }).join('');
 
+    const open = discordGuildsOpen.has(guild.id);
+    const activeCount = discordRoutes.filter(r => r.guild_id === guild.id).length;
+
     return `
       <div class="bg-[#121722] border border-[#1f293d] rounded-xl p-5 space-y-3" data-guild="${guild.id}">
-        <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center justify-between gap-3 cursor-pointer select-none" role="button" tabindex="0" aria-expanded="${open}" onclick="toggleDiscordGuildCard(event, '${guild.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
           <div class="flex items-center gap-3 min-w-0">
             ${guild.icon
               ? `<img src="https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64" alt="" class="w-9 h-9 rounded-full shrink-0">`
               : `<div class="w-9 h-9 rounded-full bg-[#07090e] border border-[#1f293d] shrink-0 flex items-center justify-center text-xs font-black text-gray-400">${escapeHtmlSafe(guild.name.charAt(0).toUpperCase())}</div>`}
             <h4 class="text-sm font-black text-white truncate">${escapeHtmlSafe(guild.name)}</h4>
+            ${activeCount ? `<span class="text-[10px] font-bold text-gray-400 bg-white/5 border border-[#1f293d] rounded-full px-2 py-0.5 shrink-0">${activeCount} annonce${activeCount > 1 ? 's' : ''}</span>` : ''}
           </div>
           <div class="flex items-center gap-2 shrink-0">
             <button onclick="saveDiscordGuild('${guild.id}')" class="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-lg hover:bg-amber-400 transition">Enregistrer</button>
             <button onclick="leaveDiscordGuild('${guild.id}')" class="px-4 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white font-bold text-xs rounded-lg border border-red-600/40 transition">Quitter le serveur</button>
+            <span class="guild-chevron text-gray-400 text-xs transition-transform duration-200 ${open ? 'rotate-180' : ''}" aria-hidden="true">▼</span>
           </div>
         </div>
-        ${rows}
+        <div class="guild-body space-y-3 ${open ? '' : 'hidden'}">${rows}</div>
       </div>`;
   }).join('');
 
   discordGuilds.forEach(fillDiscordChannelSelects);
+}
+
+function toggleDiscordGuildCard(event, guildId) {
+  if (event && event.target.closest('button, a, select, input, label')) return;
+  const card = document.querySelector(`[data-guild="${guildId}"]`);
+  if (!card) return;
+  const body = card.querySelector('.guild-body');
+  const chevron = card.querySelector('.guild-chevron');
+  const header = card.querySelector('[role="button"]');
+  if (!body) return;
+  const open = body.classList.toggle('hidden') === false;
+  if (open) discordGuildsOpen.add(guildId);
+  else discordGuildsOpen.delete(guildId);
+  if (chevron) chevron.classList.toggle('rotate-180', open);
+  if (header) header.setAttribute('aria-expanded', String(open));
 }
 
 async function fillDiscordChannelSelects(guild) {

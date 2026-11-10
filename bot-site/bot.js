@@ -21,6 +21,7 @@ let currentUser = null;
 let guilds = [];
 let routes = [];
 const channelsCache = {};
+const openGuilds = new Set();
 
 const $ = (id) => document.getElementById(id);
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -133,26 +134,35 @@ function renderGuilds() {
       ? `<img src="https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64" alt="" class="w-10 h-10 rounded-full shrink-0">`
       : `<div class="w-10 h-10 rounded-full bg-[#07090e] border border-[#1f293d] shrink-0 flex items-center justify-center text-sm font-black text-gray-400">${escapeHtml((guild.name || '?').charAt(0).toUpperCase())}</div>`;
 
+    const open = openGuilds.has(guild.id);
+    const activeCount = routes.filter((r) => r.guild_id === guild.id).length;
+
     const header = `
-      <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none" role="button" tabindex="0" aria-expanded="${open}" onclick="toggleGuildCard(event, '${guild.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
         <div class="flex items-center gap-3 min-w-0">
           ${icon}
           <div class="min-w-0">
-            <h3 class="text-sm font-black text-white truncate">${escapeHtml(guild.name)}</h3>
+            <div class="flex items-center gap-2">
+              <h3 class="text-sm font-black text-white truncate">${escapeHtml(guild.name)}</h3>
+              ${activeCount ? `<span class="text-[10px] font-bold text-gray-400 bg-white/5 border border-[#1f293d] rounded-full px-2 py-0.5 shrink-0">${activeCount} annonce${activeCount > 1 ? 's' : ''}</span>` : ''}
+            </div>
             <p class="text-[10px] uppercase font-bold ${guild.bot_present ? 'text-emerald-400' : 'text-amber-400'}">${guild.bot_present ? 'Bot présent' : 'Bot non ajouté'}</p>
           </div>
         </div>
-        ${guild.bot_present
-          ? `<div class="flex flex-wrap items-center gap-2 shrink-0">
-               <button onclick="saveGuild('${guild.id}')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-lg transition">Enregistrer</button>
-               <button onclick="leaveGuild('${guild.id}')" class="px-4 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white font-bold text-xs rounded-lg border border-red-600/40 transition">Quitter le serveur</button>
-             </div>`
-          : `<button onclick="inviteBot('${guild.id}')" class="px-4 py-2 bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs rounded-lg transition shrink-0">➕ Ajouter le bot</button>`}
+        <div class="flex flex-wrap items-center gap-2 shrink-0">
+          ${guild.bot_present
+            ? `<button onclick="saveGuild('${guild.id}')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-lg transition">Enregistrer</button>
+               <button onclick="leaveGuild('${guild.id}')" class="px-4 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white font-bold text-xs rounded-lg border border-red-600/40 transition">Quitter le serveur</button>`
+            : `<button onclick="inviteBot('${guild.id}')" class="px-4 py-2 bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs rounded-lg transition shrink-0">➕ Ajouter le bot</button>`}
+          <span class="guild-chevron text-gray-400 text-xs transition-transform duration-200 ${open ? 'rotate-180' : ''}" aria-hidden="true">▼</span>
+        </div>
       </div>`;
 
     if (!guild.bot_present) {
-      return `<div class="guild-card bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">${header}
-        <p class="text-xs text-gray-400">Le bot n'est pas encore sur ce serveur. Ajoute-le, puis clique sur « Actualiser ».</p>
+      return `<div class="guild-card bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3" data-guild="${guild.id}">${header}
+        <div class="guild-body space-y-3 ${open ? '' : 'hidden'}">
+          <p class="text-xs text-gray-400">Le bot n'est pas encore sur ce serveur. Ajoute-le, puis clique sur « Actualiser ».</p>
+        </div>
       </div>`;
     }
 
@@ -172,8 +182,23 @@ function renderGuilds() {
         </div>`;
     }).join('');
 
-    return `<div class="guild-card bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3" data-guild="${guild.id}">${header}${rows}</div>`;
+    return `<div class="guild-card bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3" data-guild="${guild.id}">${header}<div class="guild-body space-y-3 ${open ? '' : 'hidden'}">${rows}</div></div>`;
   }).join('');
+}
+
+function toggleGuildCard(event, guildId) {
+  if (event && event.target.closest('button, a, select, input, label')) return;
+  const card = document.querySelector(`[data-guild="${guildId}"]`);
+  if (!card) return;
+  const body = card.querySelector('.guild-body');
+  const chevron = card.querySelector('.guild-chevron');
+  const header = card.querySelector('[role="button"]');
+  if (!body) return;
+  const open = body.classList.toggle('hidden') === false;
+  if (open) openGuilds.add(guildId);
+  else openGuilds.delete(guildId);
+  if (chevron) chevron.classList.toggle('rotate-180', open);
+  if (header) header.setAttribute('aria-expanded', String(open));
 }
 
 async function loadGuilds() {
