@@ -57,6 +57,7 @@ function formatDay(day: string): string {
     weekday: "long",
     day: "numeric",
     month: "long",
+    year: "numeric",
     timeZone: "Europe/Paris",
   });
 }
