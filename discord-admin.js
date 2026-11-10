@@ -201,11 +201,14 @@ async function publishDiscordAnnouncement() {
 }
 
 // Appelée après la création d'un événement ou d'une proposition de jeu.
-// Non bloquante : une erreur Discord ne doit jamais empêcher l'enregistrement.
+// Non bloquante : l'enregistrement est déjà fait. Le résultat (ou l'erreur) est affiché.
 async function announceOnDiscord(kind, id) {
+  const label = kind === 'event_created' ? "l'événement" : 'la proposition de jeu';
   try {
-    await supabaseClient.functions.invoke('discord-bot', { body: { action: 'announce', kind, id } });
+    const res = await callDiscordBot({ action: 'announce', kind, id });
+    if (res.sent > 0) alert(`📣 Annonce de ${label} publiée dans ${res.sent} salon(s) Discord.`);
+    else alert(`📣 Aucun salon Discord configuré pour ${label}. Vérifie l'onglet Bot Discord NVG.`);
   } catch (err) {
-    console.error('Annonce Discord :', err);
+    alert(`⚠️ Annonce Discord non envoyée pour ${label} : ${err.message}`);
   }
 }

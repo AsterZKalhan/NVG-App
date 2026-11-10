@@ -114,10 +114,70 @@ function eventMessage(e: any) {
   };
 }
 
-function liveMessage(login: string) {
+let twitchToken: { value: string; expiresAt: number } | null = null;
+
+async function twitchAppToken(): Promise<string> {
+  if (twitchToken && twitchToken.expiresAt > Date.now() + 60_000) return twitchToken.value;
+  const res = await fetch("https://id.twitch.tv/oauth2/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: Deno.env.get("TWITCH_CLIENT_ID") ?? "",
+      client_secret: Deno.env.get("TWITCH_CLIENT_SECRET") ?? "",
+      grant_type: "client_credentials",
+    }),
+  });
+  if (!res.ok) throw new Error(`Jeton Twitch : ${res.status}`);
+  const data = await res.json();
+  twitchToken = { value: data.access_token, expiresAt: Date.now() + data.expires_in * 1000 };
+  return twitchToken.value;
+}
+
+// Informations du direct (titre, jeu, spectateurs, avatar) via l'API Helix. En cas d'échec, on annonce quand même.
+async function twitchInfo(login: string) {
+  const fallback = { display: login, avatar: "", title: "", game: "", viewers: 0 };
+  try {
+    const token = await twitchAppToken();
+    const headers = { "Client-Id": Deno.env.get("TWITCH_CLIENT_ID") ?? "", Authorization: `Bearer ${token}` };
+    const [usersRes, streamsRes] = await Promise.all([
+      fetch(`https://api.twitch.tv/helix/users?login=${encodeURIComponent(login)}`, { headers }),
+      fetch(`https://api.twitch.tv/helix/streams?user_login=${encodeURIComponent(login)}`, { headers }),
+    ]);
+    const user = usersRes.ok ? (await usersRes.json()).data?.[0] : undefined;
+    const stream = streamsRes.ok ? (await streamsRes.json()).data?.[0] : undefined;
+    return {
+      display: user?.display_name ?? login,
+      avatar: user?.profile_image_url ?? "",
+      title: stream?.title ?? "",
+      game: stream?.game_name ?? "",
+      viewers: stream?.viewer_count ?? 0,
+    };
+  } catch (err) {
+    console.error("Infos Twitch :", err);
+    return fallback;
+  }
+}
+
+function liveMessage(login: string, info: { display: string; avatar: string; title: string; game: string; viewers: number }) {
+  const name = info.display || login;
+  const url = `https://twitch.tv/${login}`;
   return {
-    content: `🔴 **${login}** est en live sur Twitch ! https://twitch.tv/${login}`,
-    embeds: [{ title: `🔴 ${login} est en live`, url: `https://twitch.tv/${login}`, color: TWITCH_COLOR, footer: { text: FOOTER } }],
+    content: `🔴 **${name}** est en live !`,
+    embeds: [
+      {
+        author: { name: `${name} est en live sur Twitch !`, url, ...(info.avatar ? { icon_url: info.avatar } : {}) },
+        title: trunc(info.title || `Retrouve ${name} sur Twitch`, 256),
+        url,
+        color: TWITCH_COLOR,
+        fields: [
+          { name: "Jeu", value: trunc(info.game || "Non renseigné", 1024), inline: true },
+          { name: "Spectateurs", value: String(info.viewers), inline: true },
+        ],
+        image: { url: `https://static-cdn.jtvnw.net/previews-ttv/live_user_${login}-1280x720.jpg?t=${Date.now()}` },
+        footer: { text: FOOTER },
+      },
+    ],
+    components: [{ type: 1, components: [{ type: 2, style: 5, label: "Regarder le stream", url }] }],
   };
 }
 
@@ -211,13 +271,13 @@ Deno.serve(async (req) => {
       const refId = String(body.ref_id ?? `${login}:${Date.now()}`);
 
       if (login === MAIN_TWITCH_LOGIN) {
-        return json({ ok: true, sent: await dispatch("live_nvg", refId, liveMessage(login)) });
+        return json({ ok: true, sent: await dispatch("live_nvg", refId, liveMessage(login, await twitchInfo(login))) });
       }
       // Seuls les membres éligibles (vue nvg_streamers : Viking, Grand Jarl, Divinité) sont annoncés.
       const eligible = await sb(`nvg_streamers?select=twitch_channel&twitch_channel=ilike.${encodeURIComponent(login)}`);
       const rows = eligible.ok ? await eligible.json() : [];
       if (rows.length === 0) return json({ ok: true, sent: 0, skipped: "chaîne non éligible" });
-      return json({ ok: true, sent: await dispatch("live_member", refId, liveMessage(login)) });
+      return json({ ok: true, sent: await dispatch("live_member", refId, liveMessage(login, await twitchInfo(login))) });
     }
 
     // Annonces d'événement / de jeu : appelées par l'application après création.
