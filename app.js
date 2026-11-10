@@ -172,8 +172,8 @@ function showTab(tabId) {
     const isStaffOrAdmin = (rank === 'Viking' || rank === 'Grand Jarl' || rank === 'Divinité' || role === 'admin' || role === 'staff');
     const isAdminOnly = (rank === 'Grand Jarl' || rank === 'Divinité' || role === 'admin');
 
-    // Sécurité pour l'onglet Jeux (Viking / Grand Jarl / Divinité)
-    if (tabId === 'games' && !isStaffOrAdmin) {
+    // Sécurité pour les onglets Jeux et Bot Discord (Viking / Grand Jarl / Divinité)
+    if ((tabId === 'games' || tabId === 'bot') && !isStaffOrAdmin) {
       alert("🛡️ Accès refusé : Cette zone est réservée aux Vikings confirmés (Staff) et Jarls.");
       return; 
     }
@@ -364,6 +364,7 @@ async function handleSuccessfulAuth(authUser) {
   const logisticsNavBtn = document.getElementById('navLogisticsBtn');
   const adminNavBtn = document.getElementById('navAdminBtn');
   const gamesNavBtn = document.getElementById('navGamesBtn');
+  const botNavBtn = document.getElementById('navBotBtn');
 
   const currentRank = currentUser.rank;
   const currentRole = currentUser.role;
@@ -383,6 +384,11 @@ async function handleSuccessfulAuth(authUser) {
   if (gamesNavBtn) {
     if (hasStaffRights) gamesNavBtn.classList.remove('hidden');
     else gamesNavBtn.classList.add('hidden');
+  }
+
+  if (botNavBtn) {
+    if (hasStaffRights) botNavBtn.classList.remove('hidden');
+    else botNavBtn.classList.add('hidden');
   }
 
   // Bouton « Forcer l'actualisation » du module Vidéos : admins uniquement.

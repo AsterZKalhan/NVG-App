@@ -352,6 +352,9 @@
         <button onclick="showTab('shop')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap">
           👕 Boutique
         </button>
+        <button id="navBotBtn" onclick="showTab('bot')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap hidden">
+          🤖 <span class="flex flex-col leading-tight"><span>Bot Discord</span><span class="italic text-[10px] font-normal opacity-70">(Staff &amp; Admin)</span></span>
+        </button>
         <button id="navGamesBtn" onclick="showTab('games')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap hidden">
           🎮 <span class="flex flex-col leading-tight"><span>Propositions de jeux</span><span class="italic text-[10px] font-normal opacity-70">(Staff &amp; Admin)</span></span>
         </button>
@@ -525,6 +528,33 @@
         <div id="adminLogisticsContent" class="space-y-4 pt-4 border-t border-[#1f293d]">
           <!-- Rendu dynamique -->
         </div>
+      </div>
+    </section>
+    <!-- ONGLET BOT DISCORD (Staff & Admin) -->
+    <section id="bot" class="tab-content hidden space-y-6">
+      <h2 class="text-xl font-black text-white uppercase">Bot Discord NVG</h2>
+      <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-6 md:p-8 max-w-3xl space-y-5">
+        <div class="flex items-center gap-4">
+          <div class="w-14 h-14 rounded-2xl bg-[#07090e] border border-[#1f293d] flex items-center justify-center text-2xl shrink-0">🤖</div>
+          <div>
+            <h3 class="text-lg font-black text-white">NVG Vikingbot</h3>
+            <p class="text-xs text-gray-400">Annonces automatiques : lives, événements et propositions de jeux.</p>
+          </div>
+        </div>
+        <p class="text-sm md:text-base text-gray-200 leading-relaxed font-bold">
+          Ajoute le bot NVG à ton Discord, reçois les annonces dans le canal de ton choix.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-3">
+          <a href="https://bot-discord.nvg-tv.com/" target="_blank" rel="noopener" class="inline-flex items-center justify-center gap-2 px-5 py-3 bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase rounded-xl transition">
+            ➕ Ajouter le bot à mon Discord
+          </a>
+          <a href="https://bot-discord.nvg-tv.com/" target="_blank" rel="noopener" class="inline-flex items-center justify-center gap-2 px-5 py-3 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-200 font-bold text-xs uppercase rounded-xl transition">
+            ⚙️ Gérer mes serveurs
+          </a>
+        </div>
+        <p class="text-[11px] text-gray-500 leading-relaxed">
+          Tu dois avoir le droit « Gérer le serveur » sur le Discord concerné. Connecte-toi avec ton compte NVG, puis relie Discord pour choisir les annonces et le salon de chacune.
+        </p>
       </div>
     </section>
     <!-- ONGLET JEUX -->
