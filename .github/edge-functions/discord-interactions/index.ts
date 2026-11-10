@@ -168,16 +168,21 @@ async function cmdViking() {
 }
 
 async function cmdLive() {
-  const streamers = await sbGet("nvg_streamers?select=twitch_channel");
-  const logins = [MAIN_TWITCH_LOGIN, ...streamers.map((s) => String(s.twitch_channel).toLowerCase())];
-  const unique = [...new Set(logins)].filter((l) => /^[a-z0-9_]{3,25}$/.test(l));
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/twitch-live?logins=${unique.join(",")}`);
+  const streamers = await sbGet("nvg_streamers?select=name,twitch_channel");
+  const names: Record<string, string> = { [MAIN_TWITCH_LOGIN]: "NVG en Live" };
+  for (const s of streamers) names[String(s.twitch_channel).toLowerCase()] = s.name;
+  const logins = Object.keys(names).filter((l) => /^[a-z0-9_]{3,25}$/.test(l));
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/twitch-live?logins=${logins.join(",")}`);
   const streams: Record<string, any> = res.ok ? (await res.json()).streams || {} : {};
   const live = Object.entries(streams).filter(([, s]) => s && s.live);
-  if (live.length === 0) return reply({ content: "Aucune chaîne NVG n'est en direct pour le moment." });
+  const button = { type: 1, components: [{ type: 2, style: 5, label: "Voir sur l'application NVG", url: `${SITE_URL}/#streams` }] };
+  if (live.length === 0) {
+    return reply({ content: "Aucune chaîne NVG n'est en direct pour le moment.", components: [button] });
+  }
   const lines = live.map(([login, s]) => {
     const game = s.game ? ` · ${s.game}` : "";
-    return `🔴 **${login}**${game} · ${s.viewers} spectateurs\n${s.title ?? ""}\nhttps://twitch.tv/${login}`;
+    const label = `[**${names[login] ?? login}**](https://twitch.tv/${login})`;
+    return `🔴 ${label}${game} · ${s.viewers} spectateurs\n${s.title ?? ""}`;
   });
   return reply({
     embeds: [
@@ -188,6 +193,7 @@ async function cmdLive() {
         footer: { text: FOOTER },
       },
     ],
+    components: [button],
   });
 }
 
