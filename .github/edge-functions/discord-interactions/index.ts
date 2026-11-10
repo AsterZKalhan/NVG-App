@@ -126,7 +126,6 @@ async function cmdEvent() {
     return {
       title: `${prefix} ${title}`.slice(0, 256),
       description: `📅 ${formatDay(e.date_debut)}`,
-      url: CALENDAR_URL,
       color: NVG_COLOR,
       thumbnail: { url: `${SITE_URL}/Logos/${EVENT_LOGOS[e.category] ?? "logo-nvg.png"}` },
     };
