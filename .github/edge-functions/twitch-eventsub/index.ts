@@ -1,4 +1,4 @@
-const enc = new TextEncoder();
+﻿const enc = new TextEncoder();
 const seenMessages = new Set<string>();
 
 async function hmacHex(secret: string, message: string): Promise<string> {
@@ -14,7 +14,7 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-async function announceLive(): Promise<void> {
+async function announceLive(login: string, messageId: string): Promise<void> {
   const url = Deno.env.get("SUPABASE_URL") ?? "";
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const target = Deno.env.get("TWITCH_NOTIFY_TARGET") || "Divinité";
@@ -38,6 +38,16 @@ async function announceLive(): Promise<void> {
     headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({ record: notif }),
   });
+
+  try {
+    await fetch(`${url}/functions/v1/discord-bot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-nvg-secret": Deno.env.get("DISCORD_BOT_SECRET") ?? "" },
+      body: JSON.stringify({ action: "live", login, ref_id: messageId }),
+    });
+  } catch (_err) {
+    // Le bot Discord est un bonus : une erreur ne doit pas faire renvoyer la notification Twitch.
+  }
 }
 
 Deno.serve(async (req) => {
@@ -62,9 +72,10 @@ Deno.serve(async (req) => {
   if (messageType === "notification" && payload.subscription?.type === "stream.online") {
     if (!seenMessages.has(id)) {
       seenMessages.add(id);
-      await announceLive();
+      await announceLive(String(payload.event?.broadcaster_user_login ?? ""), id);
     }
   }
 
   return new Response("ok", { status: 200 });
 });
+

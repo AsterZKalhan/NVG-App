@@ -506,6 +506,11 @@ function showAdminPanel(name) {
   if (name === 'contact' && typeof loadContactMessages === 'function') {
     loadContactMessages();
   }
+
+  // Configuration du bot Discord (serveurs, salons, annonces).
+  if (name === 'discord' && typeof loadDiscordBotAdmin === 'function') {
+    loadDiscordBotAdmin();
+  }
 }
 
 // --- GESTION DE L'ABONNEMENT NOTIFICATIONS PUSH (PROFIL) ---

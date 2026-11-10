@@ -288,6 +288,7 @@ async function addGameProposal() {
     return;
   }
 
+  announceOnDiscord('game_proposed', payload.id);
   resetGameForm();
   alert("Jeu proposé avec succès !");
   loadGames();

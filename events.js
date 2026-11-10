@@ -872,6 +872,7 @@ async function adminSaveEventForm() {
     }
   } else {
     alert("✅ Événement créé sur Supabase !");
+    announceOnDiscord('event_created', eventObj.id);
   }
   
   document.getElementById('adminNewEvTitle').value = '';

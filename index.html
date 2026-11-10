@@ -665,6 +665,30 @@
         <button data-admin-panel="contact" onclick="showAdminPanel('contact')" class="admin-subtab px-4 py-2 rounded-lg text-xs font-bold uppercase transition text-gray-300 bg-white/5 hover:bg-white/10">
           📥 Contact <span id="contactUnreadBadge" class="hidden ml-1 min-w-[18px] h-[18px] px-1 items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-black align-middle">0</span>
         </button>
+        <button data-admin-panel="discord" onclick="showAdminPanel('discord')" class="admin-subtab px-4 py-2 rounded-lg text-xs font-bold uppercase transition text-gray-300 bg-white/5 hover:bg-white/10">🤖 Bot Discord NVG</button>
+      </div>
+      <div id="adminPanel-discord" class="admin-panel hidden space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h3 class="text-sm font-bold text-white uppercase tracking-wider">🤖 Bot Discord NVG</h3>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="inviteDiscordBot()" class="px-4 py-2 bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs rounded-lg transition">➕ Inviter le bot</button>
+            <button onclick="loadDiscordBotAdmin()" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs rounded-lg border border-[#1f293d] transition">🔄 Actualiser</button>
+            <button onclick="syncDiscordStreams()" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs rounded-lg border border-[#1f293d] transition">📡 Synchroniser les lives</button>
+          </div>
+        </div>
+        <p class="text-xs text-gray-400">Invite le bot avec les droits administrateur sur ton serveur, puis clique sur « Actualiser ». Coche les annonces à publier et choisis le salon de chacune. Les lives des membres ne sont annoncés que pour les rangs Viking, Grand Jarl et Divinité.</p>
+        <p id="discordStatus" class="text-xs text-gray-400 italic"></p>
+        <div id="discordGuilds" class="space-y-4"></div>
+        <div class="bg-[#121722] border border-[#1f293d] rounded-xl p-5 space-y-3">
+          <h4 class="text-sm font-black text-white">📣 Annonce manuelle</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <select id="discordPublishGuild" onchange="fillDiscordPublishChannels()" class="bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-2 text-xs text-white focus:border-red-600 focus:outline-none"></select>
+            <select id="discordPublishChannel" class="bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-2 text-xs text-white focus:border-red-600 focus:outline-none"></select>
+            <input type="text" id="discordPublishTitle" maxlength="256" placeholder="Titre de l'annonce" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white md:col-span-2">
+            <textarea id="discordPublishMessage" maxlength="4096" rows="3" placeholder="Message (facultatif)" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white md:col-span-2"></textarea>
+          </div>
+          <button onclick="publishDiscordAnnouncement()" class="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-lg hover:bg-amber-400 transition">Publier sur Discord</button>
+        </div>
       </div>
       <div id="adminPanel-membres" class="admin-panel space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -863,6 +887,7 @@
   <script src="contact.js"></script>
   <script src="notifications.js"></script>
   <script src="users.js"></script>
+  <script src="discord-admin.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

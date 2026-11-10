@@ -108,6 +108,14 @@ Fonction Edge `contact-message` (sans JWT) : reçoit le formulaire public (`cont
 - **Mini-lecteur** : en quittant l'onglet Streams **alors que le flux joue**, la section reste affichée en bas à droite de l'application (classe `streams-pip-mode` sur `#streams`, voir `enterStreamsPip` / `exitStreamsPip` dans `streams.js`). Le flux continue sans rechargement, car le lecteur n'est pas déplacé. Il reprend sa place au retour sur l'onglet. Aucun mini-lecteur si le flux est en pause, arrêté, hors ligne ou bloqué ; s'il est mis en pause pendant le mini-lecteur, celui-ci se ferme (`leaveStreamsPipOnStop`). Le bouton ✕ (`closeStreamsPip`) met le flux en pause et ferme le mini-lecteur.
 - Ce mini-lecteur est interne à l'application : les iframes Twitch ne peuvent pas utiliser le Picture-in-Picture natif du navigateur.
 
+### Bot Discord « NVG Vikingbot »
+- Configuration dans **Administration → 🤖 Bot Discord NVG** (admins uniquement). Le bot est invité avec les droits administrateur (`permissions=8`), puis chaque serveur reçoit ses annonces : cases à cocher par type et salon de destination (`nvg_discord_routes`).
+- Types d'annonces : `live_nvg` (chaîne NVG), `live_member` (membres Viking, Grand Jarl, Divinité uniquement), `event_created`, `game_proposed`.
+- Live instantané : `twitch-sync` abonne chaque chaîne éligible à `stream.online` (EventSub) ; `twitch-eventsub` relaie à `discord-bot`, qui vérifie l'éligibilité dans `nvg_streamers`. La synchronisation se lance depuis l'onglet (bouton, et à chaque ouverture) : un nouveau membre n'est abonné qu'après une synchronisation.
+- Événements et propositions de jeux : l'application appelle `announce` après la création (`announceOnDiscord`, `discord-admin.js`). Les modifications ne republient rien.
+- Journal `nvg_discord_posts` : un message n'est jamais publié deux fois sur le même salon.
+- Fonctions Edge : `discord-bot`, `twitch-sync`, `twitch-eventsub` (sans JWT : elles vérifient elles-mêmes l'accès). Le token du bot est dans le secret `DISCORD_BOT_TOKEN`, jamais dans le dépôt.
+
 ### Live Twitch
 - Statut via `twitch-live`, toutes les 30 secondes uniquement quand l'onglet est visible, et immédiatement au retour sur l'onglet.
 
