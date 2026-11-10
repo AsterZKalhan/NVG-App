@@ -224,6 +224,8 @@ function gameMessage(g: any) {
     footer: { text: FOOTER },
   };
   if (typeof g.img === "string" && g.img.startsWith("https://")) embed.image = { url: g.img };
+  const logo = g.target_type === "nieuwheim" ? "logo-nieuwheim.png" : "logo-nvg.png";
+  embed.thumbnail = { url: `${SITE_URL}/Logos/${logo}` };
   return { embeds: [embed] };
 }
 
