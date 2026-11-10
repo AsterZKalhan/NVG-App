@@ -205,7 +205,7 @@ Deno.serve(async (req) => {
       switch (interaction.data?.name) {
         case "nextevent":
           return await cmdNextEvent();
-        case "event":
+        case "events":
           return await cmdEvent();
         case "viking":
           return await cmdViking();
