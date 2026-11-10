@@ -336,6 +336,7 @@ Deno.serve(async (req) => {
 
     if (body.action === "register_commands") {
       const commands = [
+        { name: "nextevent", description: "Prochain événement NVG avec tous les détails", type: 1 },
         { name: "event", description: "Liste des prochains événements NVG", type: 1 },
         { name: "viking", description: "Membres NVG (hors Petits Vikings)", type: 1 },
         { name: "live", description: "Chaînes NVG en direct en ce moment", type: 1 },

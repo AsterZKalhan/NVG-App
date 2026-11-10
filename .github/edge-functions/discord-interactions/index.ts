@@ -58,6 +58,53 @@ function eventLabel(e: any): string {
   return `**${prefix} ${title}**`;
 }
 
+const CALENDAR_URL = `${SITE_URL}/#calendar`;
+
+const calendarButton = {
+  type: 1,
+  components: [{ type: 2, style: 5, label: "Voir le calendrier", url: CALENDAR_URL }],
+};
+
+async function cmdNextEvent() {
+  const events = await sbGet(
+    `nvg_events?select=*&date_debut=gte.${todayParis()}&order=date_debut.asc,start_time.asc&limit=1`,
+  );
+  if (events.length === 0) {
+    return reply({ content: `Aucun événement à venir pour le moment.`, components: [calendarButton] });
+  }
+  const e = events[0];
+  const prefix = e.category === "Nieuwheim" ? "[Nieuwheim]" : "[NVG]";
+  const title = String(e.title ?? "").replace(/^\[(NVG|Nieuwheim)\]\s*/i, "");
+
+  let when = formatDay(e.date_debut);
+  if (e.start_time) when += ` à ${e.start_time}`;
+  if (e.date_fin && e.date_fin !== e.date_debut) {
+    when = `Du ${formatDay(e.date_debut)} au ${formatDay(e.date_fin)}`;
+    if (e.end_time) when += ` (fin à ${e.end_time})`;
+  } else if (e.end_time) {
+    when += ` (fin à ${e.end_time})`;
+  }
+
+  const fields = [{ name: "📅 Quand", value: when.slice(0, 1024), inline: false }];
+  if (e.location) fields.push({ name: "📍 Lieu", value: String(e.location).slice(0, 1024), inline: true });
+  if (e.category) fields.push({ name: "🏷️ Catégorie", value: String(e.category).slice(0, 1024), inline: true });
+  if (e.watch_mode) fields.push({ name: "👀 Où regarder", value: String(e.watch_mode).slice(0, 1024), inline: true });
+
+  return reply({
+    embeds: [
+      {
+        title: `🗓️ ${prefix} ${title}`.slice(0, 256),
+        description: String(e.description || "Plus de détails sur le calendrier du site.").slice(0, 4096),
+        url: CALENDAR_URL,
+        color: NVG_COLOR,
+        fields,
+        footer: { text: "NVG Vikingbot" },
+      },
+    ],
+    components: [calendarButton],
+  });
+}
+
 async function cmdEvent() {
   const events = await sbGet(
     `nvg_events?select=title,category,date_debut&date_debut=gte.${todayParis()}&order=date_debut.asc&limit=40`,
@@ -133,6 +180,8 @@ Deno.serve(async (req) => {
   if (interaction.type === 2) {
     try {
       switch (interaction.data?.name) {
+        case "nextevent":
+          return await cmdNextEvent();
         case "event":
           return await cmdEvent();
         case "viking":
