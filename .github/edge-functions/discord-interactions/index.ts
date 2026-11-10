@@ -120,21 +120,17 @@ async function cmdEvent() {
 
   // Une carte par événement : le logo de la catégorie apparaît à droite, à hauteur du bloc.
   // Discord limite un message à 10 cartes.
-  // Discord dimensionne chaque carte sur son texte le plus long : on complète titres et dates
-  // avec un blanc invisible pour que toutes les cartes aient la même largeur.
   const shown = events.slice(0, 10);
-  const rows = shown.map((e) => {
+  const embeds: any[] = shown.map((e) => {
     const prefix = e.category === "Nieuwheim" ? "[Nieuwheim]" : "[NVG]";
     const title = String(e.title ?? "").replace(/^\[(NVG|Nieuwheim)\]\s*/i, "");
-    return { title: `${prefix} ${title}`.slice(0, 256), date: `📅 ${formatDay(e.date_debut)}`, category: e.category };
+    return {
+      title: `${prefix} ${title}`.slice(0, 256),
+      description: `📅 ${formatDay(e.date_debut)}`,
+      color: NVG_COLOR,
+      thumbnail: { url: `${SITE_URL}/Logos/${EVENT_LOGOS[e.category] ?? "logo-nvg.png"}` },
+    };
   });
-  const width = Math.max(30, ...rows.map((r) => Math.max(r.title.length, r.date.length)));
-  const embeds: any[] = rows.map((r) => ({
-    title: r.title.padEnd(width, "\u2800"),
-    description: r.date.padEnd(width, "\u2800"),
-    color: NVG_COLOR,
-    thumbnail: { url: `${SITE_URL}/Logos/${EVENT_LOGOS[r.category] ?? "logo-nvg.png"}` },
-  }));
   const extra = events.length - shown.length;
   embeds[embeds.length - 1].footer = {
     text: extra > 0 ? `+ ${extra} autre(s) sur le calendrier · ${FOOTER}` : FOOTER,
