@@ -23,6 +23,8 @@ La page est accessible depuis l'application par le menu **🤖 Bot Discord (Staf
    - les serveurs administrés où le bot est absent : bouton **Ajouter le bot**, avec le serveur présélectionné.
 5. Le jeton Discord est utilisé le temps de lire les serveurs, puis oublié. Il n'est jamais stocké.
 
+Les cartes de serveur sont repliées par défaut : seule la barre du haut (icône, nom, statut et bouton d'action) reste visible, le reste se déroule avec la flèche. L'état replié/déroulé est conservé après un enregistrement. Comportement identique dans l'onglet **🤖 Bot Discord** de l'application (`discord-admin.js`, `toggleDiscordGuildCard`) et sur le site (`bot.js`, `toggleGuildCard`).
+
 ## Base de données
 
 Table `nvg_discord_managers` (SQL : `.github/sql/create-discord-managers.sql`) :
@@ -71,7 +73,16 @@ Le navigateur ne décide jamais des droits : un identifiant de serveur envoyé �
 - Contact : `contact@nvg-tv.com`.
 - La page couvre le bot, les commandes, les annonces, les règles d'utilisation, les données traitées, la responsabilité et le retrait du bot.
 - Elle est liée depuis le pied de page de l'espace de gestion et depuis l'onglet **🤖 Bot Discord** de l'application.
-- Dans le portail Discord, champ **Terms of Service URL** : `https://bot-discord.nvg-tv.com/terms.html`. Pour la politique de confidentialité, utiliser la page de l'application (`https://app.nvg-tv.com/privacy.html`) ou l'ancre `https://bot-discord.nvg-tv.com/terms.html#donnees`.
+- Dans le portail Discord, champ **Terms of Service URL** : `https://bot-discord.nvg-tv.com/terms.html`.
+
+## Politique de confidentialité
+
+- Page : `https://bot-discord.nvg-tv.com/privacy.html` (fichier `bot-site/privacy.html`).
+- Page autonome, distincte de la politique de l'application : elle décrit uniquement les données du bot et de l'espace de gestion.
+- Contenu : responsable du traitement, données traitées (serveurs, salons, configuration, journal anti-doublon, lien compte NVG ↔ serveurs, session), base légale, prestataires (Supabase, IONOS, Discord, Twitch), cookies et stockage local, droits RGPD, suppression des données (ancre `#suppression`), sécurité, mineurs, contact.
+- Le copyright reprend exactement celui de l'application : `© 2026 Normandy Viking Gaming — association loi 1901 (RNA W612003127)`.
+- Liens croisés : pieds de page de `terms.html` et de l'espace de gestion, onglet **🤖 Bot Discord** de l'application.
+- Dans le portail Discord, champ **Privacy Policy URL** : `https://bot-discord.nvg-tv.com/privacy.html`.
 
 ## Configuration côté Discord
 
