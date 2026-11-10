@@ -23,6 +23,7 @@ const INTERNAL_SECRET = Deno.env.get("DISCORD_BOT_SECRET") ?? "";
 const DISCORD_API = "https://discord.com/api/v10";
 const APPLICATION_ID = "1569625316601757747";
 const SITE_URL = "https://app.nvg-tv.com";
+const CALENDAR_URL = `${SITE_URL}/#calendar`;
 const NVG_COLOR = 0xdc2626;
 const TWITCH_COLOR = 0x9146ff;
 const TEXT_CHANNEL_TYPES = [0, 5];
@@ -94,23 +95,47 @@ function formatDay(day: string, time?: string): string {
   return time ? `${label} à ${time}` : label;
 }
 
+const EVENT_LOGOS: Record<string, string> = {
+  "NVG Spring": "logo-nvg-spring.png",
+  "NVG Summer": "logo-nvg-summer.png",
+  "NVG Autumn": "logo-nvg-autumn.png",
+  "NVG Winter": "logo-nvg-winter.png",
+  Nieuwheim: "logo-nieuwheim.png",
+};
+
+// Mise en page proche de la carte du calendrier du site : date en tête, titre [NVG] / [Nieuwheim],
+// logo de la saison à droite, lieu et catégorie, bouton d'inscription vers le calendrier.
 function eventMessage(e: any) {
+  const prefix = e.category === "Nieuwheim" ? "[Nieuwheim]" : "[NVG]";
+  const title = String(e.title ?? "").replace(/^\[(NVG|Nieuwheim)\]\s*/i, "");
+  const day = e.date_debut
+    ? new Date(`${e.date_debut}T12:00:00`)
+        .toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Paris" })
+        .replace(".", "")
+        .toUpperCase()
+    : "";
+  const dateLine = [day, e.start_time].filter(Boolean).join(" · ");
+
   const fields: { name: string; value: string; inline: boolean }[] = [];
-  const when = formatDay(e.date_debut, e.start_time);
-  if (when) fields.push({ name: "📅 Quand", value: trunc(when, 1024), inline: false });
   if (e.location) fields.push({ name: "📍 Lieu", value: trunc(e.location, 1024), inline: true });
   if (e.category) fields.push({ name: "🏷️ Catégorie", value: trunc(e.category, 1024), inline: true });
+  if (e.watch_mode) fields.push({ name: "👀 Où regarder", value: trunc(e.watch_mode, 1024), inline: true });
+
+  const logo = EVENT_LOGOS[e.category] ?? "logo-nvg.png";
   return {
     embeds: [
       {
-        title: trunc(`🗓️ Nouvel événement : ${e.title}`, 256),
-        description: trunc(e.description || "Inscris-toi sur le site NVG Companion.", 4096),
-        url: SITE_URL,
+        author: { name: dateLine || "Nouvel événement" },
+        title: trunc(`${prefix} ${title}`, 256),
+        description: trunc(e.description || "", 4096) || undefined,
+        url: CALENDAR_URL,
         color: NVG_COLOR,
+        thumbnail: { url: `${SITE_URL}/Logos/${logo}` },
         fields,
         footer: { text: FOOTER },
       },
     ],
+    components: [{ type: 1, components: [{ type: 2, style: 5, label: "🚀 Je m'inscris", url: CALENDAR_URL }] }],
   };
 }
 
