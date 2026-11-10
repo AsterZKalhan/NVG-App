@@ -1,4 +1,4 @@
-// Commandes slash du bot « NVG Vikingbot » (/event, /viking, /live).
+// Commandes slash du bot « NVG Vikingbot » (/nextevent, /event, /viking, /live).
 // Discord envoie chaque commande en HTTP à cette fonction (Interactions Endpoint URL) :
 // la signature Ed25519 est vérifiée avec la clé publique de l'application avant tout traitement.
 
@@ -7,8 +7,18 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const PUBLIC_KEY = Deno.env.get("DISCORD_PUBLIC_KEY") ?? "";
 const MAIN_TWITCH_LOGIN = "nvgamingtv";
 const SITE_URL = "https://app.nvg-tv.com";
+const CALENDAR_URL = `${SITE_URL}/#calendar`;
 const NVG_COLOR = 0xdc2626;
 const RANK_ORDER: Record<string, number> = { "Divinité": 0, "Grand Jarl": 1, "Viking": 2 };
+const FOOTER = "NVG Vikingbot";
+
+const EVENT_LOGOS: Record<string, string> = {
+  "NVG Spring": "logo-nvg-spring.png",
+  "NVG Summer": "logo-nvg-summer.png",
+  "NVG Autumn": "logo-nvg-autumn.png",
+  "NVG Winter": "logo-nvg-winter.png",
+  Nieuwheim: "logo-nieuwheim.png",
+};
 
 const hexToBytes = (hex: string): Uint8Array => {
   const bytes = new Uint8Array(hex.length / 2);
@@ -51,58 +61,54 @@ function formatDay(day: string): string {
   });
 }
 
-// Le titre est toujours préfixé par [NVG] ou [Nieuwheim] : on le recalcule à partir de la catégorie.
-function eventLabel(e: any): string {
+// Carte d'événement : même mise en page que l'annonce automatique (discord-bot).
+function eventCard(e: any) {
   const prefix = e.category === "Nieuwheim" ? "[Nieuwheim]" : "[NVG]";
   const title = String(e.title ?? "").replace(/^\[(NVG|Nieuwheim)\]\s*/i, "");
-  return `**${prefix} ${title}**`;
+  const day = e.date_debut
+    ? new Date(`${e.date_debut}T12:00:00`)
+        .toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Paris" })
+        .replace(".", "")
+        .toUpperCase()
+    : "";
+  const dateLine = [day, e.start_time].filter(Boolean).join(" · ");
+
+  const fields: { name: string; value: string; inline: boolean }[] = [];
+  if (e.location) fields.push({ name: "📍 Lieu", value: String(e.location).slice(0, 1024), inline: true });
+  if (e.category) {
+    const category = e.category === "Nieuwheim" ? "Nieuwheim" : "Event NVG";
+    fields.push({ name: "🏷️ Catégorie", value: category, inline: true });
+  }
+
+  const logo = EVENT_LOGOS[e.category] ?? "logo-nvg.png";
+  return {
+    embeds: [
+      {
+        author: { name: dateLine ? `Date : ${dateLine}` : "Nouvel événement" },
+        title: `${prefix} ${title}`.slice(0, 256),
+        description: String(e.description || "").slice(0, 4096) || undefined,
+        url: CALENDAR_URL,
+        color: NVG_COLOR,
+        thumbnail: { url: `${SITE_URL}/Logos/${logo}` },
+        fields,
+        footer: { text: FOOTER },
+      },
+    ],
+    components: [{ type: 1, components: [{ type: 2, style: 5, label: "📅 Voir dans le calendrier", url: CALENDAR_URL }] }],
+  };
 }
-
-const CALENDAR_URL = `${SITE_URL}/#calendar`;
-
-const calendarButton = {
-  type: 1,
-  components: [{ type: 2, style: 5, label: "Voir le calendrier", url: CALENDAR_URL }],
-};
 
 async function cmdNextEvent() {
   const events = await sbGet(
     `nvg_events?select=*&date_debut=gte.${todayParis()}&order=date_debut.asc,start_time.asc&limit=1`,
   );
   if (events.length === 0) {
-    return reply({ content: `Aucun événement à venir pour le moment.`, components: [calendarButton] });
+    return reply({
+      content: "Aucun événement à venir pour le moment.",
+      components: [{ type: 1, components: [{ type: 2, style: 5, label: "📅 Voir dans le calendrier", url: CALENDAR_URL }] }],
+    });
   }
-  const e = events[0];
-  const prefix = e.category === "Nieuwheim" ? "[Nieuwheim]" : "[NVG]";
-  const title = String(e.title ?? "").replace(/^\[(NVG|Nieuwheim)\]\s*/i, "");
-
-  let when = formatDay(e.date_debut);
-  if (e.start_time) when += ` à ${e.start_time}`;
-  if (e.date_fin && e.date_fin !== e.date_debut) {
-    when = `Du ${formatDay(e.date_debut)} au ${formatDay(e.date_fin)}`;
-    if (e.end_time) when += ` (fin à ${e.end_time})`;
-  } else if (e.end_time) {
-    when += ` (fin à ${e.end_time})`;
-  }
-
-  const fields = [{ name: "📅 Quand", value: when.slice(0, 1024), inline: false }];
-  if (e.location) fields.push({ name: "📍 Lieu", value: String(e.location).slice(0, 1024), inline: true });
-  if (e.category) fields.push({ name: "🏷️ Catégorie", value: String(e.category).slice(0, 1024), inline: true });
-  if (e.watch_mode) fields.push({ name: "👀 Où regarder", value: String(e.watch_mode).slice(0, 1024), inline: true });
-
-  return reply({
-    embeds: [
-      {
-        title: `🗓️ ${prefix} ${title}`.slice(0, 256),
-        description: String(e.description || "Plus de détails sur le calendrier du site.").slice(0, 4096),
-        url: CALENDAR_URL,
-        color: NVG_COLOR,
-        fields,
-        footer: { text: "NVG Vikingbot" },
-      },
-    ],
-    components: [calendarButton],
-  });
+  return reply({ content: "**PROCHAIN ÉVÉNEMENT**", ...eventCard(events[0]) });
 }
 
 async function cmdEvent() {
@@ -110,15 +116,19 @@ async function cmdEvent() {
     `nvg_events?select=title,category,date_debut&date_debut=gte.${todayParis()}&order=date_debut.asc&limit=40`,
   );
   if (events.length === 0) return reply({ content: "Aucun événement à venir pour le moment." });
-  const lines = events.map((e) => `${eventLabel(e)}\n📅 ${formatDay(e.date_debut)}`);
+  const lines = events.map((e) => {
+    const prefix = e.category === "Nieuwheim" ? "[Nieuwheim]" : "[NVG]";
+    const title = String(e.title ?? "").replace(/^\[(NVG|Nieuwheim)\]\s*/i, "");
+    return `**${prefix} ${title}**\n📅 ${formatDay(e.date_debut)}`;
+  });
   return reply({
     embeds: [
       {
         title: "🗓️ Prochains événements",
         description: lines.join("\n\n").slice(0, 4096),
-        url: `${SITE_URL}`,
+        url: SITE_URL,
         color: NVG_COLOR,
-        footer: { text: "NVG Vikingbot" },
+        footer: { text: FOOTER },
       },
     ],
   });
@@ -136,7 +146,7 @@ async function cmdViking() {
         description: lines.join("\n").slice(0, 4096),
         url: SITE_URL,
         color: NVG_COLOR,
-        footer: { text: "NVG Vikingbot" },
+        footer: { text: FOOTER },
       },
     ],
   });
@@ -160,7 +170,7 @@ async function cmdLive() {
         title: "🔴 En direct maintenant",
         description: lines.join("\n\n").slice(0, 4096),
         color: 0x9146ff,
-        footer: { text: "NVG Vikingbot" },
+        footer: { text: FOOTER },
       },
     ],
   });
