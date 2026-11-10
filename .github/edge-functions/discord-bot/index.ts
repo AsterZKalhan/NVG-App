@@ -2,7 +2,8 @@
 // Le token du bot est dans le secret DISCORD_BOT_TOKEN (jamais dans le code).
 // Live Twitch : appelé par twitch-eventsub avec l'en-tête x-nvg-secret = DISCORD_BOT_SECRET.
 // Annonces d'événements / jeux : appelées par l'application avec le JWT de l'utilisateur connecté.
-// Configuration : onglet « Bot Discord NVG » (admins uniquement).
+// Configuration et annonces manuelles : onglet « Bot Discord NVG » (admins)
+// et espace bot-discord.nvg-tv.com (gestionnaires du serveur).
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -457,9 +458,23 @@ Deno.serve(async (req) => {
     }
 
     if (body.action === "publish") {
-      if (!caller.admin) return json({ error: "réservé aux admins" }, 403);
+      const guildId = String(body.guild_id ?? "").trim();
       const channelId = String(body.channel_id ?? "").trim();
-      if (!isSnowflake(channelId)) return json({ error: "salon invalide" }, 400);
+      if (!isSnowflake(guildId) || !isSnowflake(channelId)) {
+        return json({ error: "serveur ou salon invalide" }, 400);
+      }
+      if (!(await canManageGuild(caller, guildId))) return json({ error: "serveur non autorisé" }, 403);
+
+      // Le salon doit appartenir au serveur annoncé : un gestionnaire ne peut pas
+      // publier dans un autre serveur où le bot est présent.
+      const channel = await discord(`/channels/${channelId}`);
+      if (String(channel?.guild_id ?? "") !== guildId) {
+        return json({ error: "ce salon n'appartient pas à ce serveur" }, 403);
+      }
+      if (!TEXT_CHANNEL_TYPES.includes(Number(channel?.type))) {
+        return json({ error: "ce salon n'accepte pas les messages" }, 400);
+      }
+
       const title = trunc(body.title, 256).trim();
       if (!title) return json({ error: "le titre est obligatoire" }, 400);
 
@@ -470,8 +485,8 @@ Deno.serve(async (req) => {
         color: NVG_COLOR,
         footer: { text: FOOTER },
       };
-      if (typeof body.image_url === "string" && body.image_url.startsWith("https://")) {
-        embed.image = { url: body.image_url };
+      if (typeof body.image_url === "string" && /^https:\/\//i.test(body.image_url.trim())) {
+        embed.image = { url: body.image_url.trim().slice(0, 1024) };
       }
       const payload: any = { embeds: [embed] };
       if (body.poll && String(body.poll.question ?? "").trim()) {

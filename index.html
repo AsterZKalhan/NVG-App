@@ -713,14 +713,26 @@
         <p id="discordStatus" class="text-xs text-gray-400 italic"></p>
         <div id="discordGuilds" class="space-y-4"></div>
         <div class="bg-[#121722] border border-[#1f293d] rounded-xl p-5 space-y-3">
-          <h4 class="text-sm font-black text-white">📣 Annonce manuelle</h4>
+          <div>
+            <h4 class="text-sm font-black text-white">📣 Annonce manuelle</h4>
+            <p class="text-[11px] text-gray-500 mt-1">Publie un message libre dans le salon de ton choix. L'image est facultative (JPEG, PNG, WebP ou GIF, 8 Mo maximum).</p>
+          </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <select id="discordPublishGuild" onchange="fillDiscordPublishChannels()" class="bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-2 text-xs text-white focus:border-red-600 focus:outline-none"></select>
             <select id="discordPublishChannel" class="bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-2 text-xs text-white focus:border-red-600 focus:outline-none"></select>
             <input type="text" id="discordPublishTitle" maxlength="256" placeholder="Titre de l'annonce" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white md:col-span-2">
             <textarea id="discordPublishMessage" maxlength="4096" rows="3" placeholder="Message (facultatif)" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white md:col-span-2"></textarea>
           </div>
-          <button onclick="publishDiscordAnnouncement()" class="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-lg hover:bg-amber-400 transition">Publier sur Discord</button>
+          <div class="flex flex-wrap items-center gap-3">
+            <input type="file" id="discordPublishImageInput" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden" onchange="onDiscordPublishImageSelected(this)">
+            <button type="button" onclick="document.getElementById('discordPublishImageInput').click()" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-200 font-bold text-xs rounded-lg border border-[#1f293d] transition">🖼️ Ajouter une image</button>
+            <span id="discordPublishImageName" class="text-[11px] text-gray-500 truncate max-w-[220px]"></span>
+            <button type="button" id="discordPublishImageClear" onclick="clearDiscordPublishImage()" class="hidden px-3 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white font-bold text-[11px] rounded-lg border border-red-600/40 transition">✕ Retirer</button>
+          </div>
+          <div id="discordPublishPreviewWrap" class="hidden">
+            <img id="discordPublishPreview" alt="Aperçu de l'image de l'annonce" class="max-h-48 rounded-xl border border-[#1f293d]">
+          </div>
+          <button type="button" id="discordPublishBtn" onclick="publishDiscordAnnouncement()" class="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-lg hover:bg-amber-400 transition disabled:opacity-60">Publier sur Discord</button>
         </div>
       </div>
       <div id="adminPanel-membres" class="admin-panel space-y-4">

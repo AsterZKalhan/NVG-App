@@ -16,6 +16,9 @@ let discordGuilds = [];
 let discordRoutes = [];
 const discordChannelsCache = {};
 const discordGuildsOpen = new Set();
+const DISCORD_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+let discordPublishImage = null;
+let discordPublishImageUrl = '';
 
 function setDiscordStatus(message, isError = false) {
   const el = document.getElementById('discordStatus');
@@ -220,21 +223,80 @@ async function fillDiscordPublishChannels() {
 }
 
 async function publishDiscordAnnouncement() {
+  const guildId = document.getElementById('discordPublishGuild').value;
   const channelId = document.getElementById('discordPublishChannel').value;
   const title = document.getElementById('discordPublishTitle').value.trim();
   const message = document.getElementById('discordPublishMessage').value.trim();
-  if (!channelId || !title) {
-    alert('Choisis un salon et saisis un titre.');
+  if (!guildId || !channelId || !title) {
+    alert('Choisis un serveur, un salon et saisis un titre.');
     return;
   }
+  const btn = document.getElementById('discordPublishBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Publication…'; }
   try {
-    await callDiscordBot({ action: 'publish', channel_id: channelId, title, message });
+    const imageUrl = await uploadDiscordAnnouncementImage(guildId);
+    await callDiscordBot({ action: 'publish', guild_id: guildId, channel_id: channelId, title, message, image_url: imageUrl });
     alert('✅ Annonce publiée.');
     document.getElementById('discordPublishTitle').value = '';
     document.getElementById('discordPublishMessage').value = '';
+    clearDiscordPublishImage();
   } catch (err) {
     alert('Erreur : ' + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Publier sur Discord'; }
   }
+}
+
+function onDiscordPublishImageSelected(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    alert('Choisis un fichier image.');
+    input.value = '';
+    return;
+  }
+  if (file.size > DISCORD_IMAGE_MAX_BYTES) {
+    alert('Image trop lourde : 8 Mo maximum.');
+    input.value = '';
+    return;
+  }
+  discordPublishImage = file;
+  if (discordPublishImageUrl) URL.revokeObjectURL(discordPublishImageUrl);
+  discordPublishImageUrl = URL.createObjectURL(file);
+  document.getElementById('discordPublishPreview').src = discordPublishImageUrl;
+  document.getElementById('discordPublishPreviewWrap').classList.remove('hidden');
+  document.getElementById('discordPublishImageName').textContent = file.name;
+  document.getElementById('discordPublishImageClear').classList.remove('hidden');
+}
+
+function clearDiscordPublishImage() {
+  discordPublishImage = null;
+  if (discordPublishImageUrl) {
+    URL.revokeObjectURL(discordPublishImageUrl);
+    discordPublishImageUrl = '';
+  }
+  const input = document.getElementById('discordPublishImageInput');
+  if (input) input.value = '';
+  const img = document.getElementById('discordPublishPreview');
+  if (img) img.removeAttribute('src');
+  document.getElementById('discordPublishPreviewWrap').classList.add('hidden');
+  document.getElementById('discordPublishImageName').textContent = '';
+  document.getElementById('discordPublishImageClear').classList.add('hidden');
+}
+
+// Dépose l'image dans le bucket public notifs, dossier discord/<serveur>/.
+// L'URL publique est ensuite envoyée à Discord comme image de l'embed.
+async function uploadDiscordAnnouncementImage(guildId) {
+  if (!discordPublishImage) return '';
+  const file = discordPublishImage;
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  const path = `discord/${guildId}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+  const { error } = await supabaseClient.storage
+    .from('notifs')
+    .upload(path, file, { contentType: file.type, upsert: false });
+  if (error) throw new Error(`image non envoyée (${error.message})`);
+  const { data } = supabaseClient.storage.from('notifs').getPublicUrl(path);
+  return data.publicUrl;
 }
 
 // Appelée après la création d'un événement ou d'une proposition de jeu.

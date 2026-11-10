@@ -61,10 +61,22 @@ Toutes les actions vérifient l'appelant côté serveur :
 | `list_channels` | Oui | Oui, si le serveur est dans la table **et** le bot présent |
 | `save_routes` | Oui | Oui, même condition |
 | `leave_guild` | Oui | Oui, même condition |
-| `publish` | Oui | Non |
+| `publish` | Oui | Oui, si le serveur est dans la table **et** le salon lui appartient |
 | `register_commands` | Oui | Non |
 
 Le navigateur ne décide jamais des droits : un identifiant de serveur envoyé à la main est refusé s'il n'est pas dans `nvg_discord_managers` (sauf admin). Les routes d'annonces restent dans `nvg_discord_routes`.
+
+### Annonce manuelle
+
+Disponible dans l'onglet **🤖 Bot Discord** de l'application et sur `bot-discord.nvg-tv.com` (section « 3. Annonce manuelle ») :
+
+- serveur et salon de destination ;
+- titre obligatoire (256 caractères) et message facultatif (4 096 caractères) ;
+- image facultative (JPEG, PNG, WebP ou GIF, 8 Mo maximum), affichée dans l'embed.
+
+L'image est déposée par le navigateur dans le bucket public `notifs`, dossier `discord/<guild_id>/`, puis son URL publique est transmise à `discord-bot` (`image_url`) et affichée par Discord. La règle SQL `.github/sql/discord-announcement-images.sql` autorise l'upload aux admins NVG et aux gestionnaires du serveur concerné uniquement ; les noms de fichiers sont uniques (pas d'écrasement).
+
+La fonction vérifie que l'appelant gère le serveur, que le salon appartient bien à ce serveur et qu'il accepte les messages avant de publier.
 
 ## Conditions d'utilisation
 

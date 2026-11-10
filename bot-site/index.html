@@ -95,6 +95,32 @@
         <p id="guildsStatus" class="text-xs text-gray-400 italic"></p>
         <div id="guildsList" class="space-y-4"></div>
       </div>
+
+      <div id="announceSection" class="hidden bg-[#121722] border border-[#1f293d] rounded-2xl p-6 space-y-4">
+        <div>
+          <h2 class="text-base font-black text-white">3. Annonce manuelle</h2>
+          <p class="text-xs text-gray-400 mt-1">Publie un message libre dans un salon d'un serveur que tu gères. L'image est facultative (JPEG, PNG, WebP ou GIF, 8 Mo maximum).</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <select id="announceGuild" onchange="fillAnnounceChannels()" class="bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-2 text-xs text-white focus:border-red-600 focus:outline-none"></select>
+          <select id="announceChannel" class="bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-2 text-xs text-white focus:border-red-600 focus:outline-none"></select>
+          <input type="text" id="announceTitle" maxlength="256" placeholder="Titre de l'annonce" autocomplete="off" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white md:col-span-2">
+          <textarea id="announceMessage" maxlength="4096" rows="3" placeholder="Message (facultatif)" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white md:col-span-2"></textarea>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <input type="file" id="announceImageInput" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden" onchange="onAnnounceImageSelected(this)">
+          <button type="button" onclick="document.getElementById('announceImageInput').click()" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-200 font-bold text-xs rounded-lg border border-[#1f293d] transition">🖼️ Ajouter une image</button>
+          <span id="announceImageName" class="text-[11px] text-gray-500 truncate max-w-[220px]"></span>
+          <button type="button" id="announceImageClear" onclick="clearAnnounceImage()" class="hidden px-3 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white font-bold text-[11px] rounded-lg border border-red-600/40 transition">✕ Retirer</button>
+        </div>
+        <div id="announcePreviewWrap" class="hidden">
+          <img id="announcePreview" alt="Aperçu de l'image de l'annonce" class="max-h-48 rounded-xl border border-[#1f293d]">
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <button type="button" id="announceBtn" onclick="publishAnnouncement()" class="px-5 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl transition disabled:opacity-60">Publier sur Discord</button>
+          <span id="announceStatus" class="text-xs text-gray-400 italic"></span>
+        </div>
+      </div>
     </section>
 
     <footer class="pt-6 pb-4 text-center space-y-2">

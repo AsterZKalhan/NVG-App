@@ -22,6 +22,9 @@ let guilds = [];
 let routes = [];
 const channelsCache = {};
 const openGuilds = new Set();
+const ANNOUNCE_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+let announceImage = null;
+let announceImageUrl = '';
 
 const $ = (id) => document.getElementById(id);
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -126,6 +129,7 @@ function renderGuilds() {
         <p class="text-xs text-gray-400">Relie ton compte Discord, ou ajoute le bot à un serveur que tu administres.</p>
         <button onclick="inviteBot('')" class="px-5 py-3 bg-indigo-500 hover:bg-indigo-400 text-white font-black text-xs rounded-xl transition">➕ Inviter le bot</button>
       </div>`;
+    renderAnnounceForm();
     return;
   }
 
@@ -184,6 +188,114 @@ function renderGuilds() {
 
     return `<div class="guild-card bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3" data-guild="${guild.id}">${header}<div class="guild-body space-y-3 ${open ? '' : 'hidden'}">${rows}</div></div>`;
   }).join('');
+
+  renderAnnounceForm();
+}
+
+// --- Annonce manuelle ---
+
+function renderAnnounceForm() {
+  const section = $('announceSection');
+  const select = $('announceGuild');
+  if (!section || !select) return;
+  const withBot = guilds.filter((g) => g.bot_present);
+  section.classList.toggle('hidden', withBot.length === 0);
+  if (withBot.length === 0) return;
+  const previous = select.value;
+  select.innerHTML = withBot.map((g) => `<option value="${g.id}">${escapeHtml(g.name)}</option>`).join('');
+  if (withBot.some((g) => g.id === previous)) select.value = previous;
+  fillAnnounceChannels();
+}
+
+async function fillAnnounceChannels() {
+  const guildId = $('announceGuild').value;
+  const select = $('announceChannel');
+  if (!guildId || !select) return;
+  select.innerHTML = '<option value="">Chargement…</option>';
+  try {
+    const channels = await ensureChannels(guildId);
+    select.innerHTML = channels.map((c) => `<option value="${c.id}">#${escapeHtml(c.name)}</option>`).join('');
+  } catch (err) {
+    select.innerHTML = '<option value="">Salons inaccessibles</option>';
+  }
+}
+
+function onAnnounceImageSelected(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    notify('Choisis un fichier image.', true);
+    input.value = '';
+    return;
+  }
+  if (file.size > ANNOUNCE_IMAGE_MAX_BYTES) {
+    notify('Image trop lourde : 8 Mo maximum.', true);
+    input.value = '';
+    return;
+  }
+  announceImage = file;
+  if (announceImageUrl) URL.revokeObjectURL(announceImageUrl);
+  announceImageUrl = URL.createObjectURL(file);
+  $('announcePreview').src = announceImageUrl;
+  $('announcePreviewWrap').classList.remove('hidden');
+  $('announceImageName').textContent = file.name;
+  $('announceImageClear').classList.remove('hidden');
+}
+
+function clearAnnounceImage() {
+  announceImage = null;
+  if (announceImageUrl) {
+    URL.revokeObjectURL(announceImageUrl);
+    announceImageUrl = '';
+  }
+  const input = $('announceImageInput');
+  if (input) input.value = '';
+  const img = $('announcePreview');
+  if (img) img.removeAttribute('src');
+  $('announcePreviewWrap').classList.add('hidden');
+  $('announceImageName').textContent = '';
+  $('announceImageClear').classList.add('hidden');
+}
+
+// Dépose l'image dans le bucket public notifs, dossier discord/<serveur>/.
+async function uploadAnnounceImage(guildId) {
+  if (!announceImage) return '';
+  const file = announceImage;
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  const path = `discord/${guildId}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+  const { error } = await supabaseClient.storage
+    .from('notifs')
+    .upload(path, file, { contentType: file.type, upsert: false });
+  if (error) throw new Error(`image non envoyée (${error.message})`);
+  const { data } = supabaseClient.storage.from('notifs').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+async function publishAnnouncement() {
+  const guildId = $('announceGuild').value;
+  const channelId = $('announceChannel').value;
+  const title = $('announceTitle').value.trim();
+  const message = $('announceMessage').value.trim();
+  if (!guildId || !channelId || !title) {
+    notify('Choisis un serveur, un salon et saisis un titre.', true);
+    return;
+  }
+  const btn = $('announceBtn');
+  const status = $('announceStatus');
+  if (btn) { btn.disabled = true; btn.textContent = 'Publication…'; }
+  if (status) status.textContent = '';
+  try {
+    const image_url = await uploadAnnounceImage(guildId);
+    await callBot({ action: 'publish', guild_id: guildId, channel_id: channelId, title, message, image_url });
+    notify('Annonce publiée.');
+    $('announceTitle').value = '';
+    $('announceMessage').value = '';
+    clearAnnounceImage();
+  } catch (err) {
+    notify('Erreur : ' + err.message, true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Publier sur Discord'; }
+  }
 }
 
 function toggleGuildCard(event, guildId) {
