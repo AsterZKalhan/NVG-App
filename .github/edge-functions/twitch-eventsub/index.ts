@@ -1,5 +1,6 @@
 ﻿const enc = new TextEncoder();
 const seenMessages = new Set<string>();
+const MAIN_TWITCH_LOGIN = "nvgamingtv";
 
 async function hmacHex(secret: string, message: string): Promise<string> {
   const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
@@ -17,27 +18,32 @@ function safeEqual(a: string, b: string): boolean {
 async function announceLive(login: string, messageId: string): Promise<void> {
   const url = Deno.env.get("SUPABASE_URL") ?? "";
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  const target = Deno.env.get("TWITCH_NOTIFY_TARGET") || "Divinité";
-  const notif = {
-    id: "notif_" + Date.now(),
-    title: "NVG est en live !",
-    body: "Le stream vient de commencer. Rejoins-nous sur NVG en Live.",
-    target,
-    time: new Date().toISOString(),
-    image: "",
-  };
 
-  await fetch(`${url}/rest/v1/nvg_notifications`, {
-    method: "POST",
-    headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "return=minimal" },
-    body: JSON.stringify(notif),
-  });
+  // Notification dans l'app et push uniquement pour la chaîne principale NVG.
+  // Les lives des membres restent annoncés sur Discord, sans notification générale.
+  if (login === MAIN_TWITCH_LOGIN) {
+    const target = Deno.env.get("TWITCH_NOTIFY_TARGET") || "Divinité";
+    const notif = {
+      id: "notif_" + Date.now(),
+      title: "NVG est en live !",
+      body: "Le stream vient de commencer. Rejoins-nous sur NVG en Live.",
+      target,
+      time: new Date().toISOString(),
+      image: "",
+    };
 
-  await fetch(`${url}/functions/v1/send-push`, {
-    method: "POST",
-    headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ record: notif }),
-  });
+    await fetch(`${url}/rest/v1/nvg_notifications`, {
+      method: "POST",
+      headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify(notif),
+    });
+
+    await fetch(`${url}/functions/v1/send-push`, {
+      method: "POST",
+      headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ record: notif }),
+    });
+  }
 
   try {
     await fetch(`${url}/functions/v1/discord-bot`, {
