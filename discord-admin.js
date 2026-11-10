@@ -49,6 +49,19 @@ function inviteDiscordBot() {
   window.open(DISCORD_INVITE_URL, '_blank', 'noopener');
 }
 
+async function leaveDiscordGuild(guildId) {
+  const guild = discordGuilds.find(g => g.id === guildId);
+  const guildName = guild ? guild.name : 'ce serveur';
+  if (!confirm(`Faire quitter le bot du serveur « ${guildName} » ? Ses annonces configurées seront supprimées.`)) return;
+  try {
+    await callDiscordBot({ action: 'leave_guild', guild_id: guildId });
+    alert(`✅ Le bot a quitté « ${guildName} ».`);
+    loadDiscordBotAdmin();
+  } catch (err) {
+    alert('Erreur : ' + err.message);
+  }
+}
+
 async function registerDiscordCommands() {
   try {
     const res = await callDiscordBot({ action: 'register_commands' });
@@ -104,7 +117,10 @@ function renderDiscordGuilds() {
               : `<div class="w-9 h-9 rounded-full bg-[#07090e] border border-[#1f293d] shrink-0 flex items-center justify-center text-xs font-black text-gray-400">${escapeHtmlSafe(guild.name.charAt(0).toUpperCase())}</div>`}
             <h4 class="text-sm font-black text-white truncate">${escapeHtmlSafe(guild.name)}</h4>
           </div>
-          <button onclick="saveDiscordGuild('${guild.id}')" class="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-lg hover:bg-amber-400 transition">Enregistrer</button>
+          <div class="flex items-center gap-2 shrink-0">
+            <button onclick="saveDiscordGuild('${guild.id}')" class="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-lg hover:bg-amber-400 transition">Enregistrer</button>
+            <button onclick="leaveDiscordGuild('${guild.id}')" class="px-4 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white font-bold text-xs rounded-lg border border-red-600/40 transition">Quitter le serveur</button>
+          </div>
         </div>
         ${rows}
       </div>`;

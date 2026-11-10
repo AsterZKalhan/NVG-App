@@ -427,6 +427,15 @@ Deno.serve(async (req) => {
       return json({ ok: true, message_id: message.id });
     }
 
+    if (body.action === "leave_guild") {
+      const guildId = String(body.guild_id ?? "").trim();
+      if (!isSnowflake(guildId)) return json({ error: "identifiant de serveur invalide" }, 400);
+      await discord(`/users/@me/guilds/${guildId}`, { method: "DELETE" });
+      // La suppression du serveur supprime ses routes (ON DELETE CASCADE).
+      await sb(`nvg_discord_servers?guild_id=eq.${guildId}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
+      return json({ ok: true });
+    }
+
     if (body.action === "register_commands") {
       const commands = [
         { name: "nextevent", description: "Prochain événement NVG avec tous les détails", type: 1 },
