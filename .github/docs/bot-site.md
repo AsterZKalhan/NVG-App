@@ -11,6 +11,8 @@ Page publique permettant aux membres NVG qui administrent un serveur Discord d'y
 
 Le sous-domaine pointe vers le dossier `/BOT` de l'hébergement IONOS. La redirection OAuth2 enregistrée dans le portail Discord doit être **exactement** `https://bot-discord.nvg-tv.com/`, slash final compris.
 
+La page est accessible depuis l'application par le menu **🤖 Bot Discord (Staff & Admin)** (onglet `bot`), qui affiche le message d'invitation et deux liens vers le site. Ce menu est visible pour les rangs Viking, Grand Jarl, Divinité et les rôles staff/admin, et protégé dans `showTab`.
+
 ## Parcours utilisateur
 
 1. Connexion avec le **compte NVG** (même e-mail et mot de passe que l'application, Supabase Auth).
