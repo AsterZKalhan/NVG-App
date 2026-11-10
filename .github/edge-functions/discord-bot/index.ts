@@ -135,7 +135,7 @@ function eventMessage(e: any) {
         footer: { text: FOOTER },
       },
     ],
-    components: [{ type: 1, components: [{ type: 2, style: 5, label: "🚀 Je m'inscris", url: CALENDAR_URL }] }],
+    components: [{ type: 1, components: [{ type: 2, style: 5, label: "📅 Voir dans le calendrier", url: CALENDAR_URL }] }],
   };
 }
 
