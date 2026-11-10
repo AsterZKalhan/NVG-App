@@ -7,8 +7,8 @@ Document de reprise du projet. À lire avant toute modification.
 - **Site** : PWA statique (HTML + JavaScript, pas de framework), servie sur `https://app.nvg-tv.com`.
 - **Application Android** : TWA qui ouvre le même site. Pas de code séparé.
 - **Backend** : Supabase (projet `fxewefwwpowhnacrxfdp`) : base PostgreSQL, authentification, fonctions Edge.
-- **Hébergement** : 1&1 IONOS, dossier `/APP` en SFTP. Le dossier WordPress à la racine de l'hébergement n'appartient pas à l'app : ne jamais y toucher.
-- **Déploiement** : chaque `git push` sur `main` déclenche le workflow GitHub Actions `Deploy SFTP` (`.github/workflows/deploy.yml`), qui envoie les fichiers du dépôt dans `/APP`. Il ne supprime jamais rien côté serveur.
+- **Hébergement** : 1&1 IONOS, dossier `/APP` en SFTP pour l'application et dossier `/BOT` pour l'espace du bot (`bot-discord.nvg-tv.com`). Le dossier WordPress à la racine de l'hébergement n'appartient pas à l'app : ne jamais y toucher.
+- **Déploiement** : chaque `git push` sur `main` déclenche le workflow GitHub Actions `Deploy SFTP` (`.github/workflows/deploy.yml`), qui envoie les fichiers du dépôt dans `/APP`. Le workflow `Deploy bot SFTP` (`.github/workflows/deploy-bot.yml`) n'envoie que `bot-site/` dans `/BOT`. Aucun des deux ne supprime rien côté serveur.
 
 ## 2. Fichiers principaux
 
@@ -30,7 +30,8 @@ Document de reprise du projet. À lire avant toute modification.
 | `sw.js` | Service worker (notifications push) |
 | `manifest.json` | Manifest PWA |
 | `Logos/` | Logos, icônes, photos de la boutique |
-| `.github/workflows/deploy.yml` | Déploiement SFTP automatique |
+| `.github/workflows/deploy.yml` | Déploiement SFTP automatique de l'application (`/APP`) |
+| `.github/workflows/deploy-bot.yml` | Déploiement SFTP de l'espace bot (`/BOT`) |
 | `.github/scripts/deploy_sftp.py` | Script de déploiement |
 | `.well-known/assetlinks.json` | Vérification de l'application Android (TWA). Ne pas supprimer |
 
@@ -117,8 +118,11 @@ Fonction Edge `contact-message` (sans JWT) : reçoit le formulaire public (`cont
 - Commandes slash : `discord-interactions` (Interactions Endpoint URL du portail). `/nextevent` (prochain événement avec détails et bouton calendrier), `/events` (liste des prochains événements, une carte par événement avec le logo de la catégorie, 10 max), `/viking` (membres hors Petit Viking, pseudo cliquable vers la chaîne Twitch), `/live` (chaînes NVG en direct, pseudo cliquable, bouton vers Streams NVG). Signature Ed25519 vérifiée avec la clé publique (secret `DISCORD_PUBLIC_KEY`). Enregistrement via l'onglet « ⌨️ Enregistrer les commandes » (commandes globales, disponibles sur tous les serveurs du bot). Le bot reste hors ligne (pas de connexion Gateway), ce qui n'empêche pas les commandes.
 - Mise en page des annonces : carte d'événement proche du calendrier (date en tête, titre `[NVG]` / `[Nieuwheim]`, logo de la saison, catégorie « Event NVG » ou « Nieuwheim », bouton « Voir dans le calendrier »). Annonce de jeu : logo de la catégorie et bouton « Va voter pour ce jeu » (`#games`). Annonce de live : titre, jeu, spectateurs, vignette et avatar via l'API Helix.
 - Bouton « Quitter le serveur » dans la configuration : le bot quitte le serveur et ses routes sont supprimées (cascade). Piège Discord : ne pas envoyer `Content-Type: application/json` sur une requête sans corps (`DELETE`), sinon erreur 400 `invalid JSON` (code 50109). Le helper `discord()` de `discord-bot` ne l'ajoute que s'il y a un corps.
+- Espace public de gestion : `https://bot-discord.nvg-tv.com/` (code dans `bot-site/`, déployé dans `/BOT`). Connexion avec le compte NVG, puis Discord OAuth2 (`identify guilds`). La fonction `discord-oauth` échange le code, filtre les serveurs où le membre est propriétaire ou a « Gérer le serveur », et remplit `nvg_discord_managers`. Un serveur sans le bot affiche le bouton d'invitation (avec le serveur présélectionné).
+- Droits de l'espace : `discord-bot` vérifie chaque action (`list_channels`, `save_routes`, `leave_guild`) contre `nvg_discord_managers`, ou `nvg_is_admin` pour les admins NVG. Le navigateur ne décide jamais des droits. Les admins continuent de voir tous les serveurs du bot dans l'onglet admin de l'app.
+- Configuration Discord : redirection OAuth2 `https://bot-discord.nvg-tv.com/` (slash final compris) et secret `DISCORD_OAUTH_SECRET` (client secret OAuth2, jamais dans le dépôt). Détail : `.github/docs/bot-site.md`.
 - Journal détaillé : `.github/docs/session-2026-11-10.md`.
-- Fonctions Edge : `discord-bot`, `discord-interactions`, `twitch-sync`, `twitch-eventsub` (sans JWT : elles vérifient elles-mêmes l'accès). Le token du bot est dans le secret `DISCORD_BOT_TOKEN`, jamais dans le dépôt.
+- Fonctions Edge : `discord-bot`, `discord-interactions`, `discord-oauth`, `twitch-sync`, `twitch-eventsub` (sans JWT : elles vérifient elles-mêmes l'accès). Le token du bot est dans le secret `DISCORD_BOT_TOKEN`, jamais dans le dépôt.
 
 ### Live Twitch
 - Statut via `twitch-live`, toutes les 30 secondes uniquement quand l'onglet est visible, et immédiatement au retour sur l'onglet.
@@ -214,7 +218,7 @@ Pour déployer une fonction Edge : `curl` vers `/v1/projects/{ref}/functions/dep
 - **Revenir en arrière** : `alter table public.<table> disable row level security;` ou `drop policy`.
 
 ### 8.6 Fonctions Edge (serveur Supabase)
-- Fonctions en service : `send-push` (notifications push, utilise la clé de service), `steam-header` (bannières de jeux), `twitch-live` (statut Twitch, cache 15 s), `twitch-eventsub` (passage en direct), `youtube-videos` (dernières vidéos YouTube, cache 10 min) et `contact-message` (formulaire de contact public, sans JWT).
+- Fonctions en service : `send-push` (notifications push, utilise la clé de service), `steam-header` (bannières de jeux), `twitch-live` (statut Twitch, cache 15 s), `twitch-eventsub` (passage en direct), `youtube-videos` (dernières vidéos YouTube, cache 10 min), `contact-message` (formulaire de contact public, sans JWT), `discord-bot` (annonces et configuration du bot), `discord-interactions` (commandes slash) et `discord-oauth` (connexion Discord de l'espace `/BOT`).
 - **Déployer ou mettre à jour** une fonction : fichier `index.ts` + `metadata.json` (`{"entrypoint_path":"index.ts","name":"<nom>","verify_jwt":true|false}`), puis `curl.exe` vers `https://api.supabase.com/v1/projects/<ref>/functions/deploy?slug=<nom>` en multipart (`metadata` et `file`). Voir l'historique pour la commande exacte.
 - **Secrets** : `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` (dans Supabase, jamais dans le code).
 
