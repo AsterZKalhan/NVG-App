@@ -4,6 +4,9 @@ Application compagnon des événements Normandy Viking Gaming.
 PWA statique servie sur **https://app.nvg-tv.com**, empaquetée en application Android
 via **TWA (Trusted Web Activity)**.
 
+Le dépôt contient aussi l'espace de gestion du bot Discord, servi sur
+**https://bot-discord.nvg-tv.com** (dossier `bot-site/`, déployé dans `/BOT`).
+
 - Backend : Supabase (projet partagé, non versionné ici)
 - Push : `sw.js` + Edge Function `send-push`
 - Package Android : `com.nvg.companion`
@@ -30,6 +33,7 @@ dans l'app.
 ├── Logos/
 ├── contact.html       → formulaire de contact public
 ├── privacy.html      → page publique obligatoire pour le Play Store
+├── bot-site/          → espace de gestion du bot Discord (déployé dans /BOT)
 ├── .well-known/
 │   ├── assetlinks.json   → vérification du domaine pour le TWA
 │   └── .htaccess         → force le bon Content-Type (Apache)
@@ -41,8 +45,11 @@ dans l'app.
 
 1. Commit + push sur GitHub.
 2. Synchronisation des fichiers vers l'hébergement (FTP ou GitHub Actions).
+   Le workflow `Deploy SFTP` envoie l'application dans `/APP` ; le workflow
+   `Deploy bot SFTP` envoie uniquement `bot-site/` dans `/BOT`.
 3. Vérifier `https://app.nvg-tv.com/.well-known/assetlinks.json` → doit répondre
    **HTTP 200** avec `Content-Type: application/json`.
+4. Vérifier `https://bot-discord.nvg-tv.com/` → doit répondre **HTTP 200**.
 
 ## Règles
 
@@ -57,6 +64,10 @@ dans l'app.
 - `DEPLOIEMENT.md` — mise en ligne, vérifications et retour arrière.
 - `.github/docs/session-2026-11-02.md` — journal détaillé de la session du
   2 novembre 2026 (Vidéos, contact, confidentialité, nettoyage des notifications).
+- `.github/docs/session-2026-11-10.md` — journal de la session du 10 novembre 2026
+  (bot Discord, commandes, annonces, espace de gestion).
+- `.github/docs/bot-site.md` — fonctionnement de `bot-discord.nvg-tv.com`, droits
+  par serveur, configuration OAuth2 et déploiement.
 - `.github/docs/propriete-intellectuelle.md` — marque, dessin et droit d'auteur,
   texte de mentions légales pour le site.
 - `.github/docs/sauvegarde-supabase.md` — sauvegarde locale manuelle de Supabase

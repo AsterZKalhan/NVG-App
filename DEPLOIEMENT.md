@@ -82,3 +82,15 @@ Une fois les 5 fichiers en ligne et les vérifications passées :
    + `assetlinks.json` avec les vraies empreintes.
 4. Upload Play Console → récupération de l'empreinte **Play App Signing** →
    mise à jour de `.well-known/assetlinks.json` → déploiement FTP.
+
+## 5. Site du bot Discord (`/BOT`)
+
+Le site `https://bot-discord.nvg-tv.com/` est indépendant de l'application :
+
+- code source : `bot-site/` ;
+- déploiement : workflow `Deploy bot SFTP` (`.github/workflows/deploy-bot.yml`),
+  script `.github/scripts/deploy_bot_sftp.py` ;
+- destination : dossier `/BOT` uniquement, sans suppression ;
+- vérification : `https://bot-discord.nvg-tv.com/` doit répondre **HTTP 200**.
+
+Détail technique et configuration OAuth2 : `.github/docs/bot-site.md`.
