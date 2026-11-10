@@ -116,21 +116,30 @@ async function cmdEvent() {
     `nvg_events?select=title,category,date_debut&date_debut=gte.${todayParis()}&order=date_debut.asc&limit=40`,
   );
   if (events.length === 0) return reply({ content: "Aucun événement à venir pour le moment." });
-  const lines = events.map((e) => {
+
+  // Une carte par événement : le logo de la catégorie apparaît à droite, à hauteur du bloc.
+  // Discord limite un message à 10 cartes.
+  const shown = events.slice(0, 10);
+  const embeds: any[] = shown.map((e) => {
     const prefix = e.category === "Nieuwheim" ? "[Nieuwheim]" : "[NVG]";
     const title = String(e.title ?? "").replace(/^\[(NVG|Nieuwheim)\]\s*/i, "");
-    return `**${prefix} ${title}**\n📅 ${formatDay(e.date_debut)}`;
+    return {
+      title: `${prefix} ${title}`.slice(0, 256),
+      description: `📅 ${formatDay(e.date_debut)}`,
+      url: CALENDAR_URL,
+      color: NVG_COLOR,
+      thumbnail: { url: `${SITE_URL}/Logos/${EVENT_LOGOS[e.category] ?? "logo-nvg.png"}` },
+    };
   });
+  const extra = events.length - shown.length;
+  embeds[embeds.length - 1].footer = {
+    text: extra > 0 ? `+ ${extra} autre(s) sur le calendrier · ${FOOTER}` : FOOTER,
+  };
+
   return reply({
-    embeds: [
-      {
-        title: "🗓️ Prochains événements",
-        description: lines.join("\n\n").slice(0, 4096),
-        url: SITE_URL,
-        color: NVG_COLOR,
-        footer: { text: FOOTER },
-      },
-    ],
+    content: "**🗓️ Prochains événements**",
+    embeds,
+    components: [{ type: 1, components: [{ type: 2, style: 5, label: "📅 Voir dans le calendrier", url: CALENDAR_URL }] }],
   });
 }
 
