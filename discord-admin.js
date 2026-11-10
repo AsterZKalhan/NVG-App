@@ -98,7 +98,12 @@ function renderDiscordGuilds() {
     return `
       <div class="bg-[#121722] border border-[#1f293d] rounded-xl p-5 space-y-3" data-guild="${guild.id}">
         <div class="flex items-center justify-between gap-3">
-          <h4 class="text-sm font-black text-white">${escapeHtmlSafe(guild.name)}</h4>
+          <div class="flex items-center gap-3 min-w-0">
+            ${guild.icon
+              ? `<img src="https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64" alt="" class="w-9 h-9 rounded-full shrink-0">`
+              : `<div class="w-9 h-9 rounded-full bg-[#07090e] border border-[#1f293d] shrink-0 flex items-center justify-center text-xs font-black text-gray-400">${escapeHtmlSafe(guild.name.charAt(0).toUpperCase())}</div>`}
+            <h4 class="text-sm font-black text-white truncate">${escapeHtmlSafe(guild.name)}</h4>
+          </div>
           <button onclick="saveDiscordGuild('${guild.id}')" class="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-lg hover:bg-amber-400 transition">Enregistrer</button>
         </div>
         ${rows}
