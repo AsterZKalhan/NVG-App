@@ -263,6 +263,13 @@ function showTab(tabId) {
     loadUsers();
   }
 
+  // Retour sur le dernier sous-onglet ouvert de l'espace admin (conservé après actualisation).
+  if (tabId === 'admin' && typeof showAdminPanel === 'function') {
+    let lastPanel = 'membres';
+    try { lastPanel = localStorage.getItem('nvg_admin_panel') || 'membres'; } catch (e) { /* stockage indisponible */ }
+    if (document.getElementById('adminPanel-' + lastPanel)) showAdminPanel(lastPanel);
+  }
+
   // Boîte de réception « Contact » (admins uniquement, la RLS protège les données).
   if (tabId === 'admin' && typeof loadContactMessages === 'function') {
     loadContactMessages();

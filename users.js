@@ -491,6 +491,7 @@ async function deleteUser(userId) {
 }
 
 function showAdminPanel(name) {
+  try { localStorage.setItem('nvg_admin_panel', name); } catch (e) { /* stockage indisponible */ }
   document.querySelectorAll('.admin-panel').forEach(panel => {
     panel.classList.toggle('hidden', panel.id !== 'adminPanel-' + name);
   });
