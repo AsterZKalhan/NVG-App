@@ -144,27 +144,27 @@ async function cmdEvent() {
 }
 
 async function cmdViking() {
-  const members = await sbGet("nvg_users?select=name,rank,avatar_url&rank=neq.Petit%20Viking");
+  const members = await sbGet("nvg_users?select=name,rank,twitch_channel&rank=neq.Petit%20Viking");
   if (members.length === 0) return reply({ content: "Aucun membre à afficher." });
   members.sort((a, b) => (RANK_ORDER[a.rank] ?? 9) - (RANK_ORDER[b.rank] ?? 9) || String(a.name).localeCompare(String(b.name)));
 
-  // Une carte par membre, avatar à droite. Discord limite un message à 10 cartes.
-  const shown = members.slice(0, 10);
-  const embeds: any[] = shown.map((m) => {
-    const avatar = typeof m.avatar_url === "string" && m.avatar_url.startsWith("https://") ? m.avatar_url : `${SITE_URL}/Logos/logo-nvg.png`;
-    return {
-      title: String(m.name).slice(0, 256),
-      description: `🏷️ ${m.rank}`,
-      color: NVG_COLOR,
-      thumbnail: { url: avatar },
-    };
+  // Pseudo cliquable vers la chaîne Twitch, quand elle est renseignée et valide.
+  const lines = members.map((m) => {
+    const login = String(m.twitch_channel ?? "").trim().toLowerCase();
+    const name = /^[a-z0-9_]{3,25}$/.test(login) ? `[**${m.name}**](https://twitch.tv/${login})` : `**${m.name}**`;
+    return `• ${name} — ${m.rank}`;
   });
-  const extra = members.length - shown.length;
-  embeds[embeds.length - 1].footer = {
-    text: extra > 0 ? `+ ${extra} autre(s) membre(s) · ${members.length} au total · ${FOOTER}` : `${members.length} membre(s) · ${FOOTER}`,
-  };
-
-  return reply({ content: `**👥 Membres NVG**`, embeds });
+  return reply({
+    embeds: [
+      {
+        title: `👥 Membres NVG (${members.length})`,
+        description: lines.join("\n").slice(0, 4096),
+        url: SITE_URL,
+        color: NVG_COLOR,
+        footer: { text: FOOTER },
+      },
+    ],
+  });
 }
 
 async function cmdLive() {
