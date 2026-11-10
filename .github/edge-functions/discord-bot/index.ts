@@ -118,7 +118,10 @@ function eventMessage(e: any) {
 
   const fields: { name: string; value: string; inline: boolean }[] = [];
   if (e.location) fields.push({ name: "📍 Lieu", value: trunc(e.location, 1024), inline: true });
-  if (e.category) fields.push({ name: "🏷️ Catégorie", value: trunc(e.category, 1024), inline: true });
+  if (e.category) {
+    const category = e.category === "Nieuwheim" ? "Nieuwheim" : "Event NVG";
+    fields.push({ name: "🏷️ Catégorie", value: category, inline: true });
+  }
 
   const logo = EVENT_LOGOS[e.category] ?? "logo-nvg.png";
   return {
