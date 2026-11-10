@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bot Discord NVG - Normandy Viking Gaming</title>
+  <link rel="icon" type="image/png" href="./Logos/favicon.png">
+  <meta name="theme-color" content="#0b0f17">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { dark: '#07090e', card: '#121722', border: '#1f293d', red: '#dc2626' }
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .app-bg {
+      background-color: #000;
+      background-image: url('./Logos/fond-app.svg');
+      background-repeat: repeat;
+    }
+    .guild-card { transition: border-color .15s ease; }
+    .guild-card:hover { border-color: #dc262633; }
+  </style>
+</head>
+<body class="app-bg min-h-screen text-gray-200 antialiased">
+  <header class="border-b border-[#1f293d] bg-[#07090e]/90 backdrop-blur sticky top-0 z-20">
+    <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
+      <a href="https://app.nvg-tv.com/" class="flex items-center gap-3 min-w-0">
+        <img src="./Logos/logo-nvg.png" alt="NVG" class="w-11 h-11 rounded-full border border-[#1f293d] shrink-0">
+        <div class="min-w-0">
+          <h1 class="text-sm md:text-base font-black uppercase tracking-wider text-white truncate">Bot Discord NVG</h1>
+          <p class="text-[11px] text-gray-400 truncate">Normandy Viking Gaming</p>
+        </div>
+      </a>
+      <div id="account" class="hidden items-center gap-3 min-w-0">
+        <div class="text-right min-w-0 hidden sm:block">
+          <p id="accountName" class="text-xs font-bold text-white truncate"></p>
+          <p id="accountRank" class="text-[10px] text-amber-400 uppercase font-bold"></p>
+        </div>
+        <button onclick="signOut()" class="px-3 py-2 bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-[11px] rounded-lg border border-[#1f293d] transition">Déconnexion</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 py-8 space-y-6">
+    <!-- Connexion NVG -->
+    <section id="loginSection" class="hidden max-w-md mx-auto">
+      <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-6 space-y-4 shadow-2xl">
+        <div>
+          <h2 class="text-lg font-black text-white">Connexion à ton compte NVG</h2>
+          <p class="text-xs text-gray-400 mt-1">Utilise le même compte que sur l'application NVG.</p>
+        </div>
+        <form id="loginForm" class="space-y-3">
+          <input id="loginEmail" type="email" autocomplete="email" required placeholder="Adresse e-mail" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-3 text-sm text-white focus:border-red-600 focus:outline-none">
+          <input id="loginPassword" type="password" autocomplete="current-password" required placeholder="Mot de passe" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-3 text-sm text-white focus:border-red-600 focus:outline-none">
+          <button type="submit" class="w-full px-4 py-3 bg-red-600 hover:bg-red-500 text-white font-black text-sm rounded-xl transition">Se connecter</button>
+        </form>
+        <p id="loginError" class="text-xs text-red-400 hidden"></p>
+        <p class="text-[11px] text-gray-500">Pas encore de compte ? <a href="https://app.nvg-tv.com/" class="text-amber-400 hover:underline">Crée-le sur l'application NVG</a>.</p>
+      </div>
+    </section>
+
+    <!-- Espace connecté -->
+    <section id="appSection" class="hidden space-y-6">
+      <div id="discordConnect" class="bg-[#121722] border border-[#1f293d] rounded-2xl p-6 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 class="text-base font-black text-white">1. Relie ton compte Discord</h2>
+            <p class="text-xs text-gray-400 mt-1">Discord vérifie les serveurs où tu as le droit « Gérer le serveur ». Aucun jeton n'est conservé.</p>
+          </div>
+          <button onclick="connectDiscord()" class="shrink-0 px-5 py-3 bg-indigo-500 hover:bg-indigo-400 text-white font-black text-xs rounded-xl transition">Se connecter avec Discord</button>
+        </div>
+        <p id="oauthMessage" class="text-xs hidden"></p>
+      </div>
+
+      <div id="guildsSection" class="hidden space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base font-black text-white">2. Tes serveurs</h2>
+            <p class="text-xs text-gray-400 mt-1">Coche les annonces à publier et choisis le salon de chacune.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="loadGuilds()" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs rounded-lg border border-[#1f293d] transition">🔄 Actualiser</button>
+            <button onclick="connectDiscord()" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs rounded-lg border border-[#1f293d] transition">Relier Discord</button>
+          </div>
+        </div>
+        <p id="guildsStatus" class="text-xs text-gray-400 italic"></p>
+        <div id="guildsList" class="space-y-4"></div>
+      </div>
+    </section>
+
+    <footer class="pt-6 pb-4 text-center space-y-2">
+      <a href="https://app.nvg-tv.com/" class="text-[11px] text-gray-400 hover:text-amber-400">← Retour à l'application NVG</a>
+      <p class="text-[10px] text-gray-600">Seuls les serveurs où le bot est présent et que tu administres sont configurables.</p>
+    </footer>
+  </main>
+
+  <script src="bot.js"></script>
+</body>
+</html>

@@ -69,18 +69,38 @@ async function isAdmin(authHeader: string | null): Promise<boolean> {
   return res.ok && (await res.json()) === true;
 }
 
-// Rang de l'utilisateur connecté (null si non connecté).
-async function callerRank(authHeader: string | null): Promise<string | null> {
-  if (!authHeader) return null;
+type Caller = { id: string | null; rank: string | null; admin: boolean };
+
+// Identité de l'appelant : compte NVG, rang et droits admin.
+async function callerInfo(authHeader: string | null): Promise<Caller> {
+  if (!authHeader) return { id: null, rank: null, admin: false };
   const me = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
     headers: { apikey: ANON_KEY, Authorization: authHeader },
   });
-  if (!me.ok) return null;
+  if (!me.ok) return { id: null, rank: null, admin: false };
   const user = await me.json();
-  const res = await sb(`nvg_users?select=rank&id=eq.${encodeURIComponent(user.id)}`);
-  if (!res.ok) return null;
-  const rows = await res.json();
-  return rows[0]?.rank ?? null;
+  const id = String(user.id ?? "");
+  if (!id) return { id: null, rank: null, admin: false };
+
+  const res = await sb(`nvg_users?select=rank&id=eq.${encodeURIComponent(id)}`);
+  const rows = res.ok ? await res.json() : [];
+  return { id, rank: rows[0]?.rank ?? null, admin: await isAdmin(authHeader) };
+}
+
+// Un admin NVG gère tous les serveurs du bot. Un membre ne gère que ceux
+// enregistrés par discord-oauth lors de sa connexion Discord.
+async function canManageGuild(caller: Caller, guildId: string): Promise<boolean> {
+  if (caller.admin) return true;
+  if (!caller.id) return false;
+  const res = await sb(
+    `nvg_discord_managers?select=user_id&user_id=eq.${encodeURIComponent(caller.id)}&guild_id=eq.${encodeURIComponent(guildId)}`,
+  );
+  return res.ok && (await res.json()).length > 0;
+}
+
+// Rang de l'utilisateur connecté (null si non connecté).
+async function callerRank(authHeader: string | null): Promise<string | null> {
+  return (await callerInfo(authHeader)).rank;
 }
 
 function formatDay(day: string, time?: string): string {
@@ -339,28 +359,62 @@ Deno.serve(async (req) => {
       return json({ error: "type d'annonce inconnu" }, 400);
     }
 
-    // Actions admin : onglet « Bot Discord NVG ».
-    if (!(await isAdmin(authHeader))) return json({ error: "réservé aux admins" }, 403);
+    // Configuration du bot : onglet admin de l'app ou espace bot-discord.nvg-tv.com.
+    const caller = await callerInfo(authHeader);
 
     if (body.action === "list_guilds") {
-      const guilds: any[] = await discord("/users/@me/guilds");
-      if (guilds.length > 0) {
-        await sb("nvg_discord_servers", {
-          method: "POST",
-          headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-          body: JSON.stringify(guilds.map((g) => ({ guild_id: g.id, name: trunc(g.name, 200) }))),
+      // Admin NVG : tous les serveurs où le bot est présent, comme dans l'app.
+      if (caller.admin) {
+        const guilds: any[] = await discord("/users/@me/guilds");
+        if (guilds.length > 0) {
+          await sb("nvg_discord_servers", {
+            method: "POST",
+            headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+            body: JSON.stringify(guilds.map((g) => ({ guild_id: g.id, name: trunc(g.name, 200) }))),
+          });
+        }
+        const routesRes = await sb("nvg_discord_routes?select=guild_id,channel_id,kind,enabled");
+        return json({
+          guilds: guilds.map((g) => ({ id: g.id, name: g.name, icon: g.icon ?? null, bot_present: true })),
+          routes: routesRes.ok ? await routesRes.json() : [],
+          admin: true,
         });
       }
-      const routesRes = await sb("nvg_discord_routes?select=guild_id,channel_id,kind,enabled");
+
+      // Membre : uniquement les serveurs qu'il gère (enregistrés par discord-oauth).
+      if (!caller.id) return json({ error: "connexion NVG requise" }, 401);
+      const mgRes = await sb(
+        `nvg_discord_managers?select=guild_id,guild_name,guild_icon&user_id=eq.${encodeURIComponent(caller.id)}&order=guild_name.asc`,
+      );
+      const managed = mgRes.ok ? await mgRes.json() : [];
+      if (managed.length === 0) return json({ guilds: [], routes: [], manager: true });
+
+      const presentRes = await sb("nvg_discord_servers?select=guild_id");
+      const present = new Set((presentRes.ok ? await presentRes.json() : []).map((r: any) => r.guild_id));
+      const ids = managed.map((r: any) => encodeURIComponent(r.guild_id)).join(",");
+      const routesRes = await sb(
+        `nvg_discord_routes?select=guild_id,channel_id,kind,enabled&guild_id=in.(${ids})`,
+      );
       return json({
-        guilds: guilds.map((g) => ({ id: g.id, name: g.name, icon: g.icon ?? null })),
+        guilds: managed.map((r: any) => ({
+          id: r.guild_id,
+          name: r.guild_name,
+          icon: r.guild_icon,
+          bot_present: present.has(r.guild_id),
+        })),
         routes: routesRes.ok ? await routesRes.json() : [],
+        manager: true,
       });
     }
 
     if (body.action === "list_channels") {
       const guildId = String(body.guild_id ?? "").trim();
       if (!isSnowflake(guildId)) return json({ error: "identifiant de serveur invalide" }, 400);
+      if (!(await canManageGuild(caller, guildId))) return json({ error: "serveur non autorisé" }, 403);
+      const presentRes = await sb(`nvg_discord_servers?select=guild_id&guild_id=eq.${encodeURIComponent(guildId)}`);
+      if (!presentRes.ok || (await presentRes.json()).length === 0) {
+        return json({ error: "le bot n'est pas présent sur ce serveur" }, 409);
+      }
       const channels = await discord(`/guilds/${guildId}/channels`);
       return json(
         channels
@@ -373,6 +427,7 @@ Deno.serve(async (req) => {
     if (body.action === "save_routes") {
       const guildId = String(body.guild_id ?? "").trim();
       if (!isSnowflake(guildId)) return json({ error: "identifiant de serveur invalide" }, 400);
+      if (!(await canManageGuild(caller, guildId))) return json({ error: "serveur non autorisé" }, 403);
       const wanted: { kind: string; channel_id: string }[] = (Array.isArray(body.routes) ? body.routes : []).filter(
         (r: any) => ANNOUNCE_KINDS.includes(r?.kind) && isSnowflake(r?.channel_id),
       );
@@ -402,6 +457,7 @@ Deno.serve(async (req) => {
     }
 
     if (body.action === "publish") {
+      if (!caller.admin) return json({ error: "réservé aux admins" }, 403);
       const channelId = String(body.channel_id ?? "").trim();
       if (!isSnowflake(channelId)) return json({ error: "salon invalide" }, 400);
       const title = trunc(body.title, 256).trim();
@@ -429,6 +485,7 @@ Deno.serve(async (req) => {
     if (body.action === "leave_guild") {
       const guildId = String(body.guild_id ?? "").trim();
       if (!isSnowflake(guildId)) return json({ error: "identifiant de serveur invalide" }, 400);
+      if (!(await canManageGuild(caller, guildId))) return json({ error: "serveur non autorisé" }, 403);
       await discord(`/users/@me/guilds/${guildId}`, { method: "DELETE" });
       // La suppression du serveur supprime ses routes (ON DELETE CASCADE).
       await sb(`nvg_discord_servers?guild_id=eq.${guildId}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
@@ -436,6 +493,7 @@ Deno.serve(async (req) => {
     }
 
     if (body.action === "register_commands") {
+      if (!caller.admin) return json({ error: "réservé aux admins" }, 403);
       const commands = [
         { name: "nextevent", description: "Prochain événement NVG avec tous les détails", type: 1 },
         { name: "events", description: "Liste des prochains événements NVG", type: 1 },
