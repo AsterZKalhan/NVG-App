@@ -222,8 +222,7 @@ async function announceOnDiscord(kind, id) {
   const label = kind === 'event_created' ? "l'événement" : 'la proposition de jeu';
   try {
     const res = await callDiscordBot({ action: 'announce', kind, id });
-    if (res.sent > 0) alert(`📣 Annonce de ${label} publiée dans ${res.sent} salon(s) Discord.`);
-    else alert(`📣 Aucun salon Discord configuré pour ${label}. Vérifie l'onglet Bot Discord NVG.`);
+    console.log(`Annonce Discord (${label}) : ${res.sent} salon(s)`);
   } catch (err) {
     alert(`⚠️ Annonce Discord non envoyée pour ${label} : ${err.message}`);
   }
