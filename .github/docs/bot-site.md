@@ -97,6 +97,17 @@ curl.exe -s -o NUL -w "%{http_code}" https://bot-discord.nvg-tv.com/
 
 Une réponse `200` et le HTML de la page confirment le déploiement.
 
+## Tests réalisés (10 novembre 2026)
+
+- Page et ressources en HTTP 200 après déploiement dans `/BOT`.
+- `discord-oauth` et `discord-bot` renvoient `401` sans session.
+- Compte de test (supprimé après) lié à un seul serveur :
+  - `list_guilds` → 1 serveur, `manager: true`, `bot_present: true` ;
+  - `list_channels` → 20 salons ;
+  - appel sur un autre serveur du bot → `403` ;
+  - `save_routes` sur cet autre serveur → `403`.
+- Chemin admin NVG non testé directement : le trigger `nvg_protect_roles` empêche de changer le grade d'un compte de test. Le code admin est l'ancien chemin, seulement précédé de `callerInfo`/`isAdmin`.
+
 ## Limites connues
 
 - **Droits non temps réel** : ils sont rafraîchis à chaque connexion Discord. Un membre qui perd « Gérer le serveur » garde l'accès jusqu'à sa prochaine connexion Discord.
