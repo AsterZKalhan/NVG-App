@@ -49,6 +49,15 @@ function inviteDiscordBot() {
   window.open(DISCORD_INVITE_URL, '_blank', 'noopener');
 }
 
+async function registerDiscordCommands() {
+  try {
+    const res = await callDiscordBot({ action: 'register_commands' });
+    alert(`✅ Commandes enregistrées : ${res.commandes.map(c => '/' + c).join(', ')}. Elles peuvent prendre jusqu'à une heure à apparaître.`);
+  } catch (err) {
+    alert('Erreur : ' + err.message);
+  }
+}
+
 async function loadDiscordBotAdmin() {
   setDiscordStatus('Chargement des serveurs…');
   try {

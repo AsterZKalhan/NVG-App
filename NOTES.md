@@ -114,7 +114,8 @@ Fonction Edge `contact-message` (sans JWT) : reçoit le formulaire public (`cont
 - Live instantané : `twitch-sync` abonne chaque chaîne éligible à `stream.online` (EventSub) ; `twitch-eventsub` relaie à `discord-bot`, qui vérifie l'éligibilité dans `nvg_streamers`. `twitch-sync` est appelée automatiquement toutes les 15 minutes par la tâche `pg_cron` `nvg-twitch-sync` (via `pg_net`). Elle n'accepte que le secret `TWITCH_SYNC_SECRET`, stocké aussi dans Supabase Vault (`twitch_sync_secret`). Un nouveau membre éligible est donc abonné dans les 15 minutes.
 - Événements et propositions de jeux : l'application appelle `announce` après la création (`announceOnDiscord`, `discord-admin.js`). Les modifications ne republient rien.
 - Journal `nvg_discord_posts` : un message n'est jamais publié deux fois sur le même salon.
-- Fonctions Edge : `discord-bot`, `twitch-sync`, `twitch-eventsub` (sans JWT : elles vérifient elles-mêmes l'accès). Le token du bot est dans le secret `DISCORD_BOT_TOKEN`, jamais dans le dépôt.
+- Commandes slash : `discord-interactions` (Interactions Endpoint URL du portail). `/event` (prochains événements `[NVG]` / `[Nieuwheim]`), `/viking` (membres hors Petit Viking), `/live` (chaînes NVG en direct). Signature Ed25519 vérifiée avec la clé publique (secret `DISCORD_PUBLIC_KEY`). Enregistrement via l'onglet « Enregistrer les commandes ». Le bot reste hors ligne (pas de connexion Gateway), ce qui n'empêche pas les commandes.
+- Fonctions Edge : `discord-bot`, `discord-interactions`, `twitch-sync`, `twitch-eventsub` (sans JWT : elles vérifient elles-mêmes l'accès). Le token du bot est dans le secret `DISCORD_BOT_TOKEN`, jamais dans le dépôt.
 
 ### Live Twitch
 - Statut via `twitch-live`, toutes les 30 secondes uniquement quand l'onglet est visible, et immédiatement au retour sur l'onglet.

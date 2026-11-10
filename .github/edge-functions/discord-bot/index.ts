@@ -21,6 +21,7 @@ const BOT_TOKEN = Deno.env.get("DISCORD_BOT_TOKEN") ?? "";
 const INTERNAL_SECRET = Deno.env.get("DISCORD_BOT_SECRET") ?? "";
 
 const DISCORD_API = "https://discord.com/api/v10";
+const APPLICATION_ID = "1569625316601757747";
 const SITE_URL = "https://app.nvg-tv.com";
 const NVG_COLOR = 0xdc2626;
 const TWITCH_COLOR = 0x9146ff;
@@ -331,6 +332,16 @@ Deno.serve(async (req) => {
 
       const message = await discord(`/channels/${channelId}/messages`, { method: "POST", body: JSON.stringify(payload) });
       return json({ ok: true, message_id: message.id });
+    }
+
+    if (body.action === "register_commands") {
+      const commands = [
+        { name: "event", description: "Liste des prochains événements NVG", type: 1 },
+        { name: "viking", description: "Membres NVG (hors Petits Vikings)", type: 1 },
+        { name: "live", description: "Chaînes NVG en direct en ce moment", type: 1 },
+      ];
+      await discord(`/applications/${APPLICATION_ID}/commands`, { method: "PUT", body: JSON.stringify(commands) });
+      return json({ ok: true, commandes: commands.map((c) => c.name) });
     }
 
     return json({ error: "action inconnue" }, 400);
