@@ -226,7 +226,10 @@ function gameMessage(g: any) {
   if (typeof g.img === "string" && g.img.startsWith("https://")) embed.image = { url: g.img };
   const logo = g.target_type === "nieuwheim" ? "logo-nieuwheim.png" : "logo-nvg.png";
   embed.thumbnail = { url: `${SITE_URL}/Logos/${logo}` };
-  return { embeds: [embed] };
+  return {
+    embeds: [embed],
+    components: [{ type: 1, components: [{ type: 2, style: 5, label: "🗳️ Va voter pour ce jeu", url: `${SITE_URL}/#games` }] }],
+  };
 }
 
 // Publie le message sur tous les salons abonnés à ce type d'annonce.
