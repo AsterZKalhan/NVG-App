@@ -64,6 +64,15 @@ Toutes les actions vérifient l'appelant côté serveur :
 
 Le navigateur ne décide jamais des droits : un identifiant de serveur envoyé à la main est refusé s'il n'est pas dans `nvg_discord_managers` (sauf admin). Les routes d'annonces restent dans `nvg_discord_routes`.
 
+## Conditions d'utilisation
+
+- Page : `https://bot-discord.nvg-tv.com/terms.html` (fichier `bot-site/terms.html`).
+- Éditeur : Normandy Viking Gaming, association loi 1901 (RNA W612003127), 8 square des Capucines, 61220 Briouze.
+- Contact : `contact@nvg-tv.com`.
+- La page couvre le bot, les commandes, les annonces, les règles d'utilisation, les données traitées, la responsabilité et le retrait du bot.
+- Elle est liée depuis le pied de page de l'espace de gestion et depuis l'onglet **🤖 Bot Discord** de l'application.
+- Dans le portail Discord, champ **Terms of Service URL** : `https://bot-discord.nvg-tv.com/terms.html`. Pour la politique de confidentialité, utiliser la page de l'application (`https://app.nvg-tv.com/privacy.html`) ou l'ancre `https://bot-discord.nvg-tv.com/terms.html#donnees`.
+
 ## Configuration côté Discord
 
 Dans le portail développeur, application `1569625316601757747` :
