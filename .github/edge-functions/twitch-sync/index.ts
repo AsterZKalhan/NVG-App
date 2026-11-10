@@ -1,6 +1,7 @@
 // Synchronise les abonnements EventSub « stream.online » :
 // une souscription par chaîne NVG (chaîne principale + membres éligibles de nvg_streamers).
-// Réservé aux admins (JWT). Les notifications arrivent sur twitch-eventsub, qui relaie à discord-bot.
+// Appelée toutes les 15 minutes par pg_cron (en-tête x-nvg-secret = TWITCH_SYNC_SECRET).
+// Les notifications arrivent sur twitch-eventsub, qui relaie à discord-bot.
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -14,24 +15,14 @@ const json = (body: unknown, status = 200) =>
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const CLIENT_ID = Deno.env.get("TWITCH_CLIENT_ID") ?? "";
 const CLIENT_SECRET = Deno.env.get("TWITCH_CLIENT_SECRET") ?? "";
 const EVENTSUB_SECRET = Deno.env.get("TWITCH_EVENTSUB_SECRET") ?? "";
+const SYNC_SECRET = Deno.env.get("TWITCH_SYNC_SECRET") ?? "";
 
 const MAIN_TWITCH_LOGIN = "nvgamingtv";
 const HELIX = "https://api.twitch.tv/helix";
 const KEEP_STATUSES = ["enabled", "webhook_callback_verification_pending"];
-
-async function isAdmin(authHeader: string | null): Promise<boolean> {
-  if (!authHeader) return false;
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/nvg_is_admin`, {
-    method: "POST",
-    headers: { apikey: ANON_KEY, Authorization: authHeader, "Content-Type": "application/json" },
-    body: "{}",
-  });
-  return res.ok && (await res.json()) === true;
-}
 
 async function appToken(): Promise<string> {
   const res = await fetch("https://id.twitch.tv/oauth2/token", {
@@ -66,7 +57,9 @@ async function eligibleLogins(): Promise<string[]> {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "méthode non autorisée" }, 405);
-  if (!(await isAdmin(req.headers.get("Authorization")))) return json({ error: "réservé aux admins" }, 403);
+  if (!SYNC_SECRET || req.headers.get("x-nvg-secret") !== SYNC_SECRET) {
+    return json({ error: "accès refusé" }, 403);
+  }
 
   try {
     const token = await appToken();

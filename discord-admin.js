@@ -61,19 +61,6 @@ async function loadDiscordBotAdmin() {
   } catch (err) {
     setDiscordStatus('Erreur : ' + err.message, true);
   }
-  syncDiscordStreams(true);
-}
-
-// Abonne le bot aux passages en direct de la chaîne NVG et des membres éligibles.
-async function syncDiscordStreams(silent = false) {
-  try {
-    const { data, error } = await supabaseClient.functions.invoke('twitch-sync', { body: {} });
-    if (error) throw error;
-    if (!silent) setDiscordStatus(`Lives synchronisés : ${data.chaines} chaîne(s), ${data.crees} créée(s), ${data.supprimes} supprimée(s).`);
-  } catch (err) {
-    console.error('Synchronisation des lives :', err);
-    if (!silent) setDiscordStatus('Erreur de synchronisation des lives : ' + err.message, true);
-  }
 }
 
 function renderDiscordGuilds() {
