@@ -133,8 +133,12 @@
       <div id="loginSection" class="hidden max-w-md mx-auto">
         <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-6 space-y-4">
           <div>
-            <h1 class="text-lg font-black text-white">Connexion à ton compte NVG</h1>
-            <p class="text-xs text-gray-400 mt-1">Le même compte que l'application NVG et l'espace bot Discord.</p>
+            <h1 class="text-lg font-black text-white">Compte Tournoi des 9 Mondes</h1>
+            <p class="text-xs text-gray-400 mt-1">Connecte-toi ou crée ton compte pour t'inscrire aux tournois.</p>
+          </div>
+          <div class="grid grid-cols-2 gap-1 p-1 bg-[#07090e] border border-[#1f293d] rounded-xl">
+            <button id="authTabLogin" type="button" onclick="showAuthForm('login')" class="px-3 py-2 rounded-lg bg-red-600 text-white text-xs font-black transition">Connexion</button>
+            <button id="authTabSignup" type="button" onclick="showAuthForm('signup')" class="px-3 py-2 rounded-lg text-gray-400 hover:text-white text-xs font-black transition">Créer un compte</button>
           </div>
           <form id="loginForm" class="space-y-3">
             <input id="loginEmail" type="email" autocomplete="email" required placeholder="Adresse e-mail" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-3 text-sm text-white focus:border-red-600 focus:outline-none">
@@ -142,7 +146,16 @@
             <button type="submit" class="w-full px-4 py-3 bg-red-600 hover:bg-red-500 text-white font-black text-sm rounded-xl transition">Se connecter</button>
           </form>
           <p id="loginError" class="text-xs text-red-400 hidden"></p>
-          <p class="text-[11px] text-gray-500">Pas encore de compte ? <a href="https://app.nvg-tv.com/" class="text-amber-400 hover:underline">Crée-le sur l'application NVG</a>.</p>
+          <form id="signupForm" class="hidden space-y-3">
+            <input id="signupName" type="text" autocomplete="nickname" maxlength="40" required placeholder="Pseudo" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-3 text-sm text-white focus:border-red-600 focus:outline-none">
+            <input id="signupEmail" type="email" autocomplete="email" required placeholder="Adresse e-mail" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-3 text-sm text-white focus:border-red-600 focus:outline-none">
+            <input id="signupPassword" type="password" autocomplete="new-password" minlength="8" required placeholder="Mot de passe (8 caractères minimum)" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-3 text-sm text-white focus:border-red-600 focus:outline-none">
+            <input id="signupConfirm" type="password" autocomplete="new-password" minlength="8" required placeholder="Confirmer le mot de passe" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-3 text-sm text-white focus:border-red-600 focus:outline-none">
+            <button id="signupSubmit" type="submit" class="w-full px-4 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black text-sm rounded-xl transition">Créer mon compte</button>
+            <p class="text-[10px] text-gray-500">En créant un compte, tu acceptes la <a href="https://app.nvg-tv.com/privacy.html" target="_blank" rel="noopener" class="text-amber-400 hover:underline">politique de confidentialité</a> et les <a href="https://app.nvg-tv.com/mentions-legales.html" target="_blank" rel="noopener" class="text-amber-400 hover:underline">mentions légales</a>.</p>
+          </form>
+          <p id="signupError" class="text-xs text-red-400 hidden"></p>
+          <p id="signupInfo" class="text-xs text-emerald-400 hidden"></p>
         </div>
       </div>
 

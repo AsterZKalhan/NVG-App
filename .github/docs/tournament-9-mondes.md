@@ -25,9 +25,26 @@ chaque espace part dans son propre dossier (`/APP`, `/BOT`, `/tournoides9mondes`
 
 ## Comptes et connexion
 
-- Un seul compte pour toute la galaxie NVG : `nvg_users` / Supabase Auth.
+- Le compte se crée directement sur le site du tournoi : **Mon espace** →
+  onglet **Créer un compte** (pseudo, e-mail, mot de passe + confirmation).
+- Le site ne présente jamais ce compte comme celui de l'application NVG ou de
+  l'espace bot Discord : l'interface parle uniquement de « Compte Tournoi des
+  9 Mondes ». Techniquement il s'agit bien d'une session Supabase Auth classique
+  et de la table `nvg_users`, ce qui permet de rejoindre une équipe et de
+  s'inscrire sans second compte.
+- À l'inscription, le pseudo est envoyé dans `options.data.name` ; le trigger
+  `nvg_create_profile` crée la ligne `nvg_users` (`name`, `email`,
+  rang `Petit Viking`, rôle `Membre`, `verified = false`).
+- Confirmation e-mail obligatoire (`mailer_autoconfirm = false`). Le lien de
+  confirmation renvoie vers
+  `https://letournoides9mondes.nvg-tv.com/?tab=account&confirmed=1` ; le site
+  affiche « Adresse e-mail confirmée » puis invite à se connecter.
+- `uri_allow_list` doit contenir `https://letournoides9mondes.nvg-tv.com/**`
+  en plus de `https://app.nvg-tv.com/**` et
+  `https://bot-discord.nvg-tv.com/**`.
 - Connexion e-mail + mot de passe sur le site du tournoi (même session Supabase).
-- Le compte se crée sur `https://app.nvg-tv.com/`.
+  Les erreurs courantes sont traduites en français (identifiants invalides,
+  e-mail non confirmé, compte déjà existant, mot de passe trop court).
 - La déconnexion renvoie sur la page du tournoi.
 - L'accès admin (jeux, tournois, inscriptions) est réservé à `nvg_is_admin()` :
   admin, Grand Jarl, Divinité.
@@ -84,8 +101,8 @@ Statuts d'un tournoi : `draft`, `open`, `closed`, `running`, `finished`, `cancel
    - tournoi en équipe → création de l'équipe (nom + tag).
 3. Après création, un **lien d'invitation** est affiché :
    `https://letournoides9mondes.nvg-tv.com/?join=CODE`.
-4. Les coéquipiers se connectent avec leur compte NVG : le code est prérempli
-   (y compris après connexion si le lien est ouvert déconnecté).
+4. Les coéquipiers se connectent avec leur compte Tournoi des 9 Mondes : le code
+   est prérempli (y compris après connexion si le lien est ouvert déconnecté).
 5. Onglet **Mon espace** : équipes, membres, code, inscription de l'équipe,
    annulation, liste des inscriptions.
 6. Le capitaine peut dissoudre l'équipe ; un membre peut la quitter.
@@ -126,7 +143,9 @@ git push origin main
 1. `https://letournoides9mondes.nvg-tv.com/` répond **HTTP 200** ;
 2. `tournament.js`, `Logos/favicon.png` et `Logos/logo-nvg.png` répondent 200 ;
 3. le site se charge sans erreur console (CDN Tailwind + supabase-js) ;
-4. connexion NVG, création d'équipe, lien d'invitation, inscription solo/équipe ;
+4. création de compte sur le site (pseudo, e-mail, mot de passe), réception du
+   lien de confirmation, connexion, création d'équipe, lien d'invitation,
+   inscription solo/équipe ;
 5. côté admin : création d'un jeu et d'un tournoi, confirmation d'une inscription.
 
 ## Limites connues

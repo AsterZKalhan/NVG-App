@@ -5,6 +5,7 @@
 
 const SUPABASE_URL = 'https://fxewefwwpowhnacrxfdp.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4ZXdlZnd3cG93aG5hY3J4ZmRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMxOTQ5NTksImV4cCI6MjEwODc3MDk1OX0.nDlHFbpzBipH3Po61OkzNdAfPnCRaCNOwa1aN6ap8qk';
+const TOURNAMENT_SITE_URL = 'https://letournoides9mondes.nvg-tv.com';
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = (id) => document.getElementById(id);
@@ -61,6 +62,16 @@ function formatDate(value) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function friendlyAuthError(message) {
+  const m = String(message || '');
+  if (m.includes('Invalid login credentials')) return 'E-mail ou mot de passe incorrect.';
+  if (m.includes('Email not confirmed')) return 'Confirme d’abord ton adresse e-mail (vérifie ta boîte de réception).';
+  if (m.includes('User already registered')) return 'Un compte existe déjà avec cette adresse.';
+  if (m.includes('Password should be at least')) return 'Le mot de passe est trop court.';
+  if (m.toLowerCase().includes('rate limit') || m.includes('Too many requests')) return 'Trop de tentatives. Réessaie dans quelques minutes.';
+  return m;
 }
 
 function slugify(value) {
@@ -213,7 +224,7 @@ function openSignup(tournamentId) {
   const t = tournamentById(tournamentId);
   if (!t) return;
   if (!currentUser) {
-    notify('Connecte-toi avec ton compte NVG pour t’inscrire.', true);
+    notify('Connecte-toi avec ton compte pour t’inscrire.', true);
     openTab('account');
     return;
   }
@@ -281,7 +292,7 @@ async function createTeam(tournamentId) {
     notify('Équipe créée. Partage le code à tes coéquipiers.');
     $('signupPanel').innerHTML = `
       <h2 class="text-sm font-black text-white">✅ Équipe créée</h2>
-      <p class="text-xs text-gray-400">Envoie ce lien à tes coéquipiers. Ils doivent être connectés avec leur compte NVG.</p>
+      <p class="text-xs text-gray-400">Envoie ce lien à tes coéquipiers. Ils doivent être connectés avec leur compte Tournoi des 9 Mondes.</p>
       <div class="flex flex-wrap gap-2">
         <input readonly value="${escapeHtml(inviteUrl(res.invite_code))}" class="flex-1 min-w-[220px] bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-[11px] text-gray-300">
         <button onclick="copyText('${escapeHtml(inviteUrl(res.invite_code))}')" class="px-4 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-200 font-bold text-xs rounded-lg transition">Copier</button>
@@ -661,6 +672,17 @@ async function setRegistrationStatus(id, status) {
 
 // --- Compte ---
 
+function showAuthForm(mode) {
+  const login = mode !== 'signup';
+  $('loginForm').classList.toggle('hidden', !login);
+  $('signupForm').classList.toggle('hidden', login);
+  $('loginError').classList.add('hidden');
+  $('signupError').classList.add('hidden');
+  $('signupInfo').classList.add('hidden');
+  $('authTabLogin').className = `px-3 py-2 rounded-lg text-xs font-black transition ${login ? 'bg-red-600 text-white' : 'text-gray-400 hover:text-white'}`;
+  $('authTabSignup').className = `px-3 py-2 rounded-lg text-xs font-black transition ${!login ? 'bg-red-600 text-white' : 'text-gray-400 hover:text-white'}`;
+}
+
 function showAccountUi() {
   $('accountChip').classList.toggle('hidden', !currentUser);
   $('accountChip').classList.toggle('flex', !!currentUser);
@@ -696,19 +718,25 @@ async function init() {
   const params = new URLSearchParams(window.location.search);
   const join = params.get('join');
   const tab = params.get('tab');
+  const confirmed = params.get('confirmed');
   if (join) {
     pendingJoinCode = join.toLowerCase();
     window.history.replaceState({}, document.title, window.location.pathname);
     if (currentUser) {
       applyPendingJoin();
     } else {
-      notify('Connecte-toi avec ton compte NVG, puis rejoins l’équipe avec le code reçu.', false);
+      notify('Connecte-toi avec ton compte, puis rejoins l’équipe avec le code reçu.', false);
       openTab('account');
     }
   } else if (tab && ['home', 'tournaments', 'account', 'admin'].includes(tab)) {
     openTab(tab);
   } else {
     openTab('home');
+  }
+
+  if (confirmed === '1') {
+    notify(currentUser ? 'Adresse e-mail confirmée. Bienvenue !' : 'Adresse e-mail confirmée. Tu peux te connecter.', false);
+    window.history.replaceState({}, document.title, `${window.location.pathname}?tab=account`);
   }
 }
 
@@ -724,10 +752,13 @@ function applyPendingJoin() {
 
 async function showProfile() {
   $('accountName').textContent = currentUser.email || '';
+  $('memberSubtitle').textContent = currentUser.email || '';
   try {
-    const { data } = await supabaseClient.from('nvg_users').select('name,rank').eq('id', currentUser.id).maybeSingle();
-    if (data?.name) $('accountName').textContent = data.name;
-    if (data?.rank) $('memberSubtitle').textContent = `${data.name || ''} · ${data.rank}`;
+    const { data } = await supabaseClient.from('nvg_users').select('name').eq('id', currentUser.id).maybeSingle();
+    if (data?.name) {
+      $('accountName').textContent = data.name;
+      $('memberSubtitle').textContent = `Connecté en tant que ${data.name}`;
+    }
   } catch (_) { /* profil facultatif */ }
 }
 
@@ -740,7 +771,7 @@ $('loginForm').addEventListener('submit', async (event) => {
     password: $('loginPassword').value
   });
   if (error) {
-    errorEl.textContent = 'Connexion impossible : ' + error.message;
+    errorEl.textContent = 'Connexion impossible : ' + friendlyAuthError(error.message);
     errorEl.classList.remove('hidden');
     return;
   }
@@ -753,5 +784,64 @@ $('loginForm').addEventListener('submit', async (event) => {
 });
 
 document.querySelectorAll('.tab-btn').forEach((btn) => btn.addEventListener('click', () => openTab(btn.dataset.tab)));
+
+$('signupForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const errorEl = $('signupError');
+  const infoEl = $('signupInfo');
+  errorEl.classList.add('hidden');
+  infoEl.classList.add('hidden');
+  const fail = (message) => {
+    errorEl.textContent = message;
+    errorEl.classList.remove('hidden');
+  };
+
+  const name = $('signupName').value.trim();
+  const email = $('signupEmail').value.trim();
+  const password = $('signupPassword').value;
+  const confirm = $('signupConfirm').value;
+
+  if (name.length < 2) { fail('Choisis un pseudo d’au moins 2 caractères.'); return; }
+  if (password.length < 8) { fail('Le mot de passe doit contenir au moins 8 caractères.'); return; }
+  if (password !== confirm) { fail('Les deux mots de passe ne correspondent pas.'); return; }
+
+  const btn = $('signupSubmit');
+  btn.disabled = true;
+  btn.textContent = 'Création…';
+
+  try {
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name },
+        emailRedirectTo: `${TOURNAMENT_SITE_URL}/?tab=account&confirmed=1`
+      }
+    });
+    if (error) throw error;
+
+    if (data.session) {
+      currentUser = data.user;
+      await showProfile();
+      await checkAdmin();
+      await loadMember();
+      showAccountUi();
+      openTab('account');
+      notify('Bienvenue ! Ton compte est créé.');
+    } else {
+      $('signupForm').reset();
+      showAuthForm('login');
+      infoEl.textContent = 'Compte créé. Vérifie ta boîte e-mail : clique sur le lien de confirmation, puis connecte-toi.';
+      infoEl.classList.remove('hidden');
+    }
+  } catch (err) {
+    const raw = String(err?.message || '');
+    const friendly = friendlyAuthError(raw);
+    fail(friendly === raw ? 'Création impossible : ' + raw : friendly);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Créer mon compte';
+  }
+});
 
 init();
