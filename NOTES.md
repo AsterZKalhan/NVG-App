@@ -135,7 +135,7 @@ Fonction Edge `contact-message` (sans JWT) : reçoit le formulaire public (`cont
 - Écritures sensibles via fonctions `SECURITY DEFINER` (`nvg_tournament_create_team`, `join_team`, `leave_team`, `register_solo`, `register_team`, `cancel`) : un joueur = une équipe par tournoi, capitaine seul à inscrire l'équipe, places et dates vérifiées côté base.
 - Lien d'invitation : `https://letournoides9mondes.nvg-tv.com/?join=CODE` ; code prérempli après connexion.
 - Admin (`nvg_is_admin`) : jeux, création/modification/suppression de tournois, statuts, confirmation/attente/annulation des inscriptions.
-- Toornament : pas d'accès API pour l'instant, aucune synchronisation. Logo officiel `logo-9mondes.png` encore absent (repli sur `logo-nvg.png`).
+- Toornament : pas d'accès API pour l'instant, aucune synchronisation. Logo officiel (`logo-9mondes.png`, version web 1200×896) et favicon dédié dans `tournoi-site/Logos/`.
 - Détail : `.github/docs/tournament-9-mondes.md` ; SQL : `.github/sql/tournament-9-mondes.sql`.
 
 ### Live Twitch

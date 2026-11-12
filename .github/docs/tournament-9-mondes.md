@@ -13,6 +13,8 @@ prix à gagner et back-office NVG.
 | Dossier distant | `/tournoides9mondes` (sans suppression) |
 | Workflow | `.github/workflows/deploy-tournament.yml` (« Deploy tournoi SFTP ») |
 | Script | `.github/scripts/deploy_tournament_sftp.py` |
+| Logo | `tournoi-site/Logos/logo-9mondes.png` (1200×896, fond transparent) |
+| Favicon | `tournoi-site/Logos/favicon.png` (192×192, propre au tournoi) |
 | SQL de référence | `.github/sql/tournament-9-mondes.sql` |
 
 Le workflow se déclenche sur `push` vers `main` quand `tournoi-site/**` change,
@@ -131,9 +133,10 @@ git push origin main
 
 - **Toornament** : pas d'accès API pour l'instant. Aucune synchronisation ;
   prévoir un export compatible (JSON/CSV) quand l'accès sera ouvert.
-- **Logo officiel** : `tournoi-site/Logos/logo-9mondes.png` n'est pas encore
-  versionné (image fournie hors dépôt). En attendant, les pages retombent sur
-  `logo-nvg.png` via `onerror`.
+- **Identité visuelle** : le logo officiel et son favicon dédié sont versionnés
+  dans `tournoi-site/Logos/`. Le logo web est une version optimisée (1200×896)
+  de l'original 2400×1792 conservé hors dépôt (Dropbox `NVG-LT9M`) ; en cas
+  d'absence, les pages retombent sur `logo-nvg.png` via `onerror`.
 - Les annonces d'événements détaillées (articles) ne sont pas encore gérées :
   la description, le règlement et le prix de chaque tournoi servent de support.
 - Pas de paiement ni de gestion de scores/brackets : Toornament ou un back-office
