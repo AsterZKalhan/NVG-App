@@ -107,6 +107,8 @@ ouverture. Pour rendre les inscriptions possibles : statut `open` **et**
 
 - Le calendrier liste les tournois datés (début, clôture des inscriptions).
 - L'accueil met en avant les trois prochains tournois ouverts ou en cours.
+- Liens directs : `?tab=tournaments` et `?tab=account` (l'onglet admin reste
+  protégé par `nvg_is_admin`).
 - Les compteurs d'inscrits utilisent la vue publique (inscriptions en attente et
   confirmées) ; en mode équipe, l'unité affichée est l'équipe.
 

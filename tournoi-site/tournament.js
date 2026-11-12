@@ -695,6 +695,7 @@ async function init() {
 
   const params = new URLSearchParams(window.location.search);
   const join = params.get('join');
+  const tab = params.get('tab');
   if (join) {
     pendingJoinCode = join.toLowerCase();
     window.history.replaceState({}, document.title, window.location.pathname);
@@ -704,6 +705,8 @@ async function init() {
       notify('Connecte-toi avec ton compte NVG, puis rejoins l’équipe avec le code reçu.', false);
       openTab('account');
     }
+  } else if (tab && ['home', 'tournaments', 'account', 'admin'].includes(tab)) {
+    openTab(tab);
   } else {
     openTab('home');
   }
