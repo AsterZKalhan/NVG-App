@@ -94,3 +94,24 @@ Le site `https://bot-discord.nvg-tv.com/` est indépendant de l'application :
 - vérification : `https://bot-discord.nvg-tv.com/` doit répondre **HTTP 200**.
 
 Détail technique et configuration OAuth2 : `.github/docs/bot-site.md`.
+
+## 6. Site du Tournoi des 9 Mondes (`/tournoides9mondes`)
+
+Le site `https://letournoides9mondes.nvg-tv.com/` est le troisième espace du
+dépôt, indépendant de l'application et du bot :
+
+- code source : `tournoi-site/` ;
+- déploiement : workflow `Deploy tournoi SFTP`
+  (`.github/workflows/deploy-tournament.yml`), script
+  `.github/scripts/deploy_tournament_sftp.py` ;
+- destination : dossier `/tournoides9mondes` uniquement, sans suppression ;
+- vérification : `https://letournoides9mondes.nvg-tv.com/` doit répondre
+  **HTTP 200**, ainsi que `tournament.js` et `Logos/logo-nvg.png` ;
+- base : SQL `.github/sql/tournament-9-mondes.sql` (tables `nvg_tournament_*`,
+  vues publiques, policies RLS, fonctions `SECURITY DEFINER`).
+
+Après un changement de `tournoi-site/`, surveiller l'action **Deploy tournoi
+SFTP** dans GitHub Actions. En cas d'échec, vérifier les secrets `SFTP_HOST`,
+`SFTP_USER`, `SFTP_PASSWORD` (communs aux trois workflows).
+
+Détail fonctionnel : `.github/docs/tournament-9-mondes.md`.

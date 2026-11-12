@@ -8,7 +8,7 @@ USER = os.environ["SFTP_USER"]
 PASSWORD = os.environ["SFTP_PASSWORD"]
 REMOTE_ROOT = "APP"
 
-SKIP_DIRS = {".git", ".github"}
+SKIP_DIRS = {".git", ".github", "bot-site", "tournoi-site"}
 SKIP_FILES = {".gitignore", "README.md"}
 
 

@@ -5,7 +5,10 @@ PWA statique servie sur **https://app.nvg-tv.com**, empaquetée en application A
 via **TWA (Trusted Web Activity)**.
 
 Le dépôt contient aussi l'espace de gestion du bot Discord, servi sur
-**https://bot-discord.nvg-tv.com** (dossier `bot-site/`, déployé dans `/BOT`).
+**https://bot-discord.nvg-tv.com** (dossier `bot-site/`, déployé dans `/BOT`),
+et le site du **Tournoi des 9 Mondes**, servi sur
+**https://letournoides9mondes.nvg-tv.com** (dossier `tournoi-site/`, déployé dans
+`/tournoides9mondes`).
 
 - Backend : Supabase (projet partagé, non versionné ici)
 - Push : `sw.js` + Edge Function `send-push`
@@ -34,6 +37,7 @@ dans l'app.
 ├── contact.html       → formulaire de contact public
 ├── privacy.html      → page publique obligatoire pour le Play Store
 ├── bot-site/          → espace de gestion du bot Discord (déployé dans /BOT)
+├── tournoi-site/      → Tournoi des 9 Mondes (déployé dans /tournoides9mondes)
 ├── .well-known/
 │   ├── assetlinks.json   → vérification du domaine pour le TWA
 │   └── .htaccess         → force le bon Content-Type (Apache)
@@ -46,10 +50,12 @@ dans l'app.
 1. Commit + push sur GitHub.
 2. Synchronisation des fichiers vers l'hébergement (FTP ou GitHub Actions).
    Le workflow `Deploy SFTP` envoie l'application dans `/APP` ; le workflow
-   `Deploy bot SFTP` envoie uniquement `bot-site/` dans `/BOT`.
+   `Deploy bot SFTP` envoie uniquement `bot-site/` dans `/BOT` ; le workflow
+   `Deploy tournoi SFTP` envoie `tournoi-site/` dans `/tournoides9mondes`.
 3. Vérifier `https://app.nvg-tv.com/.well-known/assetlinks.json` → doit répondre
    **HTTP 200** avec `Content-Type: application/json`.
 4. Vérifier `https://bot-discord.nvg-tv.com/` → doit répondre **HTTP 200**.
+5. Vérifier `https://letournoides9mondes.nvg-tv.com/` → doit répondre **HTTP 200**.
 
 ## Règles
 
@@ -68,10 +74,12 @@ dans l'app.
   (bot Discord, commandes, annonces, espace de gestion).
 - `.github/docs/bot-site.md` — fonctionnement de `bot-discord.nvg-tv.com`, droits
   par serveur, configuration OAuth2 et déploiement.
+- `.github/docs/tournament-9-mondes.md` — Tournoi des 9 Mondes : données, RPC,
+  parcours membre, back-office, déploiement et limites.
 - `.github/docs/propriete-intellectuelle.md` — marque, dessin et droit d'auteur,
   texte de mentions légales pour le site.
 - `.github/docs/sauvegarde-supabase.md` — sauvegarde locale manuelle de Supabase
   (base, fonctions Edge, Storage, configuration) et restauration.
 - `.github/edge-functions/` — code source des fonctions Edge.
 - `.github/sql/` — SQL de référence pour la base (`nvg_contact_messages`,
-  nettoyage des notifications live).
+  nettoyage des notifications live, `tournament-9-mondes`).

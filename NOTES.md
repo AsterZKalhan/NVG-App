@@ -7,8 +7,8 @@ Document de reprise du projet. À lire avant toute modification.
 - **Site** : PWA statique (HTML + JavaScript, pas de framework), servie sur `https://app.nvg-tv.com`.
 - **Application Android** : TWA qui ouvre le même site. Pas de code séparé.
 - **Backend** : Supabase (projet `fxewefwwpowhnacrxfdp`) : base PostgreSQL, authentification, fonctions Edge.
-- **Hébergement** : 1&1 IONOS, dossier `/APP` en SFTP pour l'application et dossier `/BOT` pour l'espace du bot (`bot-discord.nvg-tv.com`). Le dossier WordPress à la racine de l'hébergement n'appartient pas à l'app : ne jamais y toucher.
-- **Déploiement** : chaque `git push` sur `main` déclenche le workflow GitHub Actions `Deploy SFTP` (`.github/workflows/deploy.yml`), qui envoie les fichiers du dépôt dans `/APP`. Le workflow `Deploy bot SFTP` (`.github/workflows/deploy-bot.yml`) n'envoie que `bot-site/` dans `/BOT`. Aucun des deux ne supprime rien côté serveur.
+- **Hébergement** : 1&1 IONOS, dossier `/APP` en SFTP pour l'application, dossier `/BOT` pour l'espace du bot (`bot-discord.nvg-tv.com`) et dossier `/tournoides9mondes` pour le Tournoi des 9 Mondes (`letournoides9mondes.nvg-tv.com`). Le dossier WordPress à la racine de l'hébergement n'appartient pas à l'app : ne jamais y toucher.
+- **Déploiement** : chaque `git push` sur `main` déclenche le workflow GitHub Actions `Deploy SFTP` (`.github/workflows/deploy.yml`), qui envoie les fichiers du dépôt dans `/APP` (hors `bot-site/` et `tournoi-site/`). `Deploy bot SFTP` (`.github/workflows/deploy-bot.yml`) n'envoie que `bot-site/` dans `/BOT` ; `Deploy tournoi SFTP` (`.github/workflows/deploy-tournament.yml`) n'envoie que `tournoi-site/` dans `/tournoides9mondes`. Aucun ne supprime rien côté serveur.
 
 ## 2. Fichiers principaux
 
@@ -128,6 +128,16 @@ Fonction Edge `contact-message` (sans JWT) : reçoit le formulaire public (`cont
 - Journal détaillé : `.github/docs/session-2026-11-10.md`.
 - Fonctions Edge : `discord-bot`, `discord-interactions`, `discord-oauth`, `twitch-sync`, `twitch-eventsub` (sans JWT : elles vérifient elles-mêmes l'accès). Le token du bot est dans le secret `DISCORD_BOT_TOKEN`, jamais dans le dépôt.
 
+### Tournoi des 9 Mondes
+- Espace public : `https://letournoides9mondes.nvg-tv.com/` (code dans `tournoi-site/`, déployé dans `/tournoides9mondes`). Même compte NVG que l'application et le bot.
+- Inscriptions **solo et équipes** ; format **en ligne**, **LAN** ou **les deux** ; plusieurs jeux ; calendrier, prix à gagner, back-office NVG.
+- Tables `nvg_tournament_games`, `nvg_tournaments`, `nvg_tournament_teams`, `nvg_tournament_team_members`, `nvg_tournament_registrations` ; vues publiques `nvg_tournament_teams_public` et `nvg_tournament_registrations_public` (sans code d'invitation).
+- Écritures sensibles via fonctions `SECURITY DEFINER` (`nvg_tournament_create_team`, `join_team`, `leave_team`, `register_solo`, `register_team`, `cancel`) : un joueur = une équipe par tournoi, capitaine seul à inscrire l'équipe, places et dates vérifiées côté base.
+- Lien d'invitation : `https://letournoides9mondes.nvg-tv.com/?join=CODE` ; code prérempli après connexion.
+- Admin (`nvg_is_admin`) : jeux, création/modification/suppression de tournois, statuts, confirmation/attente/annulation des inscriptions.
+- Toornament : pas d'accès API pour l'instant, aucune synchronisation. Logo officiel `logo-9mondes.png` encore absent (repli sur `logo-nvg.png`).
+- Détail : `.github/docs/tournament-9-mondes.md` ; SQL : `.github/sql/tournament-9-mondes.sql`.
+
 ### Live Twitch
 - Statut via `twitch-live`, toutes les 30 secondes uniquement quand l'onglet est visible, et immédiatement au retour sur l'onglet.
 
@@ -240,3 +250,4 @@ Pour déployer une fonction Edge : `curl` vers `/v1/projects/{ref}/functions/dep
 - **7 novembre 2026** — Gestion des membres : liste compacte (avatar, pseudo, e-mail, rang, vérification) avec panneau dépliable pour modifier le rang, la vérification, Twitch, le profil ou supprimer le membre, et tri par rôle ou par nom. Détail complet : `.github/docs/session-2026-11-07.md`.
 - **8 novembre 2026** — Streams NVG : mini-lecteur flottant en bas à droite quand on quitte l'onglet, déplaçable, avec bouton ✕ pour arrêter le flux ; le mini-lecteur ne s'active que si le flux joue réellement (API Twitch Embed, pause/arrêt pris en compte) et le lecteur reprend sa place au retour. Démarrage : calendrier affiché immédiatement, cache local des événements et chargements en parallèle. Détail complet : `.github/docs/session-2026-11-08.md`.
 - **10 novembre 2026** — Bot Discord « NVG Vikingbot » : annonces de lives (chaîne NVG et membres Viking/Grand Jarl/Divinité), d'événements et de propositions de jeux ; onglet de configuration admin ; commandes `/nextevent`, `/events`, `/viking`, `/live` ; abonnements Twitch EventSub automatiques ; notifications de live réservées à la chaîne principale. Espace public `bot-discord.nvg-tv.com` avec connexion NVG + Discord OAuth2, droits par serveur et déploiement séparé dans `/BOT`. Menu **🤖 Bot Discord (Staff & Admin)** dans l'application. Détail complet : `.github/docs/session-2026-11-10.md` et `.github/docs/bot-site.md`.
+- **13 novembre 2026** — Troisième espace : **Tournoi des 9 Mondes** (`letournoides9mondes.nvg-tv.com`, code `tournoi-site/`, dossier `/tournoides9mondes`). Inscriptions solo et équipes, format en ligne/LAN/les deux, jeux, calendrier, prix, espace membre, back-office NVG. Base `nvg_tournament_*` avec RLS et fonctions `SECURITY DEFINER`, liens d'invitation `?join=CODE`, déploiement `Deploy tournoi SFTP` ; le déploiement de l'app ignore désormais `bot-site/` et `tournoi-site/`. Lien **🏆 Tournoi des 9 Mondes** dans le menu de l'application. Détail : `.github/docs/tournament-9-mondes.md`.

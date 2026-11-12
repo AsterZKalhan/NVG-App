@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tournoi des 9 Mondes - Normandy Viking Gaming</title>
+  <link rel="icon" type="image/png" href="./Logos/favicon.png">
+  <meta name="theme-color" content="#0b0f17">
+  <meta name="description" content="Le Tournoi des 9 Mondes de Normandy Viking Gaming : tournois en ligne et LAN, inscriptions solo ou en équipe.">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { dark: '#07090e', card: '#121722', border: '#1f293d', red: '#dc2626', ember: '#f97316' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .app-bg {
+      background-color: #000;
+      background-image: url('./Logos/fond-app.svg');
+      background-repeat: repeat;
+    }
+    .tab-btn.active { background: #dc2626; color: #fff; }
+    .toast-enter { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body class="app-bg min-h-screen text-gray-200 antialiased">
+  <header class="border-b border-[#1f293d] bg-[#07090e]/90 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+      <a href="./" class="flex items-center gap-3 min-w-0">
+        <img src="./Logos/logo-9mondes.png" onerror="this.onerror=null;this.src='./Logos/logo-nvg.png'" alt="Tournoi des 9 Mondes" class="w-11 h-11 rounded-full border border-[#1f293d] shrink-0 object-cover">
+        <div class="min-w-0">
+          <p class="text-sm font-black uppercase tracking-wider text-white truncate">Tournoi des 9 Mondes</p>
+          <p class="text-[10px] text-amber-400 uppercase font-bold tracking-widest truncate">Normandy Viking Gaming</p>
+        </div>
+      </a>
+      <div class="flex items-center gap-2">
+        <nav class="hidden md:flex items-center gap-1">
+          <button data-tab="home" class="tab-btn px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-gray-300 hover:text-white transition">Accueil</button>
+          <button data-tab="tournaments" class="tab-btn px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-gray-300 hover:text-white transition">Tournois</button>
+          <button data-tab="account" class="tab-btn px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-gray-300 hover:text-white transition">Mon espace</button>
+          <button id="navAdmin" data-tab="admin" class="tab-btn hidden px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-gray-300 hover:text-white transition">Admin</button>
+        </nav>
+        <div id="accountChip" class="hidden items-center gap-2 min-w-0">
+          <span id="accountName" class="text-[11px] font-bold text-white truncate max-w-[140px]"></span>
+          <button onclick="signOut()" class="px-3 py-2 bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-[10px] rounded-lg border border-[#1f293d] transition">Déconnexion</button>
+        </div>
+      </div>
+    </div>
+    <nav class="md:hidden flex items-center gap-1 px-3 pb-3 overflow-x-auto">
+      <button data-tab="home" class="tab-btn px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-gray-300">Accueil</button>
+      <button data-tab="tournaments" class="tab-btn px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-gray-300">Tournois</button>
+      <button data-tab="account" class="tab-btn px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-gray-300">Mon espace</button>
+      <button id="navAdminMobile" data-tab="admin" class="tab-btn hidden px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-gray-300">Admin</button>
+    </nav>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
+    <!-- ACCUEIL -->
+    <section id="tab-home" class="tab-content space-y-8">
+      <div class="relative overflow-hidden bg-[#121722] border border-[#1f293d] rounded-3xl p-6 md:p-10">
+        <div class="absolute -right-16 -top-16 w-72 h-72 bg-red-600/10 rounded-full blur-3xl"></div>
+        <div class="relative flex flex-col md:flex-row items-center gap-8">
+          <img src="./Logos/logo-9mondes.png" onerror="this.onerror=null;this.src='./Logos/logo-nvg.png'" alt="Logo du Tournoi des 9 Mondes" class="w-40 h-40 md:w-56 md:h-56 rounded-2xl border border-[#1f293d] object-cover shrink-0">
+          <div class="min-w-0 text-center md:text-left">
+            <p class="text-[11px] uppercase tracking-[0.3em] text-amber-400 font-black">Normandy Viking Gaming</p>
+            <h1 class="text-3xl md:text-5xl font-black text-white mt-2 leading-tight">Le Tournoi<br class="hidden md:block"> des 9 Mondes</h1>
+            <p class="text-sm text-gray-400 mt-4 max-w-xl">Neuf jeux, neuf mondes, une seule communauté. Tournois en ligne, en LAN ou les deux, inscriptions solo ou en équipe, calendrier et prix à gagner.</p>
+            <div class="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-6">
+              <button onclick="openTab('tournaments')" class="px-5 py-3 bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase rounded-xl transition">🏆 Voir les tournois</button>
+              <button onclick="openTab('account')" class="px-5 py-3 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-200 font-bold text-xs uppercase rounded-xl transition">🛡️ Mon espace</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5">
+          <p class="text-2xl">🌐</p>
+          <h2 class="text-sm font-black text-white mt-2">En ligne & LAN</h2>
+          <p class="text-xs text-gray-400 mt-1">Chaque tournoi indique son format. Certains se jouent à distance, d'autres en LAN, certains cumulent les deux.</p>
+        </div>
+        <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5">
+          <p class="text-2xl">🎮</p>
+          <h2 class="text-sm font-black text-white mt-2">Solo ou équipe</h2>
+          <p class="text-xs text-gray-400 mt-1">Inscris-toi seul ou monte une équipe, puis invite tes coéquipiers avec un code ou un lien.</p>
+        </div>
+        <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5">
+          <p class="text-2xl">🏅</p>
+          <h2 class="text-sm font-black text-white mt-2">Prix & calendrier</h2>
+          <p class="text-xs text-gray-400 mt-1">Les récompenses, dates et inscriptions de chaque tournoi sont affichées sur sa fiche.</p>
+        </div>
+      </div>
+
+      <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-6">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <h2 class="text-base font-black text-white">📅 Prochains tournois</h2>
+          <button onclick="openTab('tournaments')" class="text-[11px] font-bold text-amber-400 hover:underline">Tout voir</button>
+        </div>
+        <div id="homeTournaments" class="mt-4 space-y-3"></div>
+      </div>
+    </section>
+
+    <!-- TOURNOIS -->
+    <section id="tab-tournaments" class="tab-content hidden space-y-5">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 class="text-2xl font-black text-white">Tournois</h1>
+          <p class="text-xs text-gray-400 mt-1">Inscris-toi en solo ou monte ton équipe. Les places sont limitées quand le tournoi l'indique.</p>
+        </div>
+        <button onclick="loadPublic()" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs rounded-lg border border-[#1f293d] transition">🔄 Actualiser</button>
+      </div>
+      <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <h2 class="text-sm font-black text-white">📅 Calendrier</h2>
+          <p class="text-[10px] text-gray-500">Dates des tournois et clôtures d'inscriptions (heure locale)</p>
+        </div>
+        <div id="calendarList" class="mt-4 space-y-2"></div>
+      </div>
+      <div id="tournamentsList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      <div id="signupPanel" class="hidden bg-[#121722] border border-amber-500/40 rounded-2xl p-6 space-y-4"></div>
+    </section>
+
+    <!-- MON ESPACE -->
+    <section id="tab-account" class="tab-content hidden space-y-5">
+      <div id="loginSection" class="hidden max-w-md mx-auto">
+        <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-6 space-y-4">
+          <div>
+            <h1 class="text-lg font-black text-white">Connexion à ton compte NVG</h1>
+            <p class="text-xs text-gray-400 mt-1">Le même compte que l'application NVG et l'espace bot Discord.</p>
+          </div>
+          <form id="loginForm" class="space-y-3">
+            <input id="loginEmail" type="email" autocomplete="email" required placeholder="Adresse e-mail" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-3 text-sm text-white focus:border-red-600 focus:outline-none">
+            <input id="loginPassword" type="password" autocomplete="current-password" required placeholder="Mot de passe" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-3 text-sm text-white focus:border-red-600 focus:outline-none">
+            <button type="submit" class="w-full px-4 py-3 bg-red-600 hover:bg-red-500 text-white font-black text-sm rounded-xl transition">Se connecter</button>
+          </form>
+          <p id="loginError" class="text-xs text-red-400 hidden"></p>
+          <p class="text-[11px] text-gray-500">Pas encore de compte ? <a href="https://app.nvg-tv.com/" class="text-amber-400 hover:underline">Crée-le sur l'application NVG</a>.</p>
+        </div>
+      </div>
+
+      <div id="memberSection" class="hidden space-y-5">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 class="text-2xl font-black text-white">Mon espace</h1>
+            <p id="memberSubtitle" class="text-xs text-gray-400 mt-1"></p>
+          </div>
+          <button onclick="loadMember()" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs rounded-lg border border-[#1f293d] transition">🔄 Actualiser</button>
+        </div>
+
+        <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
+          <h2 class="text-sm font-black text-white uppercase tracking-wider">🔗 Rejoindre une équipe</h2>
+          <p class="text-xs text-gray-400">Saisis le code d'invitation donné par le capitaine.</p>
+          <div class="flex flex-wrap gap-2">
+            <input id="joinCode" maxlength="16" placeholder="Code d'invitation" class="flex-1 min-w-[180px] bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white uppercase tracking-widest">
+            <button onclick="joinTeam()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-lg transition">Rejoindre</button>
+          </div>
+        </div>
+
+        <div>
+          <h2 class="text-sm font-black text-white uppercase tracking-wider mb-3">🛡️ Mes équipes</h2>
+          <div id="myTeams" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+
+        <div>
+          <h2 class="text-sm font-black text-white uppercase tracking-wider mb-3">📋 Mes inscriptions</h2>
+          <div id="myRegistrations" class="space-y-3"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="tab-admin" class="tab-content hidden space-y-6">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 class="text-2xl font-black text-white">Administration</h1>
+          <p class="text-xs text-gray-400 mt-1">Réservé aux admins, Grands Jarls et Divinités.</p>
+        </div>
+        <button onclick="loadAdmin()" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs rounded-lg border border-[#1f293d] transition">🔄 Actualiser</button>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
+          <h2 class="text-sm font-black text-white">🎮 Nouveau jeu</h2>
+          <input id="gameName" placeholder="Nom du jeu" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <input id="gameLogo" placeholder="URL du logo (facultatif)" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <button onclick="createGame()" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-lg transition">Créer le jeu</button>
+          <div id="adminGames" class="text-[11px] text-gray-400 space-y-1"></div>
+        </div>
+
+        <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
+          <h2 class="text-sm font-black text-white">🏆 Nouveau tournoi</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input id="tourName" placeholder="Nom du tournoi" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            <select id="tourGame" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white"></select>
+            <select id="tourMode" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+              <option value="team">Équipe</option>
+              <option value="solo">Solo</option>
+            </select>
+            <select id="tourFormat" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+              <option value="online">En ligne</option>
+              <option value="lan">LAN</option>
+              <option value="both">En ligne et LAN</option>
+            </select>
+            <select id="tourStatus" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+              <option value="draft">Brouillon</option>
+              <option value="open">Inscriptions ouvertes</option>
+              <option value="closed">Inscriptions fermées</option>
+              <option value="running">En cours</option>
+              <option value="finished">Terminé</option>
+            </select>
+            <input id="tourTeamMin" type="number" min="1" value="2" placeholder="Joueurs min." class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            <input id="tourTeamMax" type="number" min="1" value="5" placeholder="Joueurs max." class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            <input id="tourMax" type="number" min="1" placeholder="Places (facultatif)" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            <input id="tourPrize" placeholder="Prix à gagner" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            <input id="tourStart" type="datetime-local" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            <input id="tourClose" type="datetime-local" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            <textarea id="tourDesc" rows="2" placeholder="Description" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white"></textarea>
+            <label class="sm:col-span-2 flex items-center gap-2 text-xs text-gray-300">
+              <input id="tourPublished" type="checkbox" class="accent-red-600"> Publier sur le site
+            </label>
+          </div>
+          <button onclick="createTournament()" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-lg transition">Créer le tournoi</button>
+        </div>
+      </div>
+
+      <div id="adminEdit" class="hidden bg-[#121722] border border-amber-500/40 rounded-2xl p-5 space-y-3">
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="text-sm font-black text-white">✏️ Modifier le tournoi</h2>
+          <button onclick="closeEdit()" class="px-2 py-1 text-gray-400 hover:text-white text-sm">✕</button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <input id="editName" placeholder="Nom du tournoi" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <select id="editStatus" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+            <option value="draft">Brouillon</option>
+            <option value="open">Inscriptions ouvertes</option>
+            <option value="closed">Inscriptions fermées</option>
+            <option value="running">En cours</option>
+            <option value="finished">Terminé</option>
+            <option value="cancelled">Annulé</option>
+          </select>
+          <input id="editMax" type="number" min="1" placeholder="Places (facultatif)" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <input id="editPrize" placeholder="Prix à gagner" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <input id="editStart" type="datetime-local" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <input id="editClose" type="datetime-local" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <textarea id="editDesc" rows="2" placeholder="Description" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white"></textarea>
+          <label class="sm:col-span-2 flex items-center gap-2 text-xs text-gray-300">
+            <input id="editPublished" type="checkbox" class="accent-red-600"> Publié sur le site
+          </label>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="saveTournament()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-lg transition">Enregistrer</button>
+          <button onclick="deleteTournament()" class="px-4 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-600/40 font-bold text-xs rounded-lg transition">Supprimer</button>
+        </div>
+      </div>
+
+      <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
+        <h2 class="text-sm font-black text-white">📋 Inscriptions</h2>
+        <div id="adminRegistrations" class="space-y-2"></div>
+      </div>
+
+      <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
+        <h2 class="text-sm font-black text-white">🏆 Tournois existants</h2>
+        <div id="adminTournaments" class="space-y-2"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="max-w-6xl mx-auto px-4 pb-8 pt-2 text-center space-y-2">
+    <p class="text-[10px] text-gray-500">Tournois organisés par Normandy Viking Gaming — association loi 1901 (RNA W612003127).</p>
+    <p class="text-[10px] text-gray-500 flex flex-wrap items-center justify-center gap-3">
+      <a href="https://app.nvg-tv.com/privacy.html" class="hover:text-amber-400">Confidentialité</a>
+      <a href="https://app.nvg-tv.com/mentions-legales.html" class="hover:text-amber-400">Mentions légales</a>
+      <a href="https://bot-discord.nvg-tv.com/terms.html" class="hover:text-amber-400">Règlement du bot</a>
+      <a href="https://app.nvg-tv.com/" class="hover:text-amber-400">Application NVG</a>
+    </p>
+    <p class="text-[10px] text-gray-600">© 2026 Normandy Viking Gaming — association loi 1901 (RNA W612003127)</p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="tournament.js"></script>
+</body>
+</html>
