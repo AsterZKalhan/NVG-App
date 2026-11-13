@@ -180,9 +180,18 @@ function openAccountPane(name, options = {}) {
   }
 }
 
+function accountUrl(pane = 'info') {
+  return routeUrl('account', { account: pane });
+}
+
 function goAccount(pane = 'info') {
   openTab('account', { push: false });
   openAccountPane(pane);
+  // Garantit une URL complète (?tab=account&account=…) même si l'onglet était déjà ouvert.
+  const url = accountUrl(pane);
+  if (currentUrl() !== url) {
+    window.history.pushState({ tab: 'account', account: pane }, document.title, url);
+  }
 }
 
 function openAdminPane(name, options = {}) {
@@ -507,9 +516,13 @@ function openTournamentDetails(id, options = {}) {
 
       <div class="flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-4">
         ${already
-          ? '<span class="px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold rounded-lg">✅ Inscrit</span>'
+          ? `<div class="flex flex-wrap items-center gap-2">
+              <span class="px-2 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase tracking-wider rounded-lg">✅ Inscrit</span>
+              <a href="${accountUrl('registrations')}" onclick="event.preventDefault();closeTournamentDetails({ push: false });goAccount('registrations')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">📋 Gérer mon inscription</a>
+              ${myTeam ? `<a href="${accountUrl('teams')}" onclick="event.preventDefault();closeTournamentDetails({ push: false });goAccount('teams')" class="px-3 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-300 text-[11px] font-bold rounded-lg transition">🛡️ Gérer mon équipe</a>` : ''}
+            </div>`
           : myTeam
-            ? `<button onclick="closeTournamentDetails();goAccount('teams')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">🛡️ Gérer mon équipe</button>`
+            ? `<a href="${accountUrl('teams')}" onclick="event.preventDefault();closeTournamentDetails({ push: false });goAccount('teams')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">🛡️ Gérer mon équipe</a>`
             : open
               ? `<button onclick="signupFromDetails('${t.id}')" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-black text-xs rounded-lg transition">S'inscrire</button>`
               : '<span class="px-3 py-2 bg-white/5 border border-[#1f293d] text-gray-500 text-[11px] font-bold rounded-lg">Inscriptions fermées</span>'}
@@ -568,9 +581,9 @@ function tournamentCard(t) {
         ${hasPrizes(t) ? `<p class="flex items-center gap-1.5 text-[11px] text-gray-300"><span class="text-amber-400">${trophyIcon('h-3.5 w-3.5')}</span>${escapeHtml(t.prize_first || t.prize)}</p>` : ''}
         <div class="mt-auto flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-3">
           ${already
-            ? '<span class="px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold rounded-lg">✅ Inscrit</span>'
+            ? `<a href="${accountUrl('registrations')}" onclick="event.preventDefault();goAccount('registrations')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">📋 Gérer mon inscription</a>`
             : myTeam
-              ? `<button onclick="goAccount('teams')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">🛡️ Gérer mon équipe</button>`
+              ? `<a href="${accountUrl('teams')}" onclick="event.preventDefault();goAccount('teams')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">🛡️ Gérer mon équipe</a>`
               : open
                 ? `<button onclick="openSignup('${t.id}')" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-black text-xs rounded-lg transition">S'inscrire</button>`
                 : `<span class="px-3 py-2 bg-white/5 border border-[#1f293d] text-gray-500 text-[11px] font-bold rounded-lg">Inscriptions fermées</span>`}
@@ -1663,7 +1676,8 @@ async function init() {
 
   if (confirmed === '1') {
     notify(currentUser ? 'Adresse e-mail confirmée. Bienvenue !' : 'Adresse e-mail confirmée. Tu peux te connecter.', false);
-    window.history.replaceState({ tab: 'account' }, document.title, `${window.location.pathname}?tab=account`);
+    const pane = routeState().account || 'info';
+    window.history.replaceState({ tab: 'account', account: pane }, document.title, accountUrl(pane));
   }
 }
 

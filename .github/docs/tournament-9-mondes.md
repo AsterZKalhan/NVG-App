@@ -132,7 +132,9 @@ Statuts d'un tournoi : `draft`, `open`, `closed`, `running`, `finished`, `cancel
 ## Parcours membre
 
 1. Onglet **Tournois** : cartes des tournois, bouton **Fiche** pour le détail
-   (jeu, mode, format, dates, places, podium des récompenses, règlement).
+   (jeu, mode, format, dates, places, podium des récompenses, règlement). Une
+   fois inscrit, la carte et la fiche proposent **📋 Gérer mon inscription**, qui
+   ouvre **Mon espace → Mes inscriptions**.
 2. **S'inscrire** :
    - tournoi solo → confirmation directe, pseudo en jeu facultatif ;
    - tournoi en équipe → création de l'équipe (nom + tag).
@@ -282,8 +284,12 @@ Chaque tournoi s'affiche sous forme de carte inspirée des fiches Toornament :
   (« En ligne », « LAN », « En ligne et LAN ») et frais d'inscription
   (« Gratuit » ou « 10,00 € ») ;
 - prix (1re place + trophée), description courte, compteur d'inscrits, clôture ;
-- bouton **S'inscrire**, **Gérer mon équipe** ou badge **Inscrit**, plus
-  **Fiche** (modale détaillée) et **Toornament** si un lien est renseigné.
+- bouton **S'inscrire**, **Gérer mon équipe** ou **📋 Gérer mon inscription**
+  (quand le joueur est déjà inscrit), plus **Fiche** (modale détaillée) et
+  **Toornament** si un lien est renseigné. **Gérer mon inscription** mène
+  directement à **Mon espace → Mes inscriptions**
+  (`?tab=account&account=registrations`), où le joueur suit son statut, règle
+  son inscription et modifie son pseudo en jeu.
 
 La fiche détaillée reprend la bannière, le logo, les dates, le format, la
 description, le règlement, le podium des récompenses et les actions
