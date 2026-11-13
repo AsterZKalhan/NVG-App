@@ -18,6 +18,8 @@ let publicRegs = [];
 let myTeams = [];
 let myRegistrations = [];
 let adminRegs = [];
+let adminPlayers = [];
+let editingPlayerId = null;
 let profileIdentity = { first_name: '', last_name: '', birth_date: '' };
 let pendingJoinCode = null;
 let editingTournamentId = null;
@@ -143,14 +145,38 @@ function inviteUrl(code) {
 // --- Navigation ---
 
 const TAB_NAMES = ['home', 'tournaments', 'account', 'admin'];
+const ADMIN_PANES = ['players', 'games', 'create', 'manage'];
+let adminPane = 'manage';
 
 function routeState() {
   const params = new URLSearchParams(window.location.search);
   const tab = params.get('tab');
+  const admin = params.get('admin');
   return {
     tab: TAB_NAMES.includes(tab) ? tab : 'home',
-    tournament: params.get('tournament') || null
+    tournament: params.get('tournament') || null,
+    admin: ADMIN_PANES.includes(admin) ? admin : null
   };
+}
+
+function openAdminPane(name, options = {}) {
+  if (!ADMIN_PANES.includes(name)) name = 'manage';
+  adminPane = name;
+  document.querySelectorAll('.admin-pane').forEach((el) => {
+    el.classList.toggle('hidden', el.id !== `adminPane-${name}`);
+  });
+  document.querySelectorAll('.admin-nav-btn').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.adminPane === name);
+  });
+  if (name === 'players') renderAdminPlayers();
+  if (name === 'manage') renderAdminTournaments();
+  if (options.push !== false) {
+    const url = routeUrl('admin', { admin: name });
+    if (currentUrl() !== url) {
+      window.history.pushState({ tab: 'admin', admin: name }, document.title, url);
+    }
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function routeUrl(tab, extra = {}) {
@@ -188,7 +214,10 @@ function openTab(name, options = {}) {
   }
   if (name === 'tournaments' || name === 'home') loadPublic();
   if (name === 'account') refreshAccount();
-  if (name === 'admin') loadAdmin();
+  if (name === 'admin') {
+    openAdminPane(routeState().admin || adminPane, { push: false });
+    loadAdmin();
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -856,13 +885,92 @@ async function loadAdmin() {
   await loadPublic();
   renderAdminGames();
   setGamePreviews();
-  const { data: regs } = await supabaseClient.from('nvg_tournament_registrations')
-    .select('id,tournament_id,status,platform_id,payment_status,payment_reference,paid_at,created_at,user_id,team_id,nvg_tournament_teams(name,tag),nvg_users(name,first_name,last_name,birth_date)')
-    .order('created_at', { ascending: false })
-    .limit(500);
-  adminRegs = regs || [];
+  const [regsRes, playersRes] = await Promise.all([
+    supabaseClient.from('nvg_tournament_registrations')
+      .select('id,tournament_id,status,platform_id,payment_status,payment_reference,paid_at,created_at,user_id,team_id,nvg_tournament_teams(name,tag),nvg_users(name,first_name,last_name,birth_date)')
+      .order('created_at', { ascending: false })
+      .limit(500),
+    supabaseClient.from('nvg_users')
+      .select('id,name,email,verified,first_name,last_name,birth_date')
+      .order('name')
+      .limit(1000)
+  ]);
+  adminRegs = regsRes.data || [];
+  adminPlayers = playersRes.data || [];
   renderAdminTournaments();
+  renderAdminPlayers();
   if (viewingTournamentId) showAdminRegs(viewingTournamentId);
+}
+
+function playerRegCount(userId) {
+  return adminRegs.filter((r) => r.user_id === userId && r.status !== 'cancelled').length;
+}
+
+function renderAdminPlayers() {
+  const box = $('adminPlayers');
+  if (!box) return;
+  const term = ($('adminPlayerSearch')?.value || '').trim().toLowerCase();
+  const list = adminPlayers.filter((p) => {
+    if (!term) return true;
+    const haystack = [p.name, p.email, p.first_name, p.last_name].filter(Boolean).join(' ').toLowerCase();
+    return haystack.includes(term);
+  });
+  box.innerHTML = list.length
+    ? list.map((p) => {
+      const fullName = [p.first_name, p.last_name].filter(Boolean).join(' ') || '—';
+      const birth = p.birth_date ? new Date(p.birth_date).toLocaleDateString('fr-FR') : '—';
+      const count = playerRegCount(p.id);
+      return `
+        <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#1f293d] bg-[#07090e] px-3 py-2">
+          <div class="min-w-0">
+            <p class="text-xs font-bold text-white truncate">${escapeHtml(p.name || 'Joueur')}${p.verified ? ' <span class="text-emerald-400" title="Compte vérifié">✓</span>' : ''}</p>
+            <p class="text-[10px] text-gray-500 truncate">${escapeHtml(p.email || '')} · ${escapeHtml(fullName)} · né(e) le ${escapeHtml(birth)}</p>
+          </div>
+          <div class="flex shrink-0 items-center gap-2">
+            <span class="text-[10px] text-gray-400">${count} inscription(s)</span>
+            <button onclick="editPlayer('${p.id}')" class="rounded-lg border border-[#1f293d] bg-white/5 px-2 py-1 text-[10px] font-bold text-gray-300 transition hover:bg-white/10">✏️ Modifier</button>
+          </div>
+        </div>`;
+    }).join('')
+    : '<p class="text-xs text-gray-500">Aucun joueur trouvé.</p>';
+}
+
+function editPlayer(id) {
+  const player = adminPlayers.find((p) => p.id === id);
+  if (!player) return;
+  editingPlayerId = id;
+  if ($('adminPlayerEmail')) $('adminPlayerEmail').textContent = player.email || '';
+  if ($('playerName')) $('playerName').value = player.name || '';
+  if ($('playerFirstName')) $('playerFirstName').value = player.first_name || '';
+  if ($('playerLastName')) $('playerLastName').value = player.last_name || '';
+  if ($('playerBirthDate')) $('playerBirthDate').value = player.birth_date || '';
+  const panel = $('adminPlayerEdit');
+  if (!panel) return;
+  panel.classList.remove('hidden');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function closePlayerEdit() {
+  editingPlayerId = null;
+  $('adminPlayerEdit')?.classList.add('hidden');
+}
+
+async function savePlayer() {
+  if (!editingPlayerId) return;
+  const name = $('playerName').value.trim();
+  if (name.length < 2) { notify('Choisis un pseudo d’au moins 2 caractères.', true); return; }
+  const patch = {
+    name,
+    first_name: $('playerFirstName').value.trim() || null,
+    last_name: $('playerLastName').value.trim() || null,
+    birth_date: $('playerBirthDate').value || null
+  };
+  const { error } = await supabaseClient.from('nvg_users').update(patch).eq('id', editingPlayerId);
+  if (error) { notify('Erreur : ' + error.message, true); return; }
+  notify('Joueur mis à jour.');
+  closePlayerEdit();
+  await loadAdmin();
+  openAdminPane('players', { push: false });
 }
 
 function renderAdminGames() {
@@ -909,8 +1017,15 @@ function adminTournamentStats(t) {
 function renderAdminTournaments() {
   const box = $('adminTournaments');
   if (!box) return;
-  box.innerHTML = tournaments.length
-    ? tournaments.map((t) => {
+  const filter = $('adminTourFilter')?.value || 'all';
+  const rows = tournaments.filter((t) => {
+    if (filter === 'current') return ['open', 'running', 'closed'].includes(t.status);
+    if (filter === 'draft') return t.status === 'draft';
+    if (filter === 'finished') return ['finished', 'cancelled'].includes(t.status);
+    return true;
+  });
+  box.innerHTML = rows.length
+    ? rows.map((t) => {
       const s = adminTournamentStats(t);
       return `
       <div class="rounded-xl border border-[#1f293d] bg-[#07090e] px-3 py-3 space-y-2">
@@ -942,7 +1057,7 @@ function renderAdminTournaments() {
         </div>
       </div>`;
     }).join('')
-    : '<p class="text-xs text-gray-500">Aucun tournoi.</p>';
+    : '<p class="text-xs text-gray-500">Aucun tournoi pour ce filtre.</p>';
 }
 
 function closeAdminRegs() {

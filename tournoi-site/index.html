@@ -28,6 +28,9 @@
       background-repeat: repeat;
     }
     .tab-btn.active { background: #dc2626; color: #fff; }
+    .admin-nav-btn { border: 1px solid #1f293d; background: rgba(255,255,255,0.03); }
+    .admin-nav-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
+    .admin-nav-btn.active { background: #dc2626; border-color: #dc2626; color: #fff; }
     .toast-enter { opacity: 1; transform: translateY(0); }
   </style>
 </head>
@@ -250,7 +253,62 @@
         <button onclick="loadAdmin()" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs rounded-lg border border-[#1f293d] transition">🔄 Actualiser</button>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div id="adminNav" class="flex flex-wrap gap-2">
+        <button data-admin-pane="players" onclick="openAdminPane('players')" class="admin-nav-btn rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-gray-300 transition">👥 Joueurs</button>
+        <button data-admin-pane="games" onclick="openAdminPane('games')" class="admin-nav-btn rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-gray-300 transition">🎮 Jeux</button>
+        <button data-admin-pane="create" onclick="openAdminPane('create')" class="admin-nav-btn rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-gray-300 transition">➕ Nouveau tournoi</button>
+        <button data-admin-pane="manage" onclick="openAdminPane('manage')" class="admin-nav-btn rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-gray-300 transition">📋 Gestion des tournois</button>
+      </div>
+
+      <!-- JOUEURS -->
+      <div id="adminPane-players" class="admin-pane hidden space-y-4">
+        <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="min-w-0">
+              <h2 class="text-sm font-black text-white">👥 Joueurs</h2>
+              <p class="text-[11px] text-gray-400">Pseudo, identité et inscriptions. Les rangs et rôles restent gérés dans l'application NVG.</p>
+            </div>
+            <input id="adminPlayerSearch" oninput="renderAdminPlayers()" placeholder="Rechercher un pseudo, nom ou e-mail" class="w-full sm:w-72 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2 text-xs text-white">
+          </div>
+          <div id="adminPlayers" class="space-y-2"></div>
+        </div>
+
+        <div id="adminPlayerEdit" class="hidden bg-[#121722] border border-amber-500/40 rounded-2xl p-5 space-y-3">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <h2 class="text-sm font-black text-white">✏️ Modifier le joueur</h2>
+              <p id="adminPlayerEmail" class="text-[11px] text-gray-400"></p>
+            </div>
+            <button onclick="closePlayerEdit()" class="px-2 py-1 text-gray-400 hover:text-white text-sm">✕</button>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Pseudo du site</span>
+              <input id="playerName" placeholder="Pseudo" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Date de naissance</span>
+              <input id="playerBirthDate" type="date" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Prénom</span>
+              <input id="playerFirstName" placeholder="Prénom" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Nom</span>
+              <input id="playerLastName" placeholder="Nom" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="savePlayer()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-lg transition">Enregistrer</button>
+            <button onclick="closePlayerEdit()" class="px-4 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-300 font-bold text-xs rounded-lg transition">Annuler</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- JEUX -->
+      <div id="adminPane-games" class="admin-pane hidden space-y-4">
+      <div class="grid grid-cols-1 gap-4">
         <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
           <div class="flex items-center justify-between gap-2">
             <h2 class="text-sm font-black text-white">🎮 Jeu</h2>
@@ -292,7 +350,11 @@
           <button id="gameSubmit" onclick="saveGame()" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-lg transition">Créer le jeu</button>
           <div id="adminGames" class="text-[11px] text-gray-400 space-y-1"></div>
         </div>
+      </div>
+      </div>
 
+      <!-- NOUVEAU TOURNOI -->
+      <div id="adminPane-create" class="admin-pane hidden space-y-4">
         <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
           <h2 class="text-sm font-black text-white">🏆 Nouveau tournoi</h2>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -385,6 +447,8 @@
         </div>
       </div>
 
+      <!-- GESTION DES TOURNOIS -->
+      <div id="adminPane-manage" class="admin-pane space-y-4">
       <div id="adminEdit" class="hidden bg-[#121722] border border-amber-500/40 rounded-2xl p-5 space-y-3">
         <div class="flex items-center justify-between gap-3">
           <h2 class="text-sm font-black text-white">✏️ Modifier le tournoi</h2>
@@ -497,8 +561,17 @@
       </div>
 
       <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
-        <h2 class="text-sm font-black text-white">🏆 Tournois existants</h2>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 class="text-sm font-black text-white">🏆 Tournois existants</h2>
+          <select id="adminTourFilter" onchange="renderAdminTournaments()" class="bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-1.5 text-[10px] font-bold text-white">
+            <option value="all">Tous les tournois</option>
+            <option value="current">En cours et ouverts</option>
+            <option value="draft">Brouillons</option>
+            <option value="finished">Terminés / annulés</option>
+          </select>
+        </div>
         <div id="adminTournaments" class="space-y-3"></div>
+      </div>
       </div>
     </section>
 

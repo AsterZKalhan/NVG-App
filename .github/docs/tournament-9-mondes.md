@@ -185,9 +185,22 @@ HelloAsso, Stripe Checkout, virement…).
 
 ## Back-office NVG
 
-Onglet **Admin** (visible uniquement pour les admins) :
+Onglet **Admin** (visible uniquement pour les admins), organisé en quatre
+menus :
 
-- créer un jeu (nom, logo et bannière facultatifs) ;
+| Menu | Contenu |
+|---|---|
+| **👥 Joueurs** | recherche par pseudo, nom ou e-mail ; modification du pseudo, du prénom, du nom et de la date de naissance ; nombre d'inscriptions par joueur. Les rangs et rôles restent gérés dans l'application NVG. |
+| **🎮 Jeux** | création et modification d'un jeu (nom, logo et bannière téléversés ou URL externe). |
+| **➕ Nouveau tournoi** | formulaire complet de création (jeu, format de jeu 1–6, type, statut, slots, frais, podium, dates, visuels, Toornament, paiement, description, publication). |
+| **📋 Gestion des tournois** | liste filtrable (tous / en cours et ouverts / brouillons / terminés et annulés) avec barre de remplissage, changement de statut, modification, suppression et accès aux inscriptions. |
+
+Chaque menu est adressable par lien : `?tab=admin&admin=players`,
+`?admin=games`, `?admin=create`, `?admin=manage` (l'historique du navigateur
+suit les changements de menu).
+
+Détail des menus **Nouveau tournoi** et **Gestion des tournois** :
+
 - créer un tournoi : jeu, **format de jeu** (menu 1 à 6 joueurs : solo, duo,
   trio, 4, 5 ou 6), format en ligne/LAN, statut, **slots** (places), frais
   d'inscription, podium (1re/2e/3e), date de début, clôture des inscriptions,
@@ -196,6 +209,7 @@ Onglet **Admin** (visible uniquement pour les admins) :
 - modifier un tournoi existant (même champs, menu de taille d'équipe inclus) ou
   le supprimer ;
 - changer le statut directement depuis la liste ;
+- filtrer la liste par état pour ne garder que les tournois en cours ;
 - suivre le remplissage : chaque tournoi de la liste affiche une **barre de
   remplissage** (`inscrits / slots`, pourcentage), les places restantes et le
   nombre de participations payées / en attente ;
