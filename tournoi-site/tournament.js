@@ -146,17 +146,43 @@ function inviteUrl(code) {
 
 const TAB_NAMES = ['home', 'tournaments', 'account', 'admin'];
 const ADMIN_PANES = ['players', 'games', 'create', 'manage'];
+const ACCOUNT_PANES = ['info', 'teams', 'registrations'];
 let adminPane = 'manage';
+let accountPane = 'info';
 
 function routeState() {
   const params = new URLSearchParams(window.location.search);
   const tab = params.get('tab');
   const admin = params.get('admin');
+  const account = params.get('account');
   return {
     tab: TAB_NAMES.includes(tab) ? tab : 'home',
     tournament: params.get('tournament') || null,
-    admin: ADMIN_PANES.includes(admin) ? admin : null
+    admin: ADMIN_PANES.includes(admin) ? admin : null,
+    account: ACCOUNT_PANES.includes(account) ? account : null
   };
+}
+
+function openAccountPane(name, options = {}) {
+  if (!ACCOUNT_PANES.includes(name)) name = 'info';
+  accountPane = name;
+  document.querySelectorAll('.account-pane').forEach((el) => {
+    el.classList.toggle('hidden', el.id !== `accountPane-${name}`);
+  });
+  document.querySelectorAll('#accountNav .admin-nav-btn').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.accountPane === name);
+  });
+  if (options.push !== false) {
+    const url = routeUrl('account', { account: name });
+    if (currentUrl() !== url) {
+      window.history.pushState({ tab: 'account', account: name }, document.title, url);
+    }
+  }
+}
+
+function goAccount(pane = 'info') {
+  openTab('account', { push: false });
+  openAccountPane(pane);
 }
 
 function openAdminPane(name, options = {}) {
@@ -213,7 +239,10 @@ function openTab(name, options = {}) {
     }
   }
   if (name === 'tournaments' || name === 'home') loadPublic();
-  if (name === 'account') refreshAccount();
+  if (name === 'account') {
+    openAccountPane(routeState().account || accountPane, { push: false });
+    refreshAccount();
+  }
   if (name === 'admin') {
     openAdminPane(routeState().admin || adminPane, { push: false });
     loadAdmin();
@@ -480,7 +509,7 @@ function openTournamentDetails(id, options = {}) {
         ${already
           ? '<span class="px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold rounded-lg">✅ Inscrit</span>'
           : myTeam
-            ? `<button onclick="closeTournamentDetails();openTab('account')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">🛡️ Gérer mon équipe</button>`
+            ? `<button onclick="closeTournamentDetails();goAccount('teams')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">🛡️ Gérer mon équipe</button>`
             : open
               ? `<button onclick="signupFromDetails('${t.id}')" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-black text-xs rounded-lg transition">S'inscrire</button>`
               : '<span class="px-3 py-2 bg-white/5 border border-[#1f293d] text-gray-500 text-[11px] font-bold rounded-lg">Inscriptions fermées</span>'}
@@ -541,7 +570,7 @@ function tournamentCard(t) {
           ${already
             ? '<span class="px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold rounded-lg">✅ Inscrit</span>'
             : myTeam
-              ? `<button onclick="openTab('account')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">🛡️ Gérer mon équipe</button>`
+              ? `<button onclick="goAccount('teams')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">🛡️ Gérer mon équipe</button>`
               : open
                 ? `<button onclick="openSignup('${t.id}')" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-black text-xs rounded-lg transition">S'inscrire</button>`
                 : `<span class="px-3 py-2 bg-white/5 border border-[#1f293d] text-gray-500 text-[11px] font-bold rounded-lg">Inscriptions fermées</span>`}
@@ -596,12 +625,12 @@ function openSignup(tournamentId) {
   if (!t) return;
   if (!currentUser) {
     notify('Connecte-toi avec ton compte pour t’inscrire.', true);
-    openTab('account');
+    goAccount('info');
     return;
   }
   if (!identityComplete()) {
     notify('Complète ton nom, prénom et date de naissance dans « Mon espace » avant de t’inscrire.', true);
-    openTab('account');
+    goAccount('info');
     $('profileHint')?.classList.remove('hidden');
     return;
   }
@@ -674,7 +703,7 @@ async function createTeam(tournamentId) {
       <div class="flex flex-wrap gap-2">
         <input readonly value="${escapeHtml(inviteUrl(res.invite_code))}" class="flex-1 min-w-[220px] bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-[11px] text-gray-300">
         <button onclick="copyText('${escapeHtml(inviteUrl(res.invite_code))}')" class="px-4 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-200 font-bold text-xs rounded-lg transition">Copier</button>
-        <button onclick="openTab('account')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-lg transition">Mon espace</button>
+        <button onclick="goAccount('teams')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-lg transition">Mon espace</button>
       </div>
       <p class="text-[11px] text-amber-400">Code : <strong>${escapeHtml(res.invite_code)}</strong></p>`;
     await Promise.all([loadPublic(), loadMember()]);
@@ -684,7 +713,7 @@ async function createTeam(tournamentId) {
 }
 
 async function joinTeam() {
-  if (!currentUser) { openTab('account'); return; }
+  if (!currentUser) { goAccount('info'); return; }
   const code = $('joinCode').value.trim();
   if (!code) { notify('Saisis un code d’invitation.', true); return; }
   try {
@@ -1624,7 +1653,7 @@ async function init() {
       applyPendingJoin();
     } else {
       notify('Connecte-toi avec ton compte, puis rejoins l’équipe avec le code reçu.', false);
-      openTab('account');
+      goAccount('info');
     }
   } else {
     applyRoute();
@@ -1640,7 +1669,7 @@ async function init() {
 
 function applyPendingJoin() {
   if (!pendingJoinCode || !currentUser) return false;
-  openTab('account');
+  goAccount('teams');
   const input = $('joinCode');
   if (input) input.value = pendingJoinCode;
   pendingJoinCode = null;
@@ -1740,7 +1769,7 @@ $('loginForm').addEventListener('submit', async (event) => {
   await checkAdmin();
   await loadMember();
   showAccountUi();
-  if (!applyPendingJoin()) openTab('account');
+  if (!applyPendingJoin()) goAccount('info');
 });
 
 document.querySelectorAll('.tab-btn').forEach((btn) => btn.addEventListener('click', () => openTab(btn.dataset.tab)));
@@ -1800,7 +1829,7 @@ $('signupForm').addEventListener('submit', async (event) => {
       await checkAdmin();
       await loadMember();
       showAccountUi();
-      openTab('account');
+      goAccount('info');
       notify('Bienvenue ! Ton compte est créé.');
     } else {
       $('signupForm').reset();

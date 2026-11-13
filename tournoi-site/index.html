@@ -179,6 +179,13 @@
           <button onclick="loadMember()" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs rounded-lg border border-[#1f293d] transition">🔄 Actualiser</button>
         </div>
 
+        <div id="accountNav" class="flex flex-wrap gap-2">
+          <button data-account-pane="info" onclick="openAccountPane('info')" class="admin-nav-btn rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-gray-300 transition">👤 Mes informations</button>
+          <button data-account-pane="teams" onclick="openAccountPane('teams')" class="admin-nav-btn rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-gray-300 transition">🛡️ Mes équipes</button>
+          <button data-account-pane="registrations" onclick="openAccountPane('registrations')" class="admin-nav-btn rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-gray-300 transition">📋 Mes inscriptions</button>
+        </div>
+
+        <div id="accountPane-info" class="account-pane hidden space-y-4">
         <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
           <h2 class="text-sm font-black text-white uppercase tracking-wider">👤 Mes informations</h2>
           <p class="text-xs text-gray-400">Nom, prénom et date de naissance servent à valider les inscriptions aux tournois.</p>
@@ -221,7 +228,9 @@
           </div>
           <button onclick="changePassword()" class="px-4 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-200 font-bold text-xs rounded-lg transition">Changer mon mot de passe</button>
         </div>
+        </div>
 
+        <div id="accountPane-teams" class="account-pane hidden space-y-4">
         <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
           <h2 class="text-sm font-black text-white uppercase tracking-wider">🔗 Rejoindre une équipe</h2>
           <p class="text-xs text-gray-400">Saisis le code d'invitation donné par le capitaine.</p>
@@ -235,10 +244,13 @@
           <h2 class="text-sm font-black text-white uppercase tracking-wider mb-3">🛡️ Mes équipes</h2>
           <div id="myTeams" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
         </div>
+        </div>
 
+        <div id="accountPane-registrations" class="account-pane hidden space-y-4">
         <div>
           <h2 class="text-sm font-black text-white uppercase tracking-wider mb-3">📋 Mes inscriptions</h2>
           <div id="myRegistrations" class="space-y-3"></div>
+        </div>
         </div>
       </div>
     </section>
