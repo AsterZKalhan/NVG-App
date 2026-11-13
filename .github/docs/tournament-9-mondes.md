@@ -178,6 +178,10 @@ HelloAsso, Stripe Checkout, virement…).
 - Réinscrire un joueur remboursé (bouton **Confirmer**) remet automatiquement
   son paiement en attente si le tournoi est payant, ou à « aucun paiement
   requis » s'il est gratuit.
+- **🗑️ Supprimer** efface la ligne d'inscription après confirmation : elle
+  disparaît de la liste et libère la place. Pour une équipe, seule l'inscription
+  est supprimée — l'équipe et ses membres restent en place et peuvent la
+  réinscrire.
 
 ## Back-office NVG
 
@@ -200,7 +204,9 @@ Onglet **Admin** (visible uniquement pour les admins) :
   site, pseudo en jeu, prénom, nom, date de naissance, identité complète, date
   d'inscription, statut d'inscription et statut de paiement ;
 - depuis ce panneau : confirmer, mettre en liste d'attente, annuler, marquer
-  payé, **rembourser** (libère la place) ou **remettre en attente de paiement**.
+  payé, **rembourser** (libère la place), **remettre en attente de paiement** ou
+  **🗑️ supprimer définitivement l'inscription** (après confirmation ; l'équipe
+  éventuelle n'est pas supprimée et peut être réinscrite).
 
 Créer un tournoi en `draft` non publié permet de préparer la fiche avant
 ouverture. Pour rendre les inscriptions possibles : statut `open` **et**

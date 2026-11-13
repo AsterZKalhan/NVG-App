@@ -1008,8 +1008,28 @@ function adminRegistrationRow(r) {
         ${payment === 'paid' || payment === 'refunded'
           ? `<button onclick="setPaymentStatus('${r.id}','awaiting')" class="text-[10px] font-bold text-amber-400 hover:text-amber-300">↩️ Remettre en attente</button>`
           : ''}
+        <button onclick="deleteRegistration('${r.id}')" class="ml-1 border-l border-[#1f293d] pl-2 text-[10px] font-bold text-red-400 hover:text-red-300">🗑️ Supprimer</button>
       </div>
     </div>`;
+}
+
+async function deleteRegistration(id) {
+  const reg = adminRegs.find((r) => r.id === id);
+  const teamName = reg?.nvg_tournament_teams?.name;
+  const who = teamName
+    ? `l’équipe « ${teamName} »`
+    : `« ${reg?.nvg_users?.name || 'ce joueur'} »`;
+  const extra = teamName
+    ? '\n\nL’équipe elle-même n’est pas supprimée : ses membres pourront la réinscrire.'
+    : '';
+  if (!window.confirm(`Supprimer définitivement l’inscription de ${who} ?\n\nElle disparaîtra de la liste et la place sera libérée.${extra}`)) {
+    return;
+  }
+  const { error } = await supabaseClient.from('nvg_tournament_registrations').delete().eq('id', id);
+  if (error) { notify('Erreur : ' + error.message, true); return; }
+  notify('Inscription supprimée.');
+  await loadAdmin();
+  if (currentUser) await loadMember();
 }
 
 async function setPaymentStatus(id, paymentStatus) {
