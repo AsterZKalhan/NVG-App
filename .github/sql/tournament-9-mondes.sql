@@ -33,8 +33,21 @@ create table if not exists public.nvg_tournaments (
   registration_closes_at timestamptz,
   status text not null default 'draft' check (status in ('draft', 'open', 'closed', 'running', 'finished', 'cancelled')),
   published boolean not null default false,
+  banner_url text,
+  toornament_url text,
+  toornament_id text,
   created_at timestamptz not null default now()
 );
+
+-- Visuels et liaison Toornament (colonnes ajoutées après la première mise en
+-- production) : bannière affichée en haut de la fiche, page publique du
+-- tournoi et identifiant Toornament pour la future synchronisation API.
+alter table public.nvg_tournaments add column if not exists banner_url text;
+alter table public.nvg_tournaments add column if not exists toornament_url text;
+alter table public.nvg_tournaments add column if not exists toornament_id text;
+
+create index if not exists nvg_tournaments_toornament_id_idx
+  on public.nvg_tournaments (toornament_id);
 
 create table if not exists public.nvg_tournament_teams (
   id uuid primary key default gen_random_uuid(),

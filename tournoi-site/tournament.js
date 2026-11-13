@@ -84,6 +84,34 @@ function gameName(id) {
   return games.find((g) => g.id === id)?.name || 'Jeu libre';
 }
 
+function gameLogo(id) {
+  return safeUrl(gameById(id)?.logo_url);
+}
+
+function gameById(id) {
+  return games.find((g) => g.id === id) || null;
+}
+
+function safeUrl(value) {
+  const raw = String(value ?? '').trim();
+  return /^https?:\/\/\S+$/i.test(raw) ? raw : '';
+}
+
+function externalLink(value) {
+  const url = safeUrl(value);
+  if (!url) return '';
+  return escapeHtml(url);
+}
+
+// Un lien Toornament contient l'identifiant du tournoi ; on le stocke pour la
+// future synchronisation API sans dépendre du format de l'URL publique.
+function toornamentIdFromUrl(value) {
+  const url = safeUrl(value);
+  if (!url) return null;
+  const match = url.match(/toornament\.com\/[^/]*\/?tournaments\/(\d+)/i) || url.match(/toornament\.com\/tournaments\/(\d+)/i);
+  return match ? match[1] : null;
+}
+
 function tournamentById(id) {
   return tournaments.find((t) => t.id === id);
 }
@@ -154,40 +182,93 @@ function isRegistered(tournamentId) {
   return myRegistrations.some((r) => r.tournament_id === tournamentId && r.status !== 'cancelled');
 }
 
+function formatDay(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function dateRange(t) {
+  if (t.starts_at && t.ends_at) return `${formatDay(t.starts_at)} – ${formatDay(t.ends_at)}`;
+  if (t.starts_at) return formatDay(t.starts_at);
+  return 'Dates à confirmer';
+}
+
+function modeLabel(t) {
+  return t.mode === 'solo' ? 'Joueur (solo)' : `Équipe (${t.team_min}–${t.team_max} joueurs)`;
+}
+
+function tournamentBanner(t) {
+  const banner = safeUrl(t.banner_url);
+  const toornament = externalLink(t.toornament_url);
+  return `
+    <div class="relative h-32 sm:h-36 overflow-hidden bg-[#07090e]">
+      <div class="absolute inset-0 opacity-70" style="background-image:url('./Logos/fond-app.svg');background-repeat:repeat;background-size:130px"></div>
+      <div class="absolute inset-0 bg-gradient-to-br from-red-950/70 via-[#121722]/80 to-[#0b0f17]/90"></div>
+      ${banner
+        ? `<img src="${banner}" alt="" loading="lazy" onerror="this.remove()" class="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105">`
+        : `<p class="absolute inset-0 flex items-center justify-center px-8 text-center text-lg sm:text-xl font-black uppercase tracking-[0.22em] text-white/15">${escapeHtml(gameName(t.game_id))}</p>`}
+      <div class="absolute inset-0 bg-gradient-to-t from-[#121722] via-[#121722]/30 to-transparent"></div>
+      <span class="absolute left-3 top-3 rounded-md border px-2 py-1 text-[9px] font-black uppercase tracking-wider backdrop-blur ${STATUS_STYLES[t.status] || STATUS_STYLES.draft}">${escapeHtml(STATUS_LABELS[t.status] || t.status)}</span>
+      ${toornament ? `<a href="${toornament}" target="_blank" rel="noopener" title="Page officielle du tournoi sur Toornament" class="absolute right-3 top-3 rounded-md border border-white/20 bg-black/60 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-white/90 backdrop-blur transition hover:border-amber-400/70 hover:text-amber-300">Toornament</a>` : ''}
+    </div>`;
+}
+
 function tournamentCard(t) {
   const count = registeredCount(t.id);
   const unit = t.mode === 'team' ? 'équipe(s)' : 'joueur(s)';
   const places = t.max_participants ? `${count} / ${t.max_participants} ${unit}` : `${count} ${unit}`;
-  const mode = t.mode === 'solo' ? 'Solo' : `Équipe ${t.team_min}–${t.team_max}`;
   const open = t.status === 'open';
   const already = isRegistered(t.id);
   const myTeam = t.mode === 'team' ? myTeams.find((team) => team.tournament_id === t.id) : null;
+  const toornament = externalLink(t.toornament_url);
+  const logo = gameLogo(t.game_id);
+  const initials = escapeHtml((gameById(t.game_id)?.name || t.name || '?').slice(0, 2).toUpperCase());
+  const title = escapeHtml(t.name);
+  const statusTone = {
+    open: 'text-emerald-400',
+    closed: 'text-amber-400',
+    running: 'text-red-400',
+    draft: 'text-gray-400',
+    finished: 'text-gray-400',
+    cancelled: 'text-gray-500'
+  }[t.status] || 'text-gray-400';
   return `
-    <article class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3 flex flex-col">
-      <div class="flex items-start justify-between gap-3">
-        <div class="min-w-0">
-          <p class="text-[10px] uppercase tracking-widest text-amber-400 font-black">${escapeHtml(gameName(t.game_id))}</p>
-          <h2 class="text-base font-black text-white mt-1">${escapeHtml(t.name)}</h2>
+    <article class="group flex flex-col overflow-hidden rounded-2xl border border-[#1f293d] bg-[#121722] transition hover:border-amber-500/40 hover:shadow-xl hover:shadow-black/50">
+      ${tournamentBanner(t)}
+      <div class="flex flex-1 flex-col gap-3 p-4">
+        <div class="flex items-start gap-3">
+          <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/90">
+            ${logo
+              ? `<img src="${logo}" alt="" loading="lazy" onerror="this.remove()" class="h-full w-full object-contain p-1">`
+              : `<span class="text-sm font-black text-[#0b0f17]">${initials}</span>`}
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-[10px] font-black uppercase tracking-[0.18em] text-amber-400/80">${escapeHtml(gameName(t.game_id))}</p>
+            <h2 class="mt-1 text-base font-black leading-snug text-white">${toornament ? `<a href="${toornament}" target="_blank" rel="noopener" class="transition hover:text-amber-300">${title}</a>` : title}</h2>
+            <p class="mt-1 text-[11px] text-gray-400">${escapeHtml(dateRange(t))}</p>
+          </div>
         </div>
-        <span class="shrink-0 px-2 py-1 rounded-full border text-[9px] font-black uppercase tracking-wider ${STATUS_STYLES[t.status] || STATUS_STYLES.draft}">${escapeHtml(STATUS_LABELS[t.status] || t.status)}</span>
-      </div>
-      <p class="text-xs text-gray-400 line-clamp-3">${escapeHtml(t.description || 'Tournoi Normandy Viking Gaming.')}</p>
-      <div class="grid grid-cols-2 gap-2 text-[11px] text-gray-400">
-        <p>🎯 ${escapeHtml(mode)}</p>
-        <p>🌐 ${escapeHtml(FORMAT_LABELS[t.format] || t.format)}</p>
-        <p>📅 ${escapeHtml(formatDate(t.starts_at))}</p>
-        <p>👥 ${escapeHtml(places)}</p>
-      </div>
-      ${t.prize ? `<p class="text-[11px] text-emerald-400">🏅 ${escapeHtml(t.prize)}</p>` : ''}
-      <div class="mt-auto pt-2 flex flex-wrap items-center gap-2">
-        ${already
-          ? '<span class="px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold rounded-lg">✅ Inscrit</span>'
-          : myTeam
-            ? `<button onclick="openTab('account')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">🛡️ Gérer mon équipe</button>`
-            : open
-              ? `<button onclick="openSignup('${t.id}')" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-black text-xs rounded-lg transition">S'inscrire</button>`
-              : `<span class="px-3 py-2 bg-white/5 border border-[#1f293d] text-gray-500 text-[11px] font-bold rounded-lg">Inscriptions fermées</span>`}
-        ${t.registration_closes_at ? `<span class="text-[10px] text-gray-500">Clôture : ${escapeHtml(formatDate(t.registration_closes_at))}</span>` : ''}
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-[11px] font-bold ${statusTone}">${escapeHtml(STATUS_LABELS[t.status] || t.status)}</span>
+          <span class="rounded border border-[#2a3750] px-2 py-1 text-[10px] font-bold text-gray-300">${escapeHtml(modeLabel(t))}</span>
+          <span class="rounded border border-[#2a3750] px-2 py-1 text-[10px] font-bold text-gray-300">${escapeHtml(FORMAT_LABELS[t.format] || t.format)}</span>
+        </div>
+        ${t.description ? `<p class="text-xs text-gray-400 line-clamp-2">${escapeHtml(t.description)}</p>` : ''}
+        ${t.prize ? `<p class="text-[11px] text-emerald-400">🏅 ${escapeHtml(t.prize)}</p>` : ''}
+        <div class="mt-auto flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-3">
+          ${already
+            ? '<span class="px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold rounded-lg">✅ Inscrit</span>'
+            : myTeam
+              ? `<button onclick="openTab('account')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">🛡️ Gérer mon équipe</button>`
+              : open
+                ? `<button onclick="openSignup('${t.id}')" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-black text-xs rounded-lg transition">S'inscrire</button>`
+                : `<span class="px-3 py-2 bg-white/5 border border-[#1f293d] text-gray-500 text-[11px] font-bold rounded-lg">Inscriptions fermées</span>`}
+          ${toornament ? `<a href="${toornament}" target="_blank" rel="noopener" title="Ouvrir la page Toornament du tournoi" class="px-3 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-300 text-[11px] font-bold rounded-lg transition">Détails</a>` : ''}
+          <span class="ml-auto text-[10px] font-bold text-gray-500">👥 ${escapeHtml(places)}</span>
+          ${t.registration_closes_at ? `<span class="w-full text-[10px] text-gray-500">Clôture des inscriptions : ${escapeHtml(formatDate(t.registration_closes_at))}</span>` : ''}
+        </div>
       </div>
     </article>`;
 }
@@ -208,14 +289,23 @@ function renderHomeTournaments() {
     box.innerHTML = '<p class="text-xs text-gray-500">Aucun tournoi ouvert pour le moment. Les inscriptions arrivent bientôt.</p>';
     return;
   }
-  box.innerHTML = next.map((t) => `
-    <div class="flex flex-wrap items-center justify-between gap-2 border border-[#1f293d] rounded-xl px-4 py-3 bg-[#07090e]">
-      <div class="min-w-0">
-        <p class="text-xs font-black text-white truncate">${escapeHtml(t.name)}</p>
-        <p class="text-[10px] text-gray-400">${escapeHtml(gameName(t.game_id))} · ${escapeHtml(FORMAT_LABELS[t.format] || t.format)} · ${escapeHtml(formatDate(t.starts_at))}</p>
+  box.innerHTML = next.map((t) => {
+    const banner = safeUrl(t.banner_url);
+    const logo = gameLogo(t.game_id);
+    const toornament = externalLink(t.toornament_url);
+    return `
+    <div class="flex items-center gap-3 overflow-hidden rounded-xl border border-[#1f293d] bg-[#07090e] transition hover:border-amber-500/40">
+      <div class="relative h-16 w-24 shrink-0 overflow-hidden bg-[#121722]">
+        ${banner ? `<img src="${banner}" alt="" loading="lazy" onerror="this.remove()" class="h-full w-full object-cover">` : ''}
+        ${!banner && logo ? `<img src="${logo}" alt="" loading="lazy" onerror="this.remove()" class="absolute inset-0 m-auto max-h-10 max-w-[80%] object-contain opacity-70">` : ''}
       </div>
-      <button onclick="openTab('tournaments')" class="px-3 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-[10px] font-bold rounded-lg border border-red-600/40 transition">Voir</button>
-    </div>`).join('');
+      <div class="min-w-0 flex-1 py-2">
+        <p class="truncate text-xs font-black text-white">${toornament ? `<a href="${toornament}" target="_blank" rel="noopener" class="hover:text-amber-300">${escapeHtml(t.name)}</a>` : escapeHtml(t.name)}</p>
+        <p class="text-[10px] text-gray-400">${escapeHtml(gameName(t.game_id))} · ${escapeHtml(modeLabel(t))} · ${escapeHtml(dateRange(t))}</p>
+      </div>
+      <button onclick="openTab('tournaments')" class="mr-3 shrink-0 px-3 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-[10px] font-bold rounded-lg border border-red-600/40 transition">Voir</button>
+    </div>`;
+  }).join('');
 }
 
 // --- Inscription ---
@@ -493,7 +583,7 @@ function renderAdminTournaments() {
       <div class="flex flex-wrap items-center justify-between gap-2 border border-[#1f293d] rounded-xl px-3 py-2">
         <div class="min-w-0">
           <p class="text-xs font-bold text-white truncate">${escapeHtml(t.name)}</p>
-          <p class="text-[10px] text-gray-500">${escapeHtml(gameName(t.game_id))} · ${t.published ? 'publié' : 'masqué'}</p>
+          <p class="text-[10px] text-gray-500">${escapeHtml(gameName(t.game_id))} · ${t.published ? 'publié' : 'masqué'}${t.toornament_id ? ' · Toornament lié' : ''}</p>
         </div>
         <div class="flex items-center gap-1.5">
           <select onchange="setTournamentStatus('${t.id}', this.value)" class="bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-1 text-[10px] text-white">
@@ -524,6 +614,8 @@ function editTournament(id) {
   $('editStart').value = toLocalInput(t.starts_at);
   $('editClose').value = toLocalInput(t.registration_closes_at);
   $('editDesc').value = t.description || '';
+  $('editBanner').value = t.banner_url || '';
+  $('editToornament').value = t.toornament_url || '';
   $('editPublished').checked = !!t.published;
   const panel = $('adminEdit');
   panel.classList.remove('hidden');
@@ -540,6 +632,8 @@ async function saveTournament() {
   const name = $('editName').value.trim();
   if (!name) { notify('Le nom du tournoi est obligatoire.', true); return; }
   const maxRaw = $('editMax').value.trim();
+  const bannerUrl = safeUrl($('editBanner').value);
+  const toornamentUrl = safeUrl($('editToornament').value);
   const patch = {
     name,
     status: $('editStatus').value,
@@ -548,6 +642,9 @@ async function saveTournament() {
     starts_at: $('editStart').value ? new Date($('editStart').value).toISOString() : null,
     registration_closes_at: $('editClose').value ? new Date($('editClose').value).toISOString() : null,
     description: $('editDesc').value.trim() || null,
+    banner_url: bannerUrl || null,
+    toornament_url: toornamentUrl || null,
+    toornament_id: toornamentIdFromUrl(toornamentUrl),
     published: $('editPublished').checked
   };
   try {
@@ -626,6 +723,8 @@ async function createTournament() {
   const mode = $('tourMode').value;
   const teamMin = parseInt($('tourTeamMin').value, 10) || 1;
   const teamMax = parseInt($('tourTeamMax').value, 10) || teamMin;
+  const bannerUrl = safeUrl($('tourBanner').value);
+  const toornamentUrl = safeUrl($('tourToornament').value);
   try {
     if (teamMax < teamMin) throw new Error('le maximum doit être supérieur au minimum');
     const { data, error } = await supabaseClient.from('nvg_tournaments').insert({
@@ -642,10 +741,15 @@ async function createTournament() {
       starts_at: $('tourStart').value ? new Date($('tourStart').value).toISOString() : null,
       registration_closes_at: $('tourClose').value ? new Date($('tourClose').value).toISOString() : null,
       status: $('tourStatus').value,
-      published: $('tourPublished').checked
+      published: $('tourPublished').checked,
+      banner_url: bannerUrl || null,
+      toornament_url: toornamentUrl || null,
+      toornament_id: toornamentIdFromUrl(toornamentUrl)
     }).select('id').single();
     if (error) throw new Error(error.message);
     $('tourName').value = '';
+    $('tourBanner').value = '';
+    $('tourToornament').value = '';
     notify('Tournoi créé.');
     await loadPublic();
     renderAdminTournaments();

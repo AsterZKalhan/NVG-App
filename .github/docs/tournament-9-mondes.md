@@ -122,6 +122,32 @@ Créer un tournoi en `draft` non publié permet de préparer la fiche avant
 ouverture. Pour rendre les inscriptions possibles : statut `open` **et**
 `published` coché.
 
+## Fiches tournoi (style Toornament)
+
+Chaque tournoi s'affiche sous forme de carte inspirée des fiches Toornament :
+
+- bannière en haut de la carte (`banner_url`), avec repli sur le motif viking et
+  le nom du jeu quand aucune image n'est fournie ;
+- logo du jeu dans un carré clair, nom du jeu, titre, dates de début et de fin ;
+- statut (« Inscriptions ouvertes », « En cours »…), mode
+  (« Équipe (5–10 joueurs) » ou « Joueur (solo) ») et format
+  (« En ligne », « LAN », « En ligne et LAN ») ;
+- prix, description courte, compteur d'inscrits, clôture des inscriptions ;
+- bouton **S'inscrire**, **Gérer mon équipe** ou badge **Inscrit** selon le cas.
+
+Liaison Toornament (préparation de la synchronisation API) :
+
+| Colonne | Rôle |
+|---|---|
+| `banner_url` | bannière large de la carte (URL https, facultatif) |
+| `toornament_url` | page publique du tournoi sur Toornament : affiche le badge **Toornament** sur la bannière et un bouton **Détails** |
+| `toornament_id` | identifiant numérique extrait automatiquement du lien, clé de la future synchronisation API |
+
+Ces champs se renseignent dans le back-office, à la création comme à la
+modification du tournoi. Quand l'accès API Toornament sera disponible, la
+synchronisation pourra s'appuyer sur `toornament_id` sans modifier l'affichage.
+Les URL sont validées (`https://…` uniquement) avant enregistrement.
+
 ## Calendrier et affichage public
 
 - Le calendrier liste les tournois datés (début, clôture des inscriptions).
