@@ -108,6 +108,8 @@ Statuts d'un tournoi : `draft`, `open`, `closed`, `running`, `finished`, `cancel
   - `nvg_tournament_leave_team(équipe)` ;
   - `nvg_tournament_register_solo(tournoi, pseudo)` ;
   - `nvg_tournament_register_team(équipe, pseudo)` ;
+  - `nvg_tournament_set_platform_id(inscription, pseudo)` (le titulaire, ou un
+    admin, corrige le pseudo en jeu tant que l'inscription n'est pas annulée) ;
   - `nvg_tournament_cancel(inscription)` ;
   - `nvg_tournament_is_team_member(équipe)` (utilisée par les policies RLS).
 - Un joueur ne peut être que dans **une équipe par tournoi**.
@@ -139,7 +141,10 @@ Statuts d'un tournoi : `draft`, `open`, `closed`, `running`, `finished`, `cancel
 4. Les coéquipiers se connectent avec leur compte Tournoi des 9 Mondes : le code
    est prérempli (y compris après connexion si le lien est ouvert déconnecté).
 5. Onglet **Mon espace** : équipes, membres, code, inscription de l'équipe,
-   annulation, liste des inscriptions avec statut et état du paiement.
+   annulation, liste des inscriptions avec statut et état du paiement. Chaque
+   inscription non annulée affiche **Pseudo en jeu : … ✏️ Modifier** : le joueur
+   corrige son identifiant en jeu (40 caractères max, champ facultatif) sans
+   annuler puis recréer son inscription.
 6. Le capitaine peut dissoudre l'équipe ; un membre peut la quitter.
 
 ## Paiement des inscriptions
@@ -161,9 +166,18 @@ HelloAsso, Stripe Checkout, virement…).
 - Le statut d'inscription (`pending`, `confirmed`…) reste indépendant du statut
   de paiement : un joueur peut être confirmé et encore en attente de règlement,
   ou payé et en liste d'attente.
-- Côté admin, le bouton **✅ Marquer payé** renseigne `payment_status = 'paid'`
-  et `paid_at` ; **Marquer remboursé** repasse à `refunded` et efface `paid_at`.
-  La référence externe peut être complétée dans la fiche d'inscription.
+- Côté admin, le panneau des inscriptions permet de faire évoluer le paiement :
+  - **✅ Marquer payé** : `payment_status = 'paid'`, `paid_at` renseigné et
+    inscription confirmée ;
+  - **💸 Rembourser** (après confirmation) : `payment_status = 'refunded'`,
+    `paid_at` effacé et **inscription annulée** — la place est immédiatement
+    libérée (compteurs et barre de remplissage repassent à 0 pour ce joueur) ;
+  - **↩️ Remettre en attente** : `payment_status = 'awaiting'`, `paid_at` effacé ;
+    si l'inscription avait été annulée par un remboursement, elle est
+    re-confirmée et la place reprise.
+- Réinscrire un joueur remboursé (bouton **Confirmer**) remet automatiquement
+  son paiement en attente si le tournoi est payant, ou à « aucun paiement
+  requis » s'il est gratuit.
 
 ## Back-office NVG
 
@@ -186,7 +200,7 @@ Onglet **Admin** (visible uniquement pour les admins) :
   site, pseudo en jeu, prénom, nom, date de naissance, identité complète, date
   d'inscription, statut d'inscription et statut de paiement ;
 - depuis ce panneau : confirmer, mettre en liste d'attente, annuler, marquer
-  payé ou remboursé.
+  payé, **rembourser** (libère la place) ou **remettre en attente de paiement**.
 
 Créer un tournoi en `draft` non publié permet de préparer la fiche avant
 ouverture. Pour rendre les inscriptions possibles : statut `open` **et**

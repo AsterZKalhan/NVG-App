@@ -674,6 +674,51 @@ $$;
 revoke all on function public.nvg_tournament_cancel(uuid) from public;
 grant execute on function public.nvg_tournament_cancel(uuid) to authenticated;
 
+-- Le joueur (ou le capitaine pour une équipe) peut corriger son pseudo en jeu.
+create or replace function public.nvg_tournament_set_platform_id(
+  p_registration uuid,
+  p_platform text default null
+)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid text := auth.uid()::text;
+  v_reg record;
+  v_platform text := nullif(trim(coalesce(p_platform, '')), '');
+begin
+  if v_uid is null then
+    raise exception 'connexion requise';
+  end if;
+
+  if v_platform is not null and char_length(v_platform) > 40 then
+    raise exception 'identifiant en jeu trop long (40 caractères maximum)';
+  end if;
+
+  select * into v_reg from public.nvg_tournament_registrations where id = p_registration;
+  if not found then
+    raise exception 'inscription introuvable';
+  end if;
+  if v_reg.user_id <> v_uid and not public.nvg_is_admin() then
+    raise exception 'non autorisé';
+  end if;
+  if v_reg.status = 'cancelled' then
+    raise exception 'inscription annulée';
+  end if;
+
+  update public.nvg_tournament_registrations
+  set platform_id = v_platform, updated_at = now()
+  where id = p_registration;
+
+  return v_platform;
+end;
+$$;
+
+revoke all on function public.nvg_tournament_set_platform_id(uuid, text) from public;
+grant execute on function public.nvg_tournament_set_platform_id(uuid, text) to authenticated;
+
 -- ---------------------------------------------------------------------------
 -- Vues publiques (sans code d'invitation)
 -- ---------------------------------------------------------------------------

@@ -299,11 +299,9 @@ function paymentBadge(status) {
 function registrationPaymentBlock(reg) {
   const status = reg.payment_status || 'not_required';
   const fee = Number(reg.nvg_tournaments?.entry_fee_cents) || 0;
-  if (status === 'paid') return '<span class="text-[10px] font-bold text-emerald-400">✅ Participation validée</span>';
-  if (status === 'refunded') return '<span class="text-[10px] font-bold text-sky-400">Remboursement effectué</span>';
-  if (status !== 'awaiting') return '<span class="text-[10px] text-gray-500">Aucun paiement requis</span>';
+  if (status !== 'awaiting') return '';
   return `<div class="flex flex-col items-start gap-1">
-      <span class="text-[10px] font-bold text-amber-400">⏳ En attente de paiement${fee > 0 ? ` · ${escapeHtml(formatFee(fee))}` : ''}</span>
+      <span class="text-[10px] font-bold text-amber-400">⏳ ${fee > 0 ? `${escapeHtml(formatFee(fee))} à régler` : 'Paiement en attente'}</span>
       <button onclick="payRegistration('${reg.id}')" class="rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black text-black transition hover:bg-amber-400">Régler mon inscription</button>
     </div>`;
 }
@@ -687,7 +685,7 @@ async function loadMember() {
       .select('id,tournament_id,name,tag,captain_id,invite_code,created_at,nvg_tournament_team_members(user_id,role,nvg_users(name,rank)),nvg_tournaments(name,mode,team_min,team_max,status)')
       .order('created_at', { ascending: false }),
     supabaseClient.from('nvg_tournament_registrations')
-      .select('id,tournament_id,team_id,status,platform_id,payment_status,payment_reference,paid_at,created_at,nvg_tournaments(name,mode,team_min,team_max,entry_fee_cents,payment_url,payment_instructions),nvg_tournament_teams(name)')
+      .select('id,tournament_id,team_id,user_id,status,platform_id,payment_status,payment_reference,paid_at,created_at,nvg_tournaments(name,mode,team_min,team_max,entry_fee_cents,payment_url,payment_instructions),nvg_tournament_teams(name)')
       .order('created_at', { ascending: false })
   ]);
   myTeams = teams.data || [];
@@ -745,12 +743,16 @@ function renderMyRegistrations() {
   }
   box.innerHTML = myRegistrations.map((reg) => {
     const label = reg.nvg_tournament_teams?.name || reg.nvg_tournaments?.name || 'Tournoi';
+    const canEdit = reg.status !== 'cancelled' && (!reg.user_id || reg.user_id === currentUser?.id);
     return `
       <div class="bg-[#121722] border border-[#1f293d] rounded-xl px-4 py-3 space-y-2">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="min-w-0">
             <p class="text-xs font-black text-white truncate">${escapeHtml(reg.nvg_tournaments?.name || 'Tournoi')}</p>
-            <p class="text-[10px] text-gray-400">${escapeHtml(label)}${reg.platform_id ? ` · ${escapeHtml(reg.platform_id)}` : ''} · ${escapeHtml(formatDate(reg.created_at))}</p>
+            <p class="text-[10px] text-gray-400">${escapeHtml(label)} · ${escapeHtml(formatDate(reg.created_at))}</p>
+            <p class="text-[10px] text-gray-400">Pseudo en jeu : ${canEdit
+              ? `<span id="regPseudo-${reg.id}" class="inline-flex flex-wrap items-center gap-1">${reg.platform_id ? escapeHtml(reg.platform_id) : '<span class="text-gray-600">non renseigné</span>'}<button onclick="editRegistrationPseudo('${reg.id}')" class="text-[10px] font-bold text-amber-400 hover:text-amber-300">✏️ Modifier</button></span>`
+              : `<span class="text-gray-500">${reg.platform_id ? escapeHtml(reg.platform_id) : '—'}</span>`}</p>
             <p class="text-[10px] text-gray-500">${escapeHtml(feeLabel(reg.nvg_tournaments || {}))}</p>
           </div>
           <div class="flex items-center gap-2">
@@ -761,6 +763,39 @@ function renderMyRegistrations() {
         ${reg.status !== 'cancelled' ? `<div class="flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-2">${paymentBadge(reg.payment_status)}${registrationPaymentBlock(reg)}</div>` : ''}
       </div>`;
   }).join('');
+}
+
+function editRegistrationPseudo(regId) {
+  const reg = myRegistrations.find((r) => r.id === regId);
+  if (!reg) return;
+  const box = $(`regPseudo-${regId}`);
+  if (!box) return;
+  box.outerHTML = `
+    <span id="regPseudo-${regId}" class="inline-flex flex-wrap items-center gap-1">
+      <input id="regPseudoInput-${regId}" maxlength="40" value="${escapeHtml(reg.platform_id || '')}" placeholder="Pseudo en jeu (facultatif)" class="w-40 rounded border border-[#1f293d] bg-[#07090e] px-2 py-1 text-[10px] text-white">
+      <button onclick="saveRegistrationPseudo('${regId}')" class="rounded bg-amber-500 px-2 py-1 text-[10px] font-black text-black hover:bg-amber-400">OK</button>
+      <button onclick="renderMyRegistrations()" class="rounded border border-[#1f293d] px-2 py-1 text-[10px] font-bold text-gray-400 hover:text-white">Annuler</button>
+    </span>`;
+  $(`regPseudoInput-${regId}`)?.focus();
+}
+
+async function saveRegistrationPseudo(regId) {
+  const input = $(`regPseudoInput-${regId}`);
+  if (!input) return;
+  const value = input.value.trim();
+  if (value.length > 40) { notify('40 caractères maximum.', true); return; }
+  try {
+    const data = await rpc('nvg_tournament_set_platform_id', {
+      p_registration: regId,
+      p_platform: value || null
+    });
+    const reg = myRegistrations.find((r) => r.id === regId);
+    if (reg) reg.platform_id = data || null;
+    notify(value ? 'Pseudo en jeu enregistré.' : 'Pseudo en jeu retiré.');
+    renderMyRegistrations();
+  } catch (err) {
+    notify('Erreur : ' + err.message, true);
+  }
 }
 
 async function registerTeam(teamId) {
@@ -866,8 +901,9 @@ function adminTournamentStats(t) {
   const registered = regs.length;
   const paid = regs.filter((r) => r.payment_status === 'paid').length;
   const awaiting = regs.filter((r) => r.payment_status === 'awaiting').length;
+  const refunded = adminRegs.filter((r) => r.tournament_id === t.id && r.payment_status === 'refunded').length;
   const percent = max > 0 ? Math.min(100, Math.round((registered / max) * 100)) : 0;
-  return { max, registered, paid, awaiting, percent, free: max > 0 ? Math.max(0, max - registered) : null };
+  return { max, registered, paid, awaiting, refunded, percent, free: max > 0 ? Math.max(0, max - registered) : null };
 }
 
 function renderAdminTournaments() {
@@ -901,7 +937,7 @@ function renderAdminTournaments() {
           </div>
           <div class="flex flex-wrap items-center justify-between gap-2 text-[10px] text-gray-500">
             <span>${s.free === null ? 'Places illimitées' : `${s.free} place(s) restante(s)`}</span>
-            <span>${s.paid} payé(s) · ${s.awaiting} en attente</span>
+            <span>${s.paid} payé(s) · ${s.awaiting} en attente${s.refunded ? ` · ${s.refunded} remboursé(s)` : ''}</span>
           </div>
         </div>
       </div>`;
@@ -927,7 +963,7 @@ function showAdminRegs(tournamentId) {
   $('adminRegsBar').style.width = `${s.percent}%`;
   $('adminRegsBar').className = `h-full rounded-full transition-all ${s.percent >= 100 ? 'bg-red-500' : 'bg-gradient-to-r from-amber-500 to-emerald-500'}`;
   $('adminRegsFree').textContent = s.free === null ? 'Places illimitées' : `${s.free} place(s) restante(s)`;
-  $('adminRegsPaid').textContent = `${s.paid} participation(s) validée(s) · ${s.awaiting} en attente de paiement`;
+  $('adminRegsPaid').textContent = `${s.paid} participation(s) validée(s) · ${s.awaiting} en attente de paiement${s.refunded ? ` · ${s.refunded} remboursée(s)` : ''}`;
   $('adminRegsList').innerHTML = regs.length
     ? regs.map((r) => adminRegistrationRow(r)).join('')
     : '<p class="text-xs text-gray-500">Aucune inscription pour ce tournoi.</p>';
@@ -967,22 +1003,48 @@ function adminRegistrationRow(r) {
         <button onclick="setRegistrationStatus('${r.id}','waitlist')" class="text-[10px] font-bold text-amber-400 hover:text-amber-300">Liste d'attente</button>
         <button onclick="setRegistrationStatus('${r.id}','cancelled')" class="text-[10px] font-bold text-red-400 hover:text-red-300">Annuler</button>
         ${payment === 'paid'
-          ? `<button onclick="setPaymentStatus('${r.id}','refunded')" class="ml-auto text-[10px] font-bold text-sky-400 hover:text-sky-300">Marquer remboursé</button>`
+          ? `<button onclick="setPaymentStatus('${r.id}','refunded')" class="ml-auto text-[10px] font-bold text-sky-400 hover:text-sky-300">💸 Rembourser</button>`
           : `<button onclick="setPaymentStatus('${r.id}','paid')" class="ml-auto text-[10px] font-bold text-emerald-400 hover:text-emerald-300">✅ Marquer payé</button>`}
+        ${payment === 'paid' || payment === 'refunded'
+          ? `<button onclick="setPaymentStatus('${r.id}','awaiting')" class="text-[10px] font-bold text-amber-400 hover:text-amber-300">↩️ Remettre en attente</button>`
+          : ''}
       </div>
     </div>`;
 }
 
 async function setPaymentStatus(id, paymentStatus) {
-  const patch = { payment_status: paymentStatus };
+  const reg = adminRegs.find((r) => r.id === id);
+  const wasRefunded = reg?.payment_status === 'refunded';
+  if (paymentStatus === 'refunded'
+    && !window.confirm('Marquer ce paiement comme remboursé ?\n\nL’inscription sera annulée et la place sera libérée.')) {
+    return;
+  }
+  const patch = { payment_status: paymentStatus, updated_at: new Date().toISOString() };
   if (paymentStatus === 'paid') {
     patch.paid_at = new Date().toISOString();
+    // Un paiement reçu vaut participation : on (re)confirme l'inscription.
+    if (reg?.status !== 'confirmed') patch.status = 'confirmed';
   } else {
     patch.paid_at = null;
+    if (paymentStatus === 'refunded') {
+      // Remboursement = le joueur ne vient pas : on libère la place.
+      patch.status = 'cancelled';
+    } else if (paymentStatus === 'awaiting' && wasRefunded && reg?.status === 'cancelled') {
+      // Retour en attente de paiement après un remboursement : la place est reprise.
+      patch.status = 'confirmed';
+    }
   }
   const { error } = await supabaseClient.from('nvg_tournament_registrations').update(patch).eq('id', id);
   if (error) { notify('Erreur : ' + error.message, true); return; }
-  notify(paymentStatus === 'paid' ? 'Participation validée.' : 'Paiement mis à jour.');
+  if (paymentStatus === 'paid') {
+    notify('Paiement validé, participation confirmée.');
+  } else if (paymentStatus === 'refunded') {
+    notify('Remboursement enregistré : inscription annulée, place libérée.');
+  } else {
+    notify(wasRefunded
+      ? 'Paiement remis en attente, la place est reprise.'
+      : 'Paiement remis en attente.');
+  }
   await loadAdmin();
   await loadMember();
 }
@@ -1354,9 +1416,19 @@ async function setTournamentStatus(id, status) {
 }
 
 async function setRegistrationStatus(id, status) {
-  const { error } = await supabaseClient.from('nvg_tournament_registrations').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+  const patch = { status, updated_at: new Date().toISOString() };
+  const reg = adminRegs.find((r) => r.id === id);
+  // Réinscrire un joueur remboursé : le paiement redevient à régler.
+  if (status === 'confirmed' && reg?.payment_status === 'refunded') {
+    const t = tournamentById(reg.tournament_id);
+    patch.payment_status = Number(t?.entry_fee_cents) > 0 ? 'awaiting' : 'not_required';
+    patch.paid_at = null;
+  }
+  const { error } = await supabaseClient.from('nvg_tournament_registrations').update(patch).eq('id', id);
   if (error) { notify('Erreur : ' + error.message, true); return; }
-  notify('Inscription mise à jour.');
+  notify(patch.payment_status === 'awaiting'
+    ? 'Inscription rétablie : paiement à nouveau en attente.'
+    : 'Inscription mise à jour.');
   await loadAdmin();
 }
 
