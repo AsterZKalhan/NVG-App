@@ -834,6 +834,59 @@ function renderAdminRegistrations(regs) {
 }
 
 const GAME_IMG_BUCKET = 'games-img';
+const GAME_IMG_PUBLIC_PREFIX = `${SUPABASE_URL}/storage/v1/object/public/${GAME_IMG_BUCKET}/`;
+const pendingGameImages = { logo: null, banniere: null };
+
+// Chemin du fichier dans le bucket à partir de son URL publique (ou null si
+// l'image vient d'ailleurs, auquel cas il n'y a rien à supprimer chez nous).
+function gameImagePathFromUrl(value) {
+  const url = safeUrl(value);
+  if (!url) return null;
+  const clean = url.split('?')[0].split('#')[0];
+  if (!clean.startsWith(GAME_IMG_PUBLIC_PREFIX)) return null;
+  const path = decodeURIComponent(clean.slice(GAME_IMG_PUBLIC_PREFIX.length));
+  if (!path || path.includes('..') || path.startsWith('/')) return null;
+  return path;
+}
+
+async function removeGameImage(path) {
+  if (!path) return true;
+  try {
+    const { error } = await supabaseClient.storage.from(GAME_IMG_BUCKET).remove([path]);
+    if (error && !/not found/i.test(error.message || '')) throw error;
+    return true;
+  } catch (err) {
+    notify(`Ancien fichier non supprimé (${path}) : ${err.message || err}`, true);
+    return false;
+  }
+}
+
+// Un fichier est-il encore utilisé par un autre jeu (URL manuelle partagée) ?
+function gameImagePathInUse(path, exceptGameId) {
+  if (!path) return false;
+  return games.some((g) => g.id !== exceptGameId
+    && (gameImagePathFromUrl(g.logo_url) === path || gameImagePathFromUrl(g.banner_url) === path));
+}
+
+function currentGameImagePaths() {
+  const g = editingGameId ? gameById(editingGameId) : null;
+  return {
+    logo: gameImagePathFromUrl(g?.logo_url),
+    banniere: gameImagePathFromUrl(g?.banner_url)
+  };
+}
+
+async function purgePendingGameImages(exceptGameId) {
+  const stored = currentGameImagePaths();
+  const jobs = [];
+  Object.entries(pendingGameImages).forEach(([key, path]) => {
+    if (!path || path === stored[key] || gameImagePathInUse(path, exceptGameId)) return;
+    jobs.push(removeGameImage(path));
+  });
+  pendingGameImages.logo = null;
+  pendingGameImages.banniere = null;
+  if (jobs.length) await Promise.all(jobs);
+}
 
 function setGamePreviews() {
   const logo = safeUrl($('gameLogo')?.value);
@@ -876,7 +929,8 @@ function resetGameForm() {
   setGamePreviews();
 }
 
-function cancelGameEdit() {
+async function cancelGameEdit() {
+  await purgePendingGameImages(editingGameId);
   resetGameForm();
 }
 
@@ -913,11 +967,19 @@ async function uploadGameImage(kind, input) {
     if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) throw new Error('format accepté : PNG, JPG ou WebP.');
 
     const path = `${slugify(name)}-${isLogo ? 'logo' : 'banniere'}.png`;
+    const key = isLogo ? 'logo' : 'banniere';
     setUploadLabel(input, '⏳ Envoi…');
     const { error } = await supabaseClient.storage
       .from(GAME_IMG_BUCKET)
       .upload(path, file, { upsert: true, cacheControl: '3600', contentType: file.type });
     if (error) throw error;
+
+    // Fichier envoyé avant celui-ci dans la même session et non enregistré :
+    // on le supprime pour ne pas laisser d'orphelin.
+    if (pendingGameImages[key] && pendingGameImages[key] !== path) {
+      await removeGameImage(pendingGameImages[key]);
+    }
+    pendingGameImages[key] = path;
 
     const { data } = supabaseClient.storage.from(GAME_IMG_BUCKET).getPublicUrl(path);
     urlField.value = `${data.publicUrl}?v=${Date.now()}`;
@@ -940,9 +1002,19 @@ async function saveGame() {
     logo_url: safeUrl($('gameLogo').value) || null,
     banner_url: safeUrl($('gameBanner').value) || null
   };
+  const gameId = editingGameId;
+  const current = gameId ? gameById(gameId) : null;
+  const before = {
+    logo: gameImagePathFromUrl(current?.logo_url),
+    banniere: gameImagePathFromUrl(current?.banner_url)
+  };
+  const after = {
+    logo: gameImagePathFromUrl(payload.logo_url),
+    banniere: gameImagePathFromUrl(payload.banner_url)
+  };
   try {
-    if (editingGameId) {
-      const { error } = await supabaseClient.from('nvg_tournament_games').update(payload).eq('id', editingGameId);
+    if (gameId) {
+      const { error } = await supabaseClient.from('nvg_tournament_games').update(payload).eq('id', gameId);
       if (error) throw new Error(error.message);
       notify('Jeu mis à jour.');
     } else {
@@ -950,6 +1022,25 @@ async function saveGame() {
       if (error) throw new Error(error.message);
       notify('Jeu créé.');
     }
+
+    // Une fois l'enregistrement réussi, on efface les visuels remplacés
+    // (renommage du jeu, passage à une URL externe, fichier non retenu…)
+    // pour qu'il ne reste pas d'ancien logo ou de bannière dans le bucket.
+    const removals = [];
+    Object.keys(after).forEach((key) => {
+      const oldPath = before[key];
+      if (oldPath && oldPath !== after[key] && !gameImagePathInUse(oldPath, gameId)) {
+        removals.push(removeGameImage(oldPath));
+      }
+    });
+    Object.entries(pendingGameImages).forEach(([key, path]) => {
+      if (!path || path === after[key] || gameImagePathInUse(path, gameId)) return;
+      removals.push(removeGameImage(path));
+    });
+    pendingGameImages.logo = null;
+    pendingGameImages.banniere = null;
+    if (removals.length) await Promise.all(removals);
+
     resetGameForm();
     await loadPublic();
     renderAdminGames();

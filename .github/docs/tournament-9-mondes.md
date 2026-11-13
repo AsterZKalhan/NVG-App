@@ -140,6 +140,12 @@ cartes d'un même jeu partagent donc le même visuel.
   lecture publique.
 - Une URL externe reste acceptée (champ texte sous le bouton) : pratique pour un
   visuel hébergé ailleurs.
+- **Remplacement sans orphelin** : à l'enregistrement, l'ancien logo/bannière
+  est supprimé du bucket si le fichier a changé (renommage du jeu, nouvelle
+  image, passage à une URL externe ou champ vidé). Un fichier envoyé puis
+  abandonné (annulation de la modification ou second envoi dans la même
+  session) est également effacé. Un fichier encore référencé par un autre jeu
+  n'est jamais supprimé.
 - Le bloc **🎮 Jeu** sert aussi à modifier un jeu existant (bouton ✏️ dans la
   liste) : nom, logo, bannière.
 - Sur la carte, `banner_url` du tournoi reste prioritaire si elle est renseignée ;
