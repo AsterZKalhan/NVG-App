@@ -62,6 +62,20 @@ update public.nvg_tournaments
    set prize_first = prize
  where prize_first is null and prize is not null;
 
+-- Paiement de l'inscription : montant en centimes (0 = gratuit), page de
+-- règlement (Weezevent ou module maison) et consignes affichées au joueur.
+alter table public.nvg_tournaments add column if not exists entry_fee_cents integer not null default 0;
+alter table public.nvg_tournaments add column if not exists payment_url text;
+alter table public.nvg_tournaments add column if not exists payment_instructions text;
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'nvg_tournaments_entry_fee_chk') then
+    alter table public.nvg_tournaments add constraint nvg_tournaments_entry_fee_chk
+      check (entry_fee_cents >= 0);
+  end if;
+end $$;
+
 create index if not exists nvg_tournaments_toornament_id_idx
   on public.nvg_tournaments (toornament_id);
 
@@ -97,9 +111,68 @@ create table if not exists public.nvg_tournament_registrations (
   status text not null default 'pending' check (status in ('pending', 'confirmed', 'waitlist', 'cancelled')),
   platform_id text,
   notes text,
+  payment_status text not null default 'not_required',
+  payment_reference text,
+  paid_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Pseudo en jeu facultatif : le pseudo du site suffit.
+alter table public.nvg_tournament_registrations alter column platform_id drop not null;
+
+-- État de paiement de l'inscription, distinct du statut d'inscription.
+alter table public.nvg_tournament_registrations add column if not exists payment_status text not null default 'not_required';
+alter table public.nvg_tournament_registrations add column if not exists payment_reference text;
+alter table public.nvg_tournament_registrations add column if not exists paid_at timestamptz;
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'nvg_tournament_reg_payment_chk') then
+    alter table public.nvg_tournament_registrations add constraint nvg_tournament_reg_payment_chk
+      check (payment_status in ('not_required', 'awaiting', 'paid', 'refunded'));
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Identité du participant (nom, prénom, date de naissance)
+-- Colonnes partagées avec le profil de l'app NVG, alimentées à l'inscription
+-- par les métadonnées auth.signUp puis recopiées par le trigger.
+-- ---------------------------------------------------------------------------
+
+alter table public.nvg_users add column if not exists first_name text;
+alter table public.nvg_users add column if not exists last_name text;
+alter table public.nvg_users add column if not exists birth_date date;
+
+create or replace function public.nvg_create_profile()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $function$
+declare
+  v_birth date;
+begin
+  -- Date au format ISO uniquement (AAAA-MM-JJ), sinon on ignore la valeur.
+  if coalesce(new.raw_user_meta_data->>'birth_date', '') ~ '^\d{4}-\d{2}-\d{2}$' then
+    begin
+      v_birth := (new.raw_user_meta_data->>'birth_date')::date;
+    exception when others then
+      v_birth := null;
+    end;
+  end if;
+
+  insert into public.nvg_users (id, name, email, role, rank, verified, avatar_url,
+                                first_name, last_name, birth_date)
+  values (new.id::text,
+          coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
+          new.email, 'Membre', 'Petit Viking', false, '',
+          nullif(trim(new.raw_user_meta_data->>'first_name'), ''),
+          nullif(trim(new.raw_user_meta_data->>'last_name'), ''),
+          v_birth)
+  on conflict (id) do nothing;
+  return new;
+end $function$;
 
 create unique index if not exists nvg_tournament_reg_solo_idx
   on public.nvg_tournament_registrations (tournament_id, user_id)
@@ -427,9 +500,14 @@ declare
   v_t record;
   v_reg uuid;
   v_count int;
+  v_platform text := nullif(trim(coalesce(p_platform, '')), '');
 begin
   if v_uid is null then
     raise exception 'connexion requise';
+  end if;
+
+  if v_platform is not null and char_length(v_platform) > 40 then
+    raise exception 'pseudo en jeu trop long (40 caractères maximum)';
   end if;
 
   select * into v_t from public.nvg_tournaments where id = p_tournament and published;
@@ -461,8 +539,12 @@ begin
     end if;
   end if;
 
-  insert into public.nvg_tournament_registrations (tournament_id, user_id, team_id, status, platform_id)
-  values (p_tournament, v_uid, null, 'pending', nullif(trim(p_platform), ''))
+  insert into public.nvg_tournament_registrations
+    (tournament_id, user_id, team_id, status, platform_id, payment_status)
+  values (
+    p_tournament, v_uid, null, 'pending', v_platform,
+    case when coalesce(v_t.entry_fee_cents, 0) > 0 then 'awaiting' else 'not_required' end
+  )
   returning id into v_reg;
 
   return v_reg;
@@ -487,9 +569,14 @@ declare
   v_t record;
   v_reg uuid;
   v_count int;
+  v_platform text := nullif(trim(coalesce(p_platform, '')), '');
 begin
   if v_uid is null then
     raise exception 'connexion requise';
+  end if;
+
+  if v_platform is not null and char_length(v_platform) > 40 then
+    raise exception 'identifiant en jeu trop long (40 caractères maximum)';
   end if;
 
   select * into v_team from public.nvg_tournament_teams where id = p_team;
@@ -539,8 +626,12 @@ begin
     end if;
   end if;
 
-  insert into public.nvg_tournament_registrations (tournament_id, user_id, team_id, status, platform_id)
-  values (v_t.id, v_uid, p_team, 'pending', nullif(trim(p_platform), ''))
+  insert into public.nvg_tournament_registrations
+    (tournament_id, user_id, team_id, status, platform_id, payment_status)
+  values (
+    v_t.id, v_uid, p_team, 'pending', v_platform,
+    case when coalesce(v_t.entry_fee_cents, 0) > 0 then 'awaiting' else 'not_required' end
+  )
   returning id into v_reg;
 
   return v_reg;

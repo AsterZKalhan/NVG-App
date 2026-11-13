@@ -17,9 +17,12 @@ let tournaments = [];
 let publicRegs = [];
 let myTeams = [];
 let myRegistrations = [];
+let adminRegs = [];
+let profileIdentity = { first_name: '', last_name: '', birth_date: '' };
 let pendingJoinCode = null;
 let editingTournamentId = null;
 let editingGameId = null;
+let viewingTournamentId = null;
 
 const STATUS_LABELS = {
   draft: 'Brouillon',
@@ -39,6 +42,18 @@ const STATUS_STYLES = {
 };
 const FORMAT_LABELS = { online: 'En ligne', lan: 'LAN', both: 'En ligne et LAN' };
 const REG_LABELS = { pending: 'En attente', confirmed: 'Confirmée', waitlist: "Liste d'attente", cancelled: 'Annulée' };
+const PAYMENT_LABELS = {
+  not_required: 'Inscription gratuite',
+  awaiting: 'En attente de paiement',
+  paid: 'Participation validée',
+  refunded: 'Remboursement effectué'
+};
+const PAYMENT_STYLES = {
+  not_required: 'text-gray-400 border-[#1f293d] bg-white/5',
+  awaiting: 'text-amber-400 border-amber-500/30 bg-amber-500/10',
+  paid: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10',
+  refunded: 'text-sky-400 border-sky-500/30 bg-sky-500/10'
+};
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -127,16 +142,65 @@ function inviteUrl(code) {
 
 // --- Navigation ---
 
-function openTab(name) {
+const TAB_NAMES = ['home', 'tournaments', 'account', 'admin'];
+
+function routeState() {
+  const params = new URLSearchParams(window.location.search);
+  const tab = params.get('tab');
+  return {
+    tab: TAB_NAMES.includes(tab) ? tab : 'home',
+    tournament: params.get('tournament') || null
+  };
+}
+
+function routeUrl(tab, extra = {}) {
+  const params = new URLSearchParams();
+  if (tab && tab !== 'home') params.set('tab', tab);
+  Object.entries(extra).forEach(([key, value]) => { if (value) params.set(key, value); });
+  const query = params.toString();
+  return `${window.location.pathname}${query ? `?${query}` : ''}`;
+}
+
+function currentUrl() {
+  return `${window.location.pathname}${window.location.search}`;
+}
+
+function pushRoute(tab, extra = {}) {
+  const url = routeUrl(tab, extra);
+  if (currentUrl() === url) return;
+  window.history.pushState({ tab, ...extra }, document.title, url);
+}
+
+function openTab(name, options = {}) {
+  const { push = true, replace = false } = options;
   if (name === 'admin' && !isAdmin) name = 'home';
   document.querySelectorAll('.tab-content').forEach((el) => el.classList.add('hidden'));
   const section = $(`tab-${name}`);
   if (section) section.classList.remove('hidden');
   document.querySelectorAll('.tab-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === name));
+  if (push || replace) {
+    const url = routeUrl(name);
+    if (replace) {
+      window.history.replaceState({ tab: name }, document.title, url);
+    } else if (currentUrl() !== url) {
+      window.history.pushState({ tab: name }, document.title, url);
+    }
+  }
   if (name === 'tournaments' || name === 'home') loadPublic();
   if (name === 'account') refreshAccount();
   if (name === 'admin') loadAdmin();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Applique l'URL courante (retour/avant du navigateur, lien direct).
+function applyRoute() {
+  const { tab, tournament } = routeState();
+  openTab(tab, { push: false });
+  if (tournament) {
+    openTournamentDetails(tournament, { push: false });
+  } else {
+    closeTournamentDetails({ push: false });
+  }
 }
 
 // --- Données publiques ---
@@ -201,7 +265,63 @@ function dateRange(t) {
 }
 
 function modeLabel(t) {
-  return t.mode === 'solo' ? 'Joueur (solo)' : `Équipe (${t.team_min}–${t.team_max} joueurs)`;
+  if (t.mode === 'solo') return 'Joueur (solo)';
+  const min = Number(t.team_min) || 1;
+  const max = Number(t.team_max) || min;
+  if (min === max) return min === 1 ? 'Joueur (solo)' : `Équipe (${min} joueurs)`;
+  return `Équipe (${min}–${max} joueurs)`;
+}
+
+function formatFee(cents) {
+  const value = Number(cents) || 0;
+  if (value <= 0) return 'Gratuit';
+  return (value / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+}
+
+function eurosToCents(value) {
+  const raw = String(value ?? '').trim().replace(',', '.');
+  if (!raw) return 0;
+  const n = Number.parseFloat(raw);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.round(n * 100);
+}
+
+function feeLabel(t) {
+  const fee = Number(t?.entry_fee_cents) || 0;
+  return fee > 0 ? `Inscription : ${formatFee(fee)}` : 'Inscription gratuite';
+}
+
+function paymentBadge(status) {
+  const key = status || 'not_required';
+  return `<span class="rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-wider ${PAYMENT_STYLES[key] || PAYMENT_STYLES.not_required}">${escapeHtml(PAYMENT_LABELS[key] || key)}</span>`;
+}
+
+function registrationPaymentBlock(reg) {
+  const status = reg.payment_status || 'not_required';
+  const fee = Number(reg.nvg_tournaments?.entry_fee_cents) || 0;
+  if (status === 'paid') return '<span class="text-[10px] font-bold text-emerald-400">✅ Participation validée</span>';
+  if (status === 'refunded') return '<span class="text-[10px] font-bold text-sky-400">Remboursement effectué</span>';
+  if (status !== 'awaiting') return '<span class="text-[10px] text-gray-500">Aucun paiement requis</span>';
+  return `<div class="flex flex-col items-start gap-1">
+      <span class="text-[10px] font-bold text-amber-400">⏳ En attente de paiement${fee > 0 ? ` · ${escapeHtml(formatFee(fee))}` : ''}</span>
+      <button onclick="payRegistration('${reg.id}')" class="rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black text-black transition hover:bg-amber-400">Régler mon inscription</button>
+    </div>`;
+}
+
+function payRegistration(registrationId) {
+  const reg = myRegistrations.find((r) => r.id === registrationId);
+  if (!reg) return;
+  const t = reg.nvg_tournaments || {};
+  const url = externalLink(t.payment_url);
+  if (url) {
+    window.open(url, '_blank', 'noopener');
+    notify('Page de règlement ouverte dans un nouvel onglet.');
+    return;
+  }
+  const instructions = String(t.payment_instructions || '').trim();
+  notify(instructions
+    ? `Paiement : ${instructions}`
+    : 'Aucun lien de règlement pour ce tournoi. Contacte la NVG pour payer ton inscription.');
 }
 
 function tournamentBanner(t) {
@@ -244,13 +364,20 @@ function prizeRows(t) {
     </div>`).join('');
 }
 
-function closeTournamentDetails() {
+function closeTournamentDetails(options = {}) {
   const modal = $('tournamentModal');
   if (modal) {
     modal.classList.add('hidden');
     modal.classList.remove('flex');
   }
   document.body.classList.remove('overflow-hidden');
+  if (options.push === false) return;
+  if (!routeState().tournament) return;
+  if (window.history.state && window.history.state.tournament) {
+    window.history.back();
+  } else {
+    window.history.replaceState({ tab: routeState().tab }, document.title, routeUrl(routeState().tab));
+  }
 }
 
 function signupFromDetails(id) {
@@ -259,9 +386,10 @@ function signupFromDetails(id) {
   openSignup(id);
 }
 
-function openTournamentDetails(id) {
+function openTournamentDetails(id, options = {}) {
   const t = tournamentById(id);
   if (!t) return;
+  if (options.push !== false) pushRoute(routeState().tab, { tournament: id });
   const banner = safeUrl(t.banner_url) || gameBanner(t.game_id);
   const logo = gameLogo(t.game_id);
   const initials = escapeHtml((gameById(t.game_id)?.name || t.name || '?').slice(0, 2).toUpperCase());
@@ -301,6 +429,7 @@ function openTournamentDetails(id) {
       <div class="flex flex-wrap items-center gap-2">
         <span class="rounded border border-[#2a3750] px-2 py-1 text-[10px] font-bold text-gray-300">${escapeHtml(modeLabel(t))}</span>
         <span class="rounded border border-[#2a3750] px-2 py-1 text-[10px] font-bold text-gray-300">${escapeHtml(FORMAT_LABELS[t.format] || t.format)}</span>
+        <span class="rounded border px-2 py-1 text-[10px] font-bold ${Number(t.entry_fee_cents) > 0 ? 'border-amber-500/40 bg-amber-500/10 text-amber-300' : 'border-[#2a3750] text-gray-400'}">${escapeHtml(feeLabel(t))}</span>
         <span class="rounded border border-[#2a3750] px-2 py-1 text-[10px] font-bold text-gray-300">👥 ${escapeHtml(places)}</span>
       </div>
 
@@ -312,6 +441,13 @@ function openTournamentDetails(id) {
       </div>
 
       ${t.rules ? `<div><h3 class="mb-1 text-xs font-black uppercase tracking-wider text-white">Règlement</h3><p class="whitespace-pre-line text-[11px] leading-relaxed text-gray-400">${escapeHtml(t.rules)}</p></div>` : ''}
+
+      ${Number(t.entry_fee_cents) > 0 ? `
+        <div class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3">
+          <p class="text-[10px] font-black uppercase tracking-wider text-amber-400">Inscription : ${escapeHtml(formatFee(t.entry_fee_cents))}</p>
+          ${t.payment_instructions ? `<p class="mt-1 whitespace-pre-line text-[11px] leading-relaxed text-gray-300">${escapeHtml(t.payment_instructions)}</p>` : ''}
+          ${externalLink(t.payment_url) ? `<a href="${externalLink(t.payment_url)}" target="_blank" rel="noopener" class="mt-2 inline-block rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black text-black transition hover:bg-amber-400">Régler mon inscription</a>` : ''}
+        </div>` : ''}
 
       <div class="flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-4">
         ${already
@@ -370,6 +506,7 @@ function tournamentCard(t) {
           <span class="text-[11px] font-bold ${statusTone}">${escapeHtml(STATUS_LABELS[t.status] || t.status)}</span>
           <span class="rounded border border-[#2a3750] px-2 py-1 text-[10px] font-bold text-gray-300">${escapeHtml(modeLabel(t))}</span>
           <span class="rounded border border-[#2a3750] px-2 py-1 text-[10px] font-bold text-gray-300">${escapeHtml(FORMAT_LABELS[t.format] || t.format)}</span>
+          <span class="rounded border px-2 py-1 text-[10px] font-bold ${Number(t.entry_fee_cents) > 0 ? 'border-amber-500/40 bg-amber-500/10 text-amber-300' : 'border-[#2a3750] text-gray-400'}">${escapeHtml(feeLabel(t))}</span>
         </div>
         ${t.description ? `<p class="text-xs text-gray-400 line-clamp-2">${escapeHtml(t.description)}</p>` : ''}
         ${hasPrizes(t) ? `<p class="flex items-center gap-1.5 text-[11px] text-gray-300"><span class="text-amber-400">${trophyIcon('h-3.5 w-3.5')}</span>${escapeHtml(t.prize_first || t.prize)}</p>` : ''}
@@ -435,13 +572,20 @@ function openSignup(tournamentId) {
     openTab('account');
     return;
   }
+  if (!identityComplete()) {
+    notify('Complète ton nom, prénom et date de naissance dans « Mon espace » avant de t’inscrire.', true);
+    openTab('account');
+    $('profileHint')?.classList.remove('hidden');
+    return;
+  }
   const panel = $('signupPanel');
   panel.classList.remove('hidden');
   panel.innerHTML = `
     <div class="flex items-start justify-between gap-3">
       <div>
         <h2 class="text-sm font-black text-white">Inscription · ${escapeHtml(t.name)}</h2>
-        <p class="text-xs text-gray-400 mt-1">${t.mode === 'solo' ? 'Tournoi solo.' : `Tournoi en équipe de ${t.team_min} à ${t.team_max} joueurs.`}</p>
+        <p class="text-xs text-gray-400 mt-1">${t.mode === 'solo' ? 'Tournoi solo.' : (Number(t.team_min) === Number(t.team_max) ? `Tournoi en équipe de ${t.team_min} joueurs.` : `Tournoi en équipe de ${t.team_min} à ${t.team_max} joueurs.`)}</p>
+        <p class="text-[11px] font-bold ${Number(t.entry_fee_cents) > 0 ? 'text-amber-400' : 'text-emerald-400'} mt-1">${escapeHtml(feeLabel(t))}</p>
       </div>
       <button onclick="closeSignup()" class="px-2 py-1 text-gray-400 hover:text-white text-sm">✕</button>
     </div>
@@ -543,7 +687,7 @@ async function loadMember() {
       .select('id,tournament_id,name,tag,captain_id,invite_code,created_at,nvg_tournament_team_members(user_id,role,nvg_users(name,rank)),nvg_tournaments(name,mode,team_min,team_max,status)')
       .order('created_at', { ascending: false }),
     supabaseClient.from('nvg_tournament_registrations')
-      .select('id,tournament_id,team_id,status,platform_id,created_at,nvg_tournaments(name,mode,team_min,team_max),nvg_tournament_teams(name)')
+      .select('id,tournament_id,team_id,status,platform_id,payment_status,payment_reference,paid_at,created_at,nvg_tournaments(name,mode,team_min,team_max,entry_fee_cents,payment_url,payment_instructions),nvg_tournament_teams(name)')
       .order('created_at', { ascending: false })
   ]);
   myTeams = teams.data || [];
@@ -602,15 +746,19 @@ function renderMyRegistrations() {
   box.innerHTML = myRegistrations.map((reg) => {
     const label = reg.nvg_tournament_teams?.name || reg.nvg_tournaments?.name || 'Tournoi';
     return `
-      <div class="bg-[#121722] border border-[#1f293d] rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-2">
-        <div class="min-w-0">
-          <p class="text-xs font-black text-white truncate">${escapeHtml(reg.nvg_tournaments?.name || 'Tournoi')}</p>
-          <p class="text-[10px] text-gray-400">${escapeHtml(label)}${reg.platform_id ? ` · ${escapeHtml(reg.platform_id)}` : ''} · ${escapeHtml(formatDate(reg.created_at))}</p>
+      <div class="bg-[#121722] border border-[#1f293d] rounded-xl px-4 py-3 space-y-2">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="min-w-0">
+            <p class="text-xs font-black text-white truncate">${escapeHtml(reg.nvg_tournaments?.name || 'Tournoi')}</p>
+            <p class="text-[10px] text-gray-400">${escapeHtml(label)}${reg.platform_id ? ` · ${escapeHtml(reg.platform_id)}` : ''} · ${escapeHtml(formatDate(reg.created_at))}</p>
+            <p class="text-[10px] text-gray-500">${escapeHtml(feeLabel(reg.nvg_tournaments || {}))}</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-[9px] font-black uppercase px-2 py-1 rounded-full border ${reg.status === 'confirmed' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : reg.status === 'cancelled' ? 'text-gray-500 border-[#1f293d] bg-white/5' : 'text-amber-400 border-amber-500/30 bg-amber-500/10'}">${escapeHtml(REG_LABELS[reg.status] || reg.status)}</span>
+            ${reg.status !== 'cancelled' ? `<button onclick="cancelRegistration('${reg.id}')" class="text-[10px] font-bold text-red-400 hover:text-red-300">Annuler</button>` : ''}
+          </div>
         </div>
-        <div class="flex items-center gap-2">
-          <span class="text-[9px] font-black uppercase px-2 py-1 rounded-full border ${reg.status === 'confirmed' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : reg.status === 'cancelled' ? 'text-gray-500 border-[#1f293d] bg-white/5' : 'text-amber-400 border-amber-500/30 bg-amber-500/10'}">${escapeHtml(REG_LABELS[reg.status] || reg.status)}</span>
-          ${reg.status !== 'cancelled' ? `<button onclick="cancelRegistration('${reg.id}')" class="text-[10px] font-bold text-red-400 hover:text-red-300">Annuler</button>` : ''}
-        </div>
+        ${reg.status !== 'cancelled' ? `<div class="flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-2">${paymentBadge(reg.payment_status)}${registrationPaymentBlock(reg)}</div>` : ''}
       </div>`;
   }).join('');
 }
@@ -672,13 +820,14 @@ async function loadAdmin() {
   if (!isAdmin) return;
   await loadPublic();
   renderAdminGames();
-  renderAdminTournaments();
   setGamePreviews();
   const { data: regs } = await supabaseClient.from('nvg_tournament_registrations')
-    .select('id,status,platform_id,created_at,user_id,team_id,nvg_tournaments(name),nvg_tournament_teams(name),nvg_users(name)')
+    .select('id,tournament_id,status,platform_id,payment_status,payment_reference,paid_at,created_at,user_id,team_id,nvg_tournament_teams(name,tag),nvg_users(name,first_name,last_name,birth_date)')
     .order('created_at', { ascending: false })
-    .limit(100);
-  renderAdminRegistrations(regs || []);
+    .limit(500);
+  adminRegs = regs || [];
+  renderAdminTournaments();
+  if (viewingTournamentId) showAdminRegs(viewingTournamentId);
 }
 
 function renderAdminGames() {
@@ -707,24 +856,135 @@ function renderAdminGames() {
   }
 }
 
+function tournamentRegs(tournamentId) {
+  return adminRegs.filter((r) => r.tournament_id === tournamentId && r.status !== 'cancelled');
+}
+
+function adminTournamentStats(t) {
+  const regs = tournamentRegs(t.id);
+  const max = Number(t.max_participants) || 0;
+  const registered = regs.length;
+  const paid = regs.filter((r) => r.payment_status === 'paid').length;
+  const awaiting = regs.filter((r) => r.payment_status === 'awaiting').length;
+  const percent = max > 0 ? Math.min(100, Math.round((registered / max) * 100)) : 0;
+  return { max, registered, paid, awaiting, percent, free: max > 0 ? Math.max(0, max - registered) : null };
+}
+
 function renderAdminTournaments() {
   const box = $('adminTournaments');
   if (!box) return;
   box.innerHTML = tournaments.length
-    ? tournaments.map((t) => `
-      <div class="flex flex-wrap items-center justify-between gap-2 border border-[#1f293d] rounded-xl px-3 py-2">
-        <div class="min-w-0">
-          <p class="text-xs font-bold text-white truncate">${escapeHtml(t.name)}</p>
-          <p class="text-[10px] text-gray-500">${escapeHtml(gameName(t.game_id))} · ${t.published ? 'publié' : 'masqué'}${t.toornament_id ? ' · Toornament lié' : ''}</p>
+    ? tournaments.map((t) => {
+      const s = adminTournamentStats(t);
+      return `
+      <div class="rounded-xl border border-[#1f293d] bg-[#07090e] px-3 py-3 space-y-2">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div class="min-w-0">
+            <p class="text-xs font-bold text-white truncate">${escapeHtml(t.name)}</p>
+            <p class="text-[10px] text-gray-500">${escapeHtml(gameName(t.game_id))} · ${t.published ? 'publié' : 'masqué'}${t.toornament_id ? ' · Toornament lié' : ''} · ${escapeHtml(feeLabel(t))}</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-1.5">
+            <button onclick="showAdminRegs('${t.id}')" class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-300 transition hover:bg-amber-500/20">📋 Voir les inscriptions</button>
+            <select onchange="setTournamentStatus('${t.id}', this.value)" class="bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-1 text-[10px] text-white">
+              ${Object.entries(STATUS_LABELS).map(([k, v]) => `<option value="${k}" ${k === t.status ? 'selected' : ''}>${v}</option>`).join('')}
+            </select>
+            <button onclick="editTournament('${t.id}')" class="px-2 py-1 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-300 font-bold text-[10px] rounded-lg transition">✏️</button>
+          </div>
         </div>
-        <div class="flex items-center gap-1.5">
-          <select onchange="setTournamentStatus('${t.id}', this.value)" class="bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-1 text-[10px] text-white">
-            ${Object.entries(STATUS_LABELS).map(([k, v]) => `<option value="${k}" ${k === t.status ? 'selected' : ''}>${v}</option>`).join('')}
-          </select>
-          <button onclick="editTournament('${t.id}')" class="px-2 py-1 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-300 font-bold text-[10px] rounded-lg transition">✏️</button>
+        <div class="space-y-1">
+          <div class="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-gray-400">
+            <span>${s.max > 0 ? `${s.registered} / ${s.max} inscrit(s)` : `${s.registered} inscrit(s) · illimité`}</span>
+            <span>${s.max > 0 ? `${s.percent} %` : '—'}</span>
+          </div>
+          <div class="h-2 w-full overflow-hidden rounded-full bg-white/10">
+            <div class="h-full rounded-full bg-gradient-to-r from-amber-500 to-emerald-500" style="width:${s.percent}%"></div>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-2 text-[10px] text-gray-500">
+            <span>${s.free === null ? 'Places illimitées' : `${s.free} place(s) restante(s)`}</span>
+            <span>${s.paid} payé(s) · ${s.awaiting} en attente</span>
+          </div>
         </div>
-      </div>`).join('')
+      </div>`;
+    }).join('')
     : '<p class="text-xs text-gray-500">Aucun tournoi.</p>';
+}
+
+function closeAdminRegs() {
+  viewingTournamentId = null;
+  $('adminRegs')?.classList.add('hidden');
+}
+
+function showAdminRegs(tournamentId) {
+  const t = tournamentById(tournamentId);
+  if (!t) return;
+  viewingTournamentId = tournamentId;
+  const panel = $('adminRegs');
+  const regs = adminRegs.filter((r) => r.tournament_id === tournamentId);
+  const s = adminTournamentStats(t);
+  $('adminRegsSubtitle').textContent = `${t.name} · ${gameName(t.game_id)} · ${feeLabel(t)}`;
+  $('adminRegsFill').textContent = s.max > 0 ? `${s.registered} / ${s.max} inscrit(s)` : `${s.registered} inscrit(s) · places illimitées`;
+  $('adminRegsPercent').textContent = s.max > 0 ? `${s.percent} %` : '—';
+  $('adminRegsBar').style.width = `${s.percent}%`;
+  $('adminRegsBar').className = `h-full rounded-full transition-all ${s.percent >= 100 ? 'bg-red-500' : 'bg-gradient-to-r from-amber-500 to-emerald-500'}`;
+  $('adminRegsFree').textContent = s.free === null ? 'Places illimitées' : `${s.free} place(s) restante(s)`;
+  $('adminRegsPaid').textContent = `${s.paid} participation(s) validée(s) · ${s.awaiting} en attente de paiement`;
+  $('adminRegsList').innerHTML = regs.length
+    ? regs.map((r) => adminRegistrationRow(r)).join('')
+    : '<p class="text-xs text-gray-500">Aucune inscription pour ce tournoi.</p>';
+  panel.classList.remove('hidden');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function adminRegistrationRow(r) {
+  const user = r.nvg_users || {};
+  const team = r.nvg_tournament_teams;
+  const pseudo = user.name || 'Participant';
+  const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || '—';
+  const birth = user.birth_date ? new Date(user.birth_date).toLocaleDateString('fr-FR') : '—';
+  const payment = r.payment_status || 'not_required';
+  return `
+    <div class="rounded-xl border border-[#1f293d] bg-[#07090e] p-3 space-y-2">
+      <div class="flex flex-wrap items-start justify-between gap-2">
+        <div class="min-w-0">
+          <p class="text-xs font-black text-white truncate">${team ? `🛡️ ${escapeHtml(team.name)}${team.tag ? ` [${escapeHtml(team.tag)}]` : ''}` : `👤 ${escapeHtml(pseudo)}`}</p>
+          <p class="text-[10px] text-gray-400">Pseudo site : <span class="text-gray-200">${escapeHtml(pseudo)}</span>${team ? ` · capitaine : ${escapeHtml(pseudo)}` : ''}</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span class="rounded-full border px-2 py-1 text-[9px] font-black uppercase ${r.status === 'confirmed' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : r.status === 'cancelled' ? 'text-gray-500 border-[#1f293d] bg-white/5' : 'text-amber-400 border-amber-500/30 bg-amber-500/10'}">${escapeHtml(REG_LABELS[r.status] || r.status)}</span>
+          ${paymentBadge(payment)}
+        </div>
+      </div>
+      <dl class="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] sm:grid-cols-4">
+        <div><dt class="text-gray-500">Pseudo en jeu</dt><dd class="font-bold text-gray-200">${escapeHtml(r.platform_id || '—')}</dd></div>
+        <div><dt class="text-gray-500">Prénom</dt><dd class="font-bold text-gray-200">${escapeHtml(user.first_name || '—')}</dd></div>
+        <div><dt class="text-gray-500">Nom</dt><dd class="font-bold text-gray-200">${escapeHtml(user.last_name || '—')}</dd></div>
+        <div><dt class="text-gray-500">Naissance</dt><dd class="font-bold text-gray-200">${escapeHtml(birth)}</dd></div>
+        <div class="col-span-2"><dt class="text-gray-500">Identité complète</dt><dd class="font-bold text-gray-200">${escapeHtml(fullName)}</dd></div>
+        <div class="col-span-2"><dt class="text-gray-500">Inscrit le</dt><dd class="font-bold text-gray-200">${escapeHtml(formatDate(r.created_at))}</dd></div>
+      </dl>
+      <div class="flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-2">
+        <button onclick="setRegistrationStatus('${r.id}','confirmed')" class="text-[10px] font-bold text-emerald-400 hover:text-emerald-300">Confirmer</button>
+        <button onclick="setRegistrationStatus('${r.id}','waitlist')" class="text-[10px] font-bold text-amber-400 hover:text-amber-300">Liste d'attente</button>
+        <button onclick="setRegistrationStatus('${r.id}','cancelled')" class="text-[10px] font-bold text-red-400 hover:text-red-300">Annuler</button>
+        ${payment === 'paid'
+          ? `<button onclick="setPaymentStatus('${r.id}','refunded')" class="ml-auto text-[10px] font-bold text-sky-400 hover:text-sky-300">Marquer remboursé</button>`
+          : `<button onclick="setPaymentStatus('${r.id}','paid')" class="ml-auto text-[10px] font-bold text-emerald-400 hover:text-emerald-300">✅ Marquer payé</button>`}
+      </div>
+    </div>`;
+}
+
+async function setPaymentStatus(id, paymentStatus) {
+  const patch = { payment_status: paymentStatus };
+  if (paymentStatus === 'paid') {
+    patch.paid_at = new Date().toISOString();
+  } else {
+    patch.paid_at = null;
+  }
+  const { error } = await supabaseClient.from('nvg_tournament_registrations').update(patch).eq('id', id);
+  if (error) { notify('Erreur : ' + error.message, true); return; }
+  notify(paymentStatus === 'paid' ? 'Participation validée.' : 'Paiement mis à jour.');
+  await loadAdmin();
+  await loadMember();
 }
 
 function toLocalInput(value) {
@@ -741,7 +1001,10 @@ function editTournament(id) {
   editingTournamentId = id;
   $('editName').value = t.name || '';
   $('editStatus').value = t.status || 'draft';
+  const size = t.mode === 'solo' ? 1 : Math.min(6, Math.max(2, Number(t.team_min) || 2));
+  $('editTeamSize').value = String(size);
   $('editMax').value = t.max_participants || '';
+  $('editFee').value = Number(t.entry_fee_cents) > 0 ? (Number(t.entry_fee_cents) / 100).toFixed(2) : '';
   $('editPrizeFirst').value = t.prize_first || t.prize || '';
   $('editPrizeSecond').value = t.prize_second || '';
   $('editPrizeThird').value = t.prize_third || '';
@@ -750,6 +1013,8 @@ function editTournament(id) {
   $('editDesc').value = t.description || '';
   $('editBanner').value = t.banner_url || '';
   $('editToornament').value = t.toornament_url || '';
+  $('editPaymentUrl').value = t.payment_url || '';
+  $('editPaymentInstructions').value = t.payment_instructions || '';
   $('editPublished').checked = !!t.published;
   const panel = $('adminEdit');
   panel.classList.remove('hidden');
@@ -766,12 +1031,17 @@ async function saveTournament() {
   const name = $('editName').value.trim();
   if (!name) { notify('Le nom du tournoi est obligatoire.', true); return; }
   const maxRaw = $('editMax').value.trim();
+  const size = parseInt($('editTeamSize').value, 10) || 1;
   const bannerUrl = safeUrl($('editBanner').value);
   const toornamentUrl = safeUrl($('editToornament').value);
   const patch = {
     name,
+    mode: size === 1 ? 'solo' : 'team',
+    team_min: size,
+    team_max: size,
     status: $('editStatus').value,
     max_participants: maxRaw ? parseInt(maxRaw, 10) : null,
+    entry_fee_cents: eurosToCents($('editFee').value),
     prize_first: $('editPrizeFirst').value.trim() || null,
     prize_second: $('editPrizeSecond').value.trim() || null,
     prize_third: $('editPrizeThird').value.trim() || null,
@@ -781,6 +1051,8 @@ async function saveTournament() {
     banner_url: bannerUrl || null,
     toornament_url: toornamentUrl || null,
     toornament_id: toornamentIdFromUrl(toornamentUrl),
+    payment_url: safeUrl($('editPaymentUrl').value) || null,
+    payment_instructions: $('editPaymentInstructions').value.trim() || null,
     published: $('editPublished').checked
   };
   try {
@@ -790,6 +1062,7 @@ async function saveTournament() {
     closeEdit();
     await loadPublic();
     renderAdminTournaments();
+    if (viewingTournamentId === editingTournamentId) showAdminRegs(editingTournamentId);
   } catch (err) {
     notify('Erreur : ' + err.message, true);
   }
@@ -810,27 +1083,6 @@ async function deleteTournament() {
   } catch (err) {
     notify('Erreur : ' + err.message, true);
   }
-}
-
-function renderAdminRegistrations(regs) {
-  const box = $('adminRegistrations');
-  if (!regs.length) {
-    box.innerHTML = '<p class="text-xs text-gray-500">Aucune inscription.</p>';
-    return;
-  }
-  box.innerHTML = regs.map((r) => `
-    <div class="flex flex-wrap items-center justify-between gap-2 border border-[#1f293d] rounded-xl px-3 py-2">
-      <div class="min-w-0">
-        <p class="text-xs font-bold text-white truncate">${escapeHtml(r.nvg_tournament_teams?.name || r.nvg_users?.name || 'Participant')}</p>
-        <p class="text-[10px] text-gray-500">${escapeHtml(r.nvg_tournaments?.name || '')} · ${escapeHtml(r.platform_id || '—')}</p>
-      </div>
-      <div class="flex items-center gap-2">
-        <span class="text-[9px] uppercase font-black text-gray-400">${escapeHtml(REG_LABELS[r.status] || r.status)}</span>
-        <button onclick="setRegistrationStatus('${r.id}','confirmed')" class="px-2 py-1 text-[10px] font-bold text-emerald-400 hover:text-emerald-300">Confirmer</button>
-        <button onclick="setRegistrationStatus('${r.id}','waitlist')" class="px-2 py-1 text-[10px] font-bold text-amber-400 hover:text-amber-300">Attente</button>
-        <button onclick="setRegistrationStatus('${r.id}','cancelled')" class="px-2 py-1 text-[10px] font-bold text-red-400 hover:text-red-300">Annuler</button>
-      </div>
-    </div>`).join('');
 }
 
 const GAME_IMG_BUCKET = 'games-img';
@@ -1053,23 +1305,21 @@ async function saveGame() {
 async function createTournament() {
   const name = $('tourName').value.trim();
   if (!name) { notify('Saisis un nom de tournoi.', true); return; }
-  const mode = $('tourMode').value;
-  const teamMin = parseInt($('tourTeamMin').value, 10) || 1;
-  const teamMax = parseInt($('tourTeamMax').value, 10) || teamMin;
+  const size = parseInt($('tourTeamSize').value, 10) || 1;
   const bannerUrl = safeUrl($('tourBanner').value);
   const toornamentUrl = safeUrl($('tourToornament').value);
   try {
-    if (teamMax < teamMin) throw new Error('le maximum doit être supérieur au minimum');
     const { data, error } = await supabaseClient.from('nvg_tournaments').insert({
       slug: `${slugify(name)}-${Math.random().toString(36).slice(2, 6)}`,
       name,
       game_id: $('tourGame').value || null,
       description: $('tourDesc').value.trim() || null,
-      mode,
+      mode: size === 1 ? 'solo' : 'team',
       format: $('tourFormat').value,
-      team_min: mode === 'solo' ? 1 : teamMin,
-      team_max: mode === 'solo' ? 1 : teamMax,
+      team_min: size,
+      team_max: size,
       max_participants: parseInt($('tourMax').value, 10) || null,
+      entry_fee_cents: eurosToCents($('tourFee').value),
       prize_first: $('tourPrizeFirst').value.trim() || null,
       prize_second: $('tourPrizeSecond').value.trim() || null,
       prize_third: $('tourPrizeThird').value.trim() || null,
@@ -1079,15 +1329,13 @@ async function createTournament() {
       published: $('tourPublished').checked,
       banner_url: bannerUrl || null,
       toornament_url: toornamentUrl || null,
-      toornament_id: toornamentIdFromUrl(toornamentUrl)
+      toornament_id: toornamentIdFromUrl(toornamentUrl),
+      payment_url: safeUrl($('tourPaymentUrl').value) || null,
+      payment_instructions: $('tourPaymentInstructions').value.trim() || null
     }).select('id').single();
     if (error) throw new Error(error.message);
-    $('tourName').value = '';
-    $('tourBanner').value = '';
-    $('tourToornament').value = '';
-    $('tourPrizeFirst').value = '';
-    $('tourPrizeSecond').value = '';
-    $('tourPrizeThird').value = '';
+    ['tourName', 'tourBanner', 'tourToornament', 'tourPrizeFirst', 'tourPrizeSecond', 'tourPrizeThird',
+      'tourFee', 'tourPaymentUrl', 'tourPaymentInstructions', 'tourMax'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
     notify('Tournoi créé.');
     await loadPublic();
     renderAdminTournaments();
@@ -1138,7 +1386,7 @@ async function refreshAccount() {
     return;
   }
   showAccountUi();
-  await Promise.all([checkAdmin(), loadMember()]);
+  await Promise.all([showProfile(), checkAdmin(), loadMember()]);
 }
 
 async function signOut() {
@@ -1159,7 +1407,6 @@ async function init() {
 
   const params = new URLSearchParams(window.location.search);
   const join = params.get('join');
-  const tab = params.get('tab');
   const confirmed = params.get('confirmed');
   if (join) {
     pendingJoinCode = join.toLowerCase();
@@ -1170,15 +1417,15 @@ async function init() {
       notify('Connecte-toi avec ton compte, puis rejoins l’équipe avec le code reçu.', false);
       openTab('account');
     }
-  } else if (tab && ['home', 'tournaments', 'account', 'admin'].includes(tab)) {
-    openTab(tab);
   } else {
-    openTab('home');
+    applyRoute();
   }
+
+  window.addEventListener('popstate', applyRoute);
 
   if (confirmed === '1') {
     notify(currentUser ? 'Adresse e-mail confirmée. Bienvenue !' : 'Adresse e-mail confirmée. Tu peux te connecter.', false);
-    window.history.replaceState({}, document.title, `${window.location.pathname}?tab=account`);
+    window.history.replaceState({ tab: 'account' }, document.title, `${window.location.pathname}?tab=account`);
   }
 }
 
@@ -1196,12 +1443,74 @@ async function showProfile() {
   $('accountName').textContent = currentUser.email || '';
   $('memberSubtitle').textContent = currentUser.email || '';
   try {
-    const { data } = await supabaseClient.from('nvg_users').select('name').eq('id', currentUser.id).maybeSingle();
-    if (data?.name) {
-      $('accountName').textContent = data.name;
-      $('memberSubtitle').textContent = `Connecté en tant que ${data.name}`;
+    const { data } = await supabaseClient.from('nvg_users')
+      .select('name,first_name,last_name,birth_date')
+      .eq('id', currentUser.id)
+      .maybeSingle();
+    if (data) {
+      profileIdentity = {
+        first_name: data.first_name || '',
+        last_name: data.last_name || '',
+        birth_date: data.birth_date || ''
+      };
+      if (data.name) {
+        $('accountName').textContent = data.name;
+        $('memberSubtitle').textContent = `Connecté en tant que ${data.name}`;
+      }
+      if ($('profileName')) $('profileName').value = data.name || '';
+      if ($('profileFirstName')) $('profileFirstName').value = profileIdentity.first_name;
+      if ($('profileLastName')) $('profileLastName').value = profileIdentity.last_name;
+      if ($('profileBirthDate')) $('profileBirthDate').value = profileIdentity.birth_date;
+      $('profileHint')?.classList.toggle('hidden', identityComplete());
     }
   } catch (_) { /* profil facultatif */ }
+}
+
+function identityComplete() {
+  return Boolean(profileIdentity.first_name && profileIdentity.last_name && profileIdentity.birth_date);
+}
+
+async function saveIdentity() {
+  if (!currentUser) return;
+  const name = $('profileName').value.trim();
+  const first = $('profileFirstName').value.trim();
+  const last = $('profileLastName').value.trim();
+  const birth = $('profileBirthDate').value;
+  if (name.length < 2) { notify('Choisis un pseudo d’au moins 2 caractères.', true); return; }
+  if (!first || !last) { notify('Renseigne ton prénom et ton nom.', true); return; }
+  if (!birth) { notify('Renseigne ta date de naissance.', true); return; }
+  try {
+    const { error } = await supabaseClient.from('nvg_users').update({
+      name,
+      first_name: first,
+      last_name: last,
+      birth_date: birth
+    }).eq('id', currentUser.id);
+    if (error) throw new Error(error.message);
+    await supabaseClient.auth.updateUser({ data: { name, first_name: first, last_name: last, birth_date: birth } });
+    profileIdentity = { first_name: first, last_name: last, birth_date: birth };
+    notify('Informations enregistrées.');
+    await showProfile();
+  } catch (err) {
+    notify('Erreur : ' + (err.message || err), true);
+  }
+}
+
+async function changePassword() {
+  if (!currentUser) return;
+  const password = $('newPassword').value;
+  const confirm = $('newPasswordConfirm').value;
+  if (password.length < 8) { notify('Le mot de passe doit contenir au moins 8 caractères.', true); return; }
+  if (password !== confirm) { notify('Les deux mots de passe ne correspondent pas.', true); return; }
+  try {
+    const { error } = await supabaseClient.auth.updateUser({ password });
+    if (error) throw new Error(friendlyAuthError(error.message));
+    $('newPassword').value = '';
+    $('newPasswordConfirm').value = '';
+    notify('Mot de passe modifié.');
+  } catch (err) {
+    notify('Erreur : ' + (err.message || err), true);
+  }
 }
 
 $('loginForm').addEventListener('submit', async (event) => {
@@ -1248,11 +1557,16 @@ $('signupForm').addEventListener('submit', async (event) => {
   };
 
   const name = $('signupName').value.trim();
+  const firstName = $('signupFirstName').value.trim();
+  const lastName = $('signupLastName').value.trim();
+  const birthDate = $('signupBirthDate').value;
   const email = $('signupEmail').value.trim();
   const password = $('signupPassword').value;
   const confirm = $('signupConfirm').value;
 
   if (name.length < 2) { fail('Choisis un pseudo d’au moins 2 caractères.'); return; }
+  if (!firstName || !lastName) { fail('Renseigne ton prénom et ton nom.'); return; }
+  if (!birthDate) { fail('Renseigne ta date de naissance.'); return; }
   if (password.length < 8) { fail('Le mot de passe doit contenir au moins 8 caractères.'); return; }
   if (password !== confirm) { fail('Les deux mots de passe ne correspondent pas.'); return; }
 
@@ -1265,7 +1579,7 @@ $('signupForm').addEventListener('submit', async (event) => {
       email,
       password,
       options: {
-        data: { name },
+        data: { name, first_name: firstName, last_name: lastName, birth_date: birthDate },
         emailRedirectTo: `${TOURNAMENT_SITE_URL}/?tab=account&confirmed=1`
       }
     });

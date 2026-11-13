@@ -147,7 +147,15 @@
           </form>
           <p id="loginError" class="text-xs text-red-400 hidden"></p>
           <form id="signupForm" class="hidden space-y-3">
-            <input id="signupName" type="text" autocomplete="nickname" maxlength="40" required placeholder="Pseudo" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-3 text-sm text-white focus:border-red-600 focus:outline-none">
+            <input id="signupName" type="text" autocomplete="nickname" maxlength="40" required placeholder="Pseudo (visible sur le site)" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-3 text-sm text-white focus:border-red-600 focus:outline-none">
+            <div class="grid grid-cols-2 gap-3">
+              <input id="signupFirstName" type="text" autocomplete="given-name" maxlength="60" required placeholder="Prénom" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-3 text-sm text-white focus:border-red-600 focus:outline-none">
+              <input id="signupLastName" type="text" autocomplete="family-name" maxlength="60" required placeholder="Nom" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-3 text-sm text-white focus:border-red-600 focus:outline-none">
+            </div>
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Date de naissance</span>
+              <input id="signupBirthDate" type="date" autocomplete="bday" required class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-3 text-sm text-white focus:border-red-600 focus:outline-none">
+            </label>
             <input id="signupEmail" type="email" autocomplete="email" required placeholder="Adresse e-mail" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-3 text-sm text-white focus:border-red-600 focus:outline-none">
             <input id="signupPassword" type="password" autocomplete="new-password" minlength="8" required placeholder="Mot de passe (8 caractères minimum)" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-3 text-sm text-white focus:border-red-600 focus:outline-none">
             <input id="signupConfirm" type="password" autocomplete="new-password" minlength="8" required placeholder="Confirmer le mot de passe" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-3 text-sm text-white focus:border-red-600 focus:outline-none">
@@ -166,6 +174,49 @@
             <p id="memberSubtitle" class="text-xs text-gray-400 mt-1"></p>
           </div>
           <button onclick="loadMember()" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs rounded-lg border border-[#1f293d] transition">🔄 Actualiser</button>
+        </div>
+
+        <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
+          <h2 class="text-sm font-black text-white uppercase tracking-wider">👤 Mes informations</h2>
+          <p class="text-xs text-gray-400">Nom, prénom et date de naissance servent à valider les inscriptions aux tournois.</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Pseudo du site</span>
+              <input id="profileName" maxlength="40" placeholder="Pseudo" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Date de naissance</span>
+              <input id="profileBirthDate" type="date" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Prénom</span>
+              <input id="profileFirstName" maxlength="60" placeholder="Prénom" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Nom</span>
+              <input id="profileLastName" maxlength="60" placeholder="Nom" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <button onclick="saveIdentity()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-lg transition">Enregistrer mes informations</button>
+            <span id="profileHint" class="hidden text-[11px] font-bold text-red-400">Complète ton nom, ton prénom et ta date de naissance pour t'inscrire.</span>
+          </div>
+        </div>
+
+        <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
+          <h2 class="text-sm font-black text-white uppercase tracking-wider">🔒 Mot de passe</h2>
+          <p class="text-xs text-gray-400">Modifie le mot de passe de ton compte Tournoi des 9 Mondes.</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Nouveau mot de passe</span>
+              <input id="newPassword" type="password" autocomplete="new-password" minlength="8" placeholder="8 caractères minimum" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Confirmer</span>
+              <input id="newPasswordConfirm" type="password" autocomplete="new-password" minlength="8" placeholder="Répète le mot de passe" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+          </div>
+          <button onclick="changePassword()" class="px-4 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-200 font-bold text-xs rounded-lg transition">Changer mon mot de passe</button>
         </div>
 
         <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
@@ -244,36 +295,88 @@
 
         <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
           <h2 class="text-sm font-black text-white">🏆 Nouveau tournoi</h2>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <input id="tourName" placeholder="Nom du tournoi" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-            <select id="tourGame" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white"></select>
-            <select id="tourMode" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
-              <option value="team">Équipe</option>
-              <option value="solo">Solo</option>
-            </select>
-            <select id="tourFormat" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
-              <option value="online">En ligne</option>
-              <option value="lan">LAN</option>
-              <option value="both">En ligne et LAN</option>
-            </select>
-            <select id="tourStatus" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
-              <option value="draft">Brouillon</option>
-              <option value="open">Inscriptions ouvertes</option>
-              <option value="closed">Inscriptions fermées</option>
-              <option value="running">En cours</option>
-              <option value="finished">Terminé</option>
-            </select>
-            <input id="tourTeamMin" type="number" min="1" value="2" placeholder="Joueurs min." class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-            <input id="tourTeamMax" type="number" min="1" value="5" placeholder="Joueurs max." class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-            <input id="tourMax" type="number" min="1" placeholder="Places (facultatif)" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-            <input id="tourPrizeFirst" placeholder="🥇 1re place" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-            <input id="tourPrizeSecond" placeholder="🥈 2e place" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-            <input id="tourPrizeThird" placeholder="🥉 3e place" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-            <input id="tourStart" type="datetime-local" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-            <input id="tourClose" type="datetime-local" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-            <input id="tourBanner" placeholder="URL de la bannière (facultatif — sinon celle du jeu)" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-            <input id="tourToornament" placeholder="Lien Toornament (https://www.toornament.com/…)" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-            <textarea id="tourDesc" rows="2" placeholder="Description" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white"></textarea>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label class="sm:col-span-2 block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Nom du tournoi</span>
+              <input id="tourName" placeholder="Ex. Nova Series 2026 — Qualifier #2" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Jeu</span>
+              <select id="tourGame" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white"></select>
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Format de jeu</span>
+              <select id="tourTeamSize" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+                <option value="1">Solo (1 joueur)</option>
+                <option value="2">Duo (2 joueurs)</option>
+                <option value="3">Trio (3 joueurs)</option>
+                <option value="4">Équipe de 4 joueurs</option>
+                <option value="5">Équipe de 5 joueurs</option>
+                <option value="6">Équipe de 6 joueurs</option>
+              </select>
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Type de tournoi</span>
+              <select id="tourFormat" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+                <option value="online">En ligne</option>
+                <option value="lan">LAN</option>
+                <option value="both">En ligne et LAN</option>
+              </select>
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Statut</span>
+              <select id="tourStatus" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+                <option value="draft">Brouillon</option>
+                <option value="open">Inscriptions ouvertes</option>
+                <option value="closed">Inscriptions fermées</option>
+                <option value="running">En cours</option>
+                <option value="finished">Terminé</option>
+              </select>
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Slots (nombre de places)</span>
+              <input id="tourMax" type="number" min="1" placeholder="Ex. 32 (vide = illimité)" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Frais d'inscription (€)</span>
+              <input id="tourFee" type="number" min="0" step="0.01" placeholder="0 = gratuit" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+            <div class="sm:col-span-2 space-y-2">
+              <span class="block text-[10px] font-black uppercase tracking-wider text-gray-400">Récompenses</span>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <input id="tourPrizeFirst" placeholder="🥇 1re place" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+                <input id="tourPrizeSecond" placeholder="🥈 2e place" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+                <input id="tourPrizeThird" placeholder="🥉 3e place" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+              </div>
+            </div>
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Début du tournoi</span>
+              <input id="tourStart" type="datetime-local" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Clôture des inscriptions</span>
+              <input id="tourClose" type="datetime-local" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+            <label class="sm:col-span-2 block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Bannière (URL, facultatif)</span>
+              <input id="tourBanner" placeholder="Vide = bannière du jeu" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+            <label class="sm:col-span-2 block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Lien Toornament</span>
+              <input id="tourToornament" placeholder="https://www.toornament.com/…" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+            <label class="sm:col-span-2 block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Lien de règlement (Weezevent, Stripe…)</span>
+              <input id="tourPaymentUrl" placeholder="https://… (bouton « Régler mon inscription »)" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+            <label class="sm:col-span-2 block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Instructions de paiement</span>
+              <textarea id="tourPaymentInstructions" rows="2" placeholder="Ex. virement IBAN…, paiement sur place…" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white"></textarea>
+            </label>
+            <label class="sm:col-span-2 block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Description</span>
+              <textarea id="tourDesc" rows="2" placeholder="Présentation du tournoi" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white"></textarea>
+            </label>
             <label class="sm:col-span-2 flex items-center gap-2 text-xs text-gray-300">
               <input id="tourPublished" type="checkbox" class="accent-red-600"> Publier sur le site
             </label>
@@ -287,25 +390,77 @@
           <h2 class="text-sm font-black text-white">✏️ Modifier le tournoi</h2>
           <button onclick="closeEdit()" class="px-2 py-1 text-gray-400 hover:text-white text-sm">✕</button>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <input id="editName" placeholder="Nom du tournoi" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-          <select id="editStatus" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
-            <option value="draft">Brouillon</option>
-            <option value="open">Inscriptions ouvertes</option>
-            <option value="closed">Inscriptions fermées</option>
-            <option value="running">En cours</option>
-            <option value="finished">Terminé</option>
-            <option value="cancelled">Annulé</option>
-          </select>
-          <input id="editMax" type="number" min="1" placeholder="Places (facultatif)" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-          <input id="editPrizeFirst" placeholder="🥇 1re place" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-          <input id="editPrizeSecond" placeholder="🥈 2e place" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-          <input id="editPrizeThird" placeholder="🥉 3e place" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-          <input id="editStart" type="datetime-local" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-          <input id="editClose" type="datetime-local" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-          <input id="editBanner" placeholder="URL de la bannière (facultatif — sinon celle du jeu)" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-          <input id="editToornament" placeholder="Lien Toornament (https://www.toornament.com/…)" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-          <textarea id="editDesc" rows="2" placeholder="Description" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white"></textarea>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label class="sm:col-span-2 block">
+            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Nom du tournoi</span>
+            <input id="editName" placeholder="Nom du tournoi" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          </label>
+          <label class="block">
+            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Format de jeu</span>
+            <select id="editTeamSize" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+              <option value="1">Solo (1 joueur)</option>
+              <option value="2">Duo (2 joueurs)</option>
+              <option value="3">Trio (3 joueurs)</option>
+              <option value="4">Équipe de 4 joueurs</option>
+              <option value="5">Équipe de 5 joueurs</option>
+              <option value="6">Équipe de 6 joueurs</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Statut</span>
+            <select id="editStatus" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+              <option value="draft">Brouillon</option>
+              <option value="open">Inscriptions ouvertes</option>
+              <option value="closed">Inscriptions fermées</option>
+              <option value="running">En cours</option>
+              <option value="finished">Terminé</option>
+              <option value="cancelled">Annulé</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Slots (nombre de places)</span>
+            <input id="editMax" type="number" min="1" placeholder="Vide = illimité" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          </label>
+          <label class="block">
+            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Frais d'inscription (€)</span>
+            <input id="editFee" type="number" min="0" step="0.01" placeholder="0 = gratuit" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          </label>
+          <div class="sm:col-span-2 space-y-2">
+            <span class="block text-[10px] font-black uppercase tracking-wider text-gray-400">Récompenses</span>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <input id="editPrizeFirst" placeholder="🥇 1re place" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+              <input id="editPrizeSecond" placeholder="🥈 2e place" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+              <input id="editPrizeThird" placeholder="🥉 3e place" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+            </div>
+          </div>
+          <label class="block">
+            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Début du tournoi</span>
+            <input id="editStart" type="datetime-local" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          </label>
+          <label class="block">
+            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Clôture des inscriptions</span>
+            <input id="editClose" type="datetime-local" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          </label>
+          <label class="sm:col-span-2 block">
+            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Bannière (URL, facultatif)</span>
+            <input id="editBanner" placeholder="Vide = bannière du jeu" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          </label>
+          <label class="sm:col-span-2 block">
+            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Lien Toornament</span>
+            <input id="editToornament" placeholder="https://www.toornament.com/…" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          </label>
+          <label class="sm:col-span-2 block">
+            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Lien de règlement (Weezevent, Stripe…)</span>
+            <input id="editPaymentUrl" placeholder="https://… (bouton « Régler mon inscription »)" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          </label>
+          <label class="sm:col-span-2 block">
+            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Instructions de paiement</span>
+            <textarea id="editPaymentInstructions" rows="2" placeholder="Ex. virement IBAN…, paiement sur place…" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white"></textarea>
+          </label>
+          <label class="sm:col-span-2 block">
+            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Description</span>
+            <textarea id="editDesc" rows="2" placeholder="Description" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white"></textarea>
+          </label>
           <label class="sm:col-span-2 flex items-center gap-2 text-xs text-gray-300">
             <input id="editPublished" type="checkbox" class="accent-red-600"> Publié sur le site
           </label>
@@ -316,14 +471,34 @@
         </div>
       </div>
 
-      <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
-        <h2 class="text-sm font-black text-white">📋 Inscriptions</h2>
-        <div id="adminRegistrations" class="space-y-2"></div>
+      <!-- INSCRIPTIONS D'UN TOURNOI -->
+      <div id="adminRegs" class="hidden bg-[#121722] border border-amber-500/40 rounded-2xl p-5 space-y-3">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h2 class="text-sm font-black text-white">📋 Inscriptions</h2>
+            <p id="adminRegsSubtitle" class="text-[11px] text-gray-400"></p>
+          </div>
+          <button onclick="closeAdminRegs()" class="px-2 py-1 text-gray-400 hover:text-white text-sm">✕</button>
+        </div>
+        <div class="space-y-1">
+          <div class="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-gray-400">
+            <span id="adminRegsFill">0 / 0 inscrit(s)</span>
+            <span id="adminRegsPercent">0 %</span>
+          </div>
+          <div class="h-2 w-full overflow-hidden rounded-full bg-white/10">
+            <div id="adminRegsBar" class="h-full rounded-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all" style="width:0%"></div>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-2 text-[10px] text-gray-500">
+            <span id="adminRegsFree"></span>
+            <span id="adminRegsPaid"></span>
+          </div>
+        </div>
+        <div id="adminRegsList" class="space-y-2"></div>
       </div>
 
       <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
         <h2 class="text-sm font-black text-white">🏆 Tournois existants</h2>
-        <div id="adminTournaments" class="space-y-2"></div>
+        <div id="adminTournaments" class="space-y-3"></div>
       </div>
     </section>
 
