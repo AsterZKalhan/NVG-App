@@ -19,6 +19,7 @@ let myTeams = [];
 let myRegistrations = [];
 let pendingJoinCode = null;
 let editingTournamentId = null;
+let editingGameId = null;
 
 const STATUS_LABELS = {
   draft: 'Brouillon',
@@ -86,6 +87,10 @@ function gameName(id) {
 
 function gameLogo(id) {
   return safeUrl(gameById(id)?.logo_url);
+}
+
+function gameBanner(id) {
+  return safeUrl(gameById(id)?.banner_url);
 }
 
 function gameById(id) {
@@ -200,7 +205,7 @@ function modeLabel(t) {
 }
 
 function tournamentBanner(t) {
-  const banner = safeUrl(t.banner_url);
+  const banner = safeUrl(t.banner_url) || gameBanner(t.game_id);
   const toornament = externalLink(t.toornament_url);
   return `
     <div class="relative h-32 sm:h-36 overflow-hidden bg-[#07090e]">
@@ -213,6 +218,117 @@ function tournamentBanner(t) {
       <span class="absolute left-3 top-3 rounded-md border px-2 py-1 text-[9px] font-black uppercase tracking-wider backdrop-blur ${STATUS_STYLES[t.status] || STATUS_STYLES.draft}">${escapeHtml(STATUS_LABELS[t.status] || t.status)}</span>
       ${toornament ? `<a href="${toornament}" target="_blank" rel="noopener" title="Page officielle du tournoi sur Toornament" class="absolute right-3 top-3 rounded-md border border-white/20 bg-black/60 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-white/90 backdrop-blur transition hover:border-amber-400/70 hover:text-amber-300">Toornament</a>` : ''}
     </div>`;
+}
+
+function hasPrizes(t) {
+  return Boolean(t.prize_first || t.prize_second || t.prize_third || t.prize);
+}
+
+function trophyIcon(cls = 'h-4 w-4') {
+  return `<svg viewBox="0 0 24 24" fill="currentColor" class="${cls}" aria-hidden="true"><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/><path d="M4 3h2v4H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm16 0h-2v4h2a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1Z" opacity=".65"/><path d="M11 14h2v3h3.2a.8.8 0 0 1 .8.8V21H7v-3.2a.8.8 0 0 1 .8-.8H11v-3Z"/></svg>`;
+}
+
+function prizeRows(t) {
+  const rows = [
+    { place: '1re place', value: t.prize_first || t.prize, tone: 'text-amber-300 border-amber-500/40 bg-amber-500/10' },
+    { place: '2e place', value: t.prize_second, tone: 'text-slate-200 border-white/25 bg-white/5' },
+    { place: '3e place', value: t.prize_third, tone: 'text-orange-300 border-orange-500/30 bg-orange-500/10' }
+  ];
+  return rows.map((r) => `
+    <div class="flex items-center gap-3 rounded-xl border px-3 py-2.5 ${r.tone}">
+      <span class="shrink-0">${trophyIcon('h-5 w-5')}</span>
+      <div class="min-w-0">
+        <p class="text-[9px] font-black uppercase tracking-wider opacity-80">${r.place}</p>
+        <p class="text-xs font-bold ${r.value ? 'text-white' : 'text-gray-500'}">${escapeHtml(r.value || 'À confirmer')}</p>
+      </div>
+    </div>`).join('');
+}
+
+function closeTournamentDetails() {
+  const modal = $('tournamentModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+  document.body.classList.remove('overflow-hidden');
+}
+
+function signupFromDetails(id) {
+  closeTournamentDetails();
+  openTab('tournaments');
+  openSignup(id);
+}
+
+function openTournamentDetails(id) {
+  const t = tournamentById(id);
+  if (!t) return;
+  const banner = safeUrl(t.banner_url) || gameBanner(t.game_id);
+  const logo = gameLogo(t.game_id);
+  const initials = escapeHtml((gameById(t.game_id)?.name || t.name || '?').slice(0, 2).toUpperCase());
+  const toornament = externalLink(t.toornament_url);
+  const count = registeredCount(t.id);
+  const unit = t.mode === 'team' ? 'équipe(s)' : 'joueur(s)';
+  const places = t.max_participants ? `${count} / ${t.max_participants} ${unit}` : `${count} ${unit}`;
+  const open = t.status === 'open';
+  const already = isRegistered(t.id);
+  const myTeam = t.mode === 'team' ? myTeams.find((team) => team.tournament_id === t.id) : null;
+
+  $('tournamentModalBody').innerHTML = `
+    <div class="relative h-40 sm:h-52 overflow-hidden bg-[#07090e]">
+      <div class="absolute inset-0 opacity-60" style="background-image:url('./Logos/fond-app.svg');background-repeat:repeat;background-size:140px"></div>
+      <div class="absolute inset-0 bg-gradient-to-br from-red-950/70 via-[#121722]/80 to-[#0b0f17]/90"></div>
+      ${banner
+        ? `<img src="${banner}" alt="" onerror="this.remove()" class="absolute inset-0 h-full w-full object-cover">`
+        : `<p class="absolute inset-0 flex items-center justify-center px-8 text-center text-xl font-black uppercase tracking-[0.22em] text-white/15">${escapeHtml(gameName(t.game_id))}</p>`}
+      <div class="absolute inset-0 bg-gradient-to-t from-[#0b0f17] via-[#0b0f17]/40 to-transparent"></div>
+      <button onclick="closeTournamentDetails()" class="absolute right-3 top-3 h-8 w-8 rounded-lg border border-white/20 bg-black/60 text-sm font-bold text-white/90 backdrop-blur transition hover:border-amber-400/70 hover:text-amber-300" aria-label="Fermer">✕</button>
+      <span class="absolute left-3 top-3 rounded-md border px-2 py-1 text-[9px] font-black uppercase tracking-wider backdrop-blur ${STATUS_STYLES[t.status] || STATUS_STYLES.draft}">${escapeHtml(STATUS_LABELS[t.status] || t.status)}</span>
+    </div>
+    <div class="space-y-5 p-5">
+      <div class="flex items-start gap-3">
+        <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/90">
+          ${logo
+            ? `<img src="${logo}" alt="" onerror="this.remove()" class="h-full w-full object-contain p-1.5">`
+            : `<span class="text-base font-black text-[#0b0f17]">${initials}</span>`}
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-[10px] font-black uppercase tracking-[0.18em] text-amber-400/80">${escapeHtml(gameName(t.game_id))}</p>
+          <h2 class="mt-1 text-xl font-black leading-snug text-white">${escapeHtml(t.name)}</h2>
+          <p class="mt-1 text-xs text-gray-400">${escapeHtml(dateRange(t))}</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="rounded border border-[#2a3750] px-2 py-1 text-[10px] font-bold text-gray-300">${escapeHtml(modeLabel(t))}</span>
+        <span class="rounded border border-[#2a3750] px-2 py-1 text-[10px] font-bold text-gray-300">${escapeHtml(FORMAT_LABELS[t.format] || t.format)}</span>
+        <span class="rounded border border-[#2a3750] px-2 py-1 text-[10px] font-bold text-gray-300">👥 ${escapeHtml(places)}</span>
+      </div>
+
+      ${t.description ? `<p class="whitespace-pre-line text-xs leading-relaxed text-gray-300">${escapeHtml(t.description)}</p>` : ''}
+
+      <div>
+        <h3 class="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">${trophyIcon('h-4 w-4 text-amber-400')} Récompenses</h3>
+        <div class="grid gap-2 sm:grid-cols-3">${prizeRows(t)}</div>
+      </div>
+
+      ${t.rules ? `<div><h3 class="mb-1 text-xs font-black uppercase tracking-wider text-white">Règlement</h3><p class="whitespace-pre-line text-[11px] leading-relaxed text-gray-400">${escapeHtml(t.rules)}</p></div>` : ''}
+
+      <div class="flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-4">
+        ${already
+          ? '<span class="px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold rounded-lg">✅ Inscrit</span>'
+          : myTeam
+            ? `<button onclick="closeTournamentDetails();openTab('account')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">🛡️ Gérer mon équipe</button>`
+            : open
+              ? `<button onclick="signupFromDetails('${t.id}')" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-black text-xs rounded-lg transition">S'inscrire</button>`
+              : '<span class="px-3 py-2 bg-white/5 border border-[#1f293d] text-gray-500 text-[11px] font-bold rounded-lg">Inscriptions fermées</span>'}
+        ${toornament ? `<a href="${toornament}" target="_blank" rel="noopener" class="px-3 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-300 text-[11px] font-bold rounded-lg transition">Page Toornament</a>` : ''}
+        ${t.registration_closes_at ? `<span class="ml-auto text-[10px] text-gray-500">Clôture : ${escapeHtml(formatDate(t.registration_closes_at))}</span>` : ''}
+      </div>
+    </div>`;
+
+  $('tournamentModal').classList.remove('hidden');
+  $('tournamentModal').classList.add('flex');
+  document.body.classList.add('overflow-hidden');
 }
 
 function tournamentCard(t) {
@@ -256,7 +372,7 @@ function tournamentCard(t) {
           <span class="rounded border border-[#2a3750] px-2 py-1 text-[10px] font-bold text-gray-300">${escapeHtml(FORMAT_LABELS[t.format] || t.format)}</span>
         </div>
         ${t.description ? `<p class="text-xs text-gray-400 line-clamp-2">${escapeHtml(t.description)}</p>` : ''}
-        ${t.prize ? `<p class="text-[11px] text-emerald-400">🏅 ${escapeHtml(t.prize)}</p>` : ''}
+        ${hasPrizes(t) ? `<p class="flex items-center gap-1.5 text-[11px] text-gray-300"><span class="text-amber-400">${trophyIcon('h-3.5 w-3.5')}</span>${escapeHtml(t.prize_first || t.prize)}</p>` : ''}
         <div class="mt-auto flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-3">
           ${already
             ? '<span class="px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold rounded-lg">✅ Inscrit</span>'
@@ -265,7 +381,8 @@ function tournamentCard(t) {
               : open
                 ? `<button onclick="openSignup('${t.id}')" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-black text-xs rounded-lg transition">S'inscrire</button>`
                 : `<span class="px-3 py-2 bg-white/5 border border-[#1f293d] text-gray-500 text-[11px] font-bold rounded-lg">Inscriptions fermées</span>`}
-          ${toornament ? `<a href="${toornament}" target="_blank" rel="noopener" title="Ouvrir la page Toornament du tournoi" class="px-3 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-300 text-[11px] font-bold rounded-lg transition">Détails</a>` : ''}
+          <button onclick="openTournamentDetails('${t.id}')" class="px-3 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-300 text-[11px] font-bold rounded-lg transition">Fiche</button>
+          ${toornament ? `<a href="${toornament}" target="_blank" rel="noopener" title="Ouvrir la page Toornament du tournoi" class="px-3 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-300 text-[11px] font-bold rounded-lg transition">Toornament</a>` : ''}
           <span class="ml-auto text-[10px] font-bold text-gray-500">👥 ${escapeHtml(places)}</span>
           ${t.registration_closes_at ? `<span class="w-full text-[10px] text-gray-500">Clôture des inscriptions : ${escapeHtml(formatDate(t.registration_closes_at))}</span>` : ''}
         </div>
@@ -556,6 +673,7 @@ async function loadAdmin() {
   await loadPublic();
   renderAdminGames();
   renderAdminTournaments();
+  setGamePreviews();
   const { data: regs } = await supabaseClient.from('nvg_tournament_registrations')
     .select('id,status,platform_id,created_at,user_id,team_id,nvg_tournaments(name),nvg_tournament_teams(name),nvg_users(name)')
     .order('created_at', { ascending: false })
@@ -567,7 +685,21 @@ function renderAdminGames() {
   const box = $('adminGames');
   if (!box) return;
   box.innerHTML = games.length
-    ? games.map((g) => `<p>🎮 ${escapeHtml(g.name)}</p>`).join('')
+    ? games.map((g) => `
+      <div class="flex items-center justify-between gap-2 rounded-lg border border-[#1f293d] bg-[#07090e] px-2 py-1.5">
+        <div class="flex min-w-0 items-center gap-2">
+          <span class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded bg-white/90">
+            ${safeUrl(g.logo_url)
+              ? `<img src="${safeUrl(g.logo_url)}" alt="" class="h-full w-full object-contain p-0.5" onerror="this.remove()">`
+              : `<span class="text-[9px] font-black text-[#0b0f17]">${escapeHtml((g.name || '?').slice(0, 2).toUpperCase())}</span>`}
+          </span>
+          <span class="truncate text-[11px] font-bold text-gray-200">${escapeHtml(g.name)}</span>
+        </div>
+        <div class="flex shrink-0 items-center gap-1">
+          ${safeUrl(g.banner_url) ? '<span class="text-[9px] text-emerald-400" title="Bannière enregistrée">bannière</span>' : ''}
+          <button onclick="editGame('${g.id}')" class="rounded border border-[#1f293d] bg-white/5 px-2 py-1 text-[10px] font-bold text-gray-300 transition hover:bg-white/10">✏️</button>
+        </div>
+      </div>`).join('')
     : '<p class="text-gray-500">Aucun jeu enregistré.</p>';
   const select = $('tourGame');
   if (select) {
@@ -610,7 +742,9 @@ function editTournament(id) {
   $('editName').value = t.name || '';
   $('editStatus').value = t.status || 'draft';
   $('editMax').value = t.max_participants || '';
-  $('editPrize').value = t.prize || '';
+  $('editPrizeFirst').value = t.prize_first || t.prize || '';
+  $('editPrizeSecond').value = t.prize_second || '';
+  $('editPrizeThird').value = t.prize_third || '';
   $('editStart').value = toLocalInput(t.starts_at);
   $('editClose').value = toLocalInput(t.registration_closes_at);
   $('editDesc').value = t.description || '';
@@ -638,7 +772,9 @@ async function saveTournament() {
     name,
     status: $('editStatus').value,
     max_participants: maxRaw ? parseInt(maxRaw, 10) : null,
-    prize: $('editPrize').value.trim() || null,
+    prize_first: $('editPrizeFirst').value.trim() || null,
+    prize_second: $('editPrizeSecond').value.trim() || null,
+    prize_third: $('editPrizeThird').value.trim() || null,
     starts_at: $('editStart').value ? new Date($('editStart').value).toISOString() : null,
     registration_closes_at: $('editClose').value ? new Date($('editClose').value).toISOString() : null,
     description: $('editDesc').value.trim() || null,
@@ -697,23 +833,129 @@ function renderAdminRegistrations(regs) {
     </div>`).join('');
 }
 
-async function createGame() {
+const GAME_IMG_BUCKET = 'games-img';
+
+function setGamePreviews() {
+  const logo = safeUrl($('gameLogo')?.value);
+  const banner = safeUrl($('gameBanner')?.value);
+  const logoImg = $('gameLogoPreview');
+  const logoEmpty = $('gameLogoEmpty');
+  const bannerImg = $('gameBannerPreview');
+  const bannerEmpty = $('gameBannerEmpty');
+  if (logoImg && logoEmpty) {
+    if (logo) {
+      logoImg.src = logo;
+      logoImg.classList.remove('hidden');
+      logoEmpty.classList.add('hidden');
+    } else {
+      logoImg.removeAttribute('src');
+      logoImg.classList.add('hidden');
+      logoEmpty.classList.remove('hidden');
+    }
+  }
+  if (bannerImg && bannerEmpty) {
+    if (banner) {
+      bannerImg.src = banner;
+      bannerImg.classList.remove('hidden');
+      bannerEmpty.classList.add('hidden');
+    } else {
+      bannerImg.removeAttribute('src');
+      bannerImg.classList.add('hidden');
+      bannerEmpty.classList.remove('hidden');
+    }
+  }
+}
+
+function resetGameForm() {
+  editingGameId = null;
+  ['gameName', 'gameLogo', 'gameBanner'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
+  ['gameLogoFile', 'gameBannerFile'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
+  const submit = $('gameSubmit');
+  if (submit) submit.textContent = 'Créer le jeu';
+  $('gameCancel')?.classList.add('hidden');
+  setGamePreviews();
+}
+
+function cancelGameEdit() {
+  resetGameForm();
+}
+
+function editGame(id) {
+  const g = gameById(id);
+  if (!g) return;
+  editingGameId = id;
+  $('gameName').value = g.name || '';
+  $('gameLogo').value = g.logo_url || '';
+  $('gameBanner').value = g.banner_url || '';
+  const submit = $('gameSubmit');
+  if (submit) submit.textContent = 'Enregistrer les modifications';
+  $('gameCancel')?.classList.remove('hidden');
+  setGamePreviews();
+  $('gameName').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  $('gameName').focus();
+}
+
+function setUploadLabel(input, text) {
+  const label = input?.closest('label');
+  if (label && label.firstChild) label.firstChild.nodeValue = `${text} `;
+}
+
+async function uploadGameImage(kind, input) {
+  const file = input?.files?.[0];
+  if (!file) return;
+  const isLogo = kind === 'logo';
+  const urlField = isLogo ? $('gameLogo') : $('gameBanner');
+  try {
+    const name = $('gameName').value.trim();
+    if (!name) throw new Error('saisis d’abord le nom du jeu.');
+    if (!currentUser || !isAdmin) throw new Error('connecte-toi avec un compte administrateur.');
+    if (file.size > 4 * 1024 * 1024) throw new Error('image trop lourde (4 Mo maximum).');
+    if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) throw new Error('format accepté : PNG, JPG ou WebP.');
+
+    const path = `${slugify(name)}-${isLogo ? 'logo' : 'banniere'}.png`;
+    setUploadLabel(input, '⏳ Envoi…');
+    const { error } = await supabaseClient.storage
+      .from(GAME_IMG_BUCKET)
+      .upload(path, file, { upsert: true, cacheControl: '3600', contentType: file.type });
+    if (error) throw error;
+
+    const { data } = supabaseClient.storage.from(GAME_IMG_BUCKET).getPublicUrl(path);
+    urlField.value = `${data.publicUrl}?v=${Date.now()}`;
+    setGamePreviews();
+    notify(`Image envoyée : ${GAME_IMG_BUCKET}/${path}`);
+  } catch (err) {
+    notify('Envoi impossible : ' + (err.message || err), true);
+  } finally {
+    setUploadLabel(input, isLogo ? '📤 Téléverser' : '📤 Téléverser la bannière');
+    if (input) input.value = '';
+  }
+}
+
+async function saveGame() {
   const name = $('gameName').value.trim();
   if (!name) { notify('Saisis un nom de jeu.', true); return; }
+  const payload = {
+    name,
+    slug: slugify(name),
+    logo_url: safeUrl($('gameLogo').value) || null,
+    banner_url: safeUrl($('gameBanner').value) || null
+  };
   try {
-    const { error } = await supabaseClient.from('nvg_tournament_games').insert({
-      name,
-      slug: slugify(name),
-      logo_url: $('gameLogo').value.trim() || null
-    });
-    if (error) throw new Error(error.message);
-    $('gameName').value = '';
-    $('gameLogo').value = '';
-    notify('Jeu créé.');
+    if (editingGameId) {
+      const { error } = await supabaseClient.from('nvg_tournament_games').update(payload).eq('id', editingGameId);
+      if (error) throw new Error(error.message);
+      notify('Jeu mis à jour.');
+    } else {
+      const { error } = await supabaseClient.from('nvg_tournament_games').insert(payload);
+      if (error) throw new Error(error.message);
+      notify('Jeu créé.');
+    }
+    resetGameForm();
     await loadPublic();
     renderAdminGames();
   } catch (err) {
-    notify('Erreur : ' + err.message, true);
+    const message = String(err.message || err);
+    notify('Erreur : ' + (/duplicate key/i.test(message) ? 'un jeu porte déjà ce nom.' : message), true);
   }
 }
 
@@ -737,7 +979,9 @@ async function createTournament() {
       team_min: mode === 'solo' ? 1 : teamMin,
       team_max: mode === 'solo' ? 1 : teamMax,
       max_participants: parseInt($('tourMax').value, 10) || null,
-      prize: $('tourPrize').value.trim() || null,
+      prize_first: $('tourPrizeFirst').value.trim() || null,
+      prize_second: $('tourPrizeSecond').value.trim() || null,
+      prize_third: $('tourPrizeThird').value.trim() || null,
       starts_at: $('tourStart').value ? new Date($('tourStart').value).toISOString() : null,
       registration_closes_at: $('tourClose').value ? new Date($('tourClose').value).toISOString() : null,
       status: $('tourStatus').value,
@@ -750,6 +994,9 @@ async function createTournament() {
     $('tourName').value = '';
     $('tourBanner').value = '';
     $('tourToornament').value = '';
+    $('tourPrizeFirst').value = '';
+    $('tourPrizeSecond').value = '';
+    $('tourPrizeThird').value = '';
     notify('Tournoi créé.');
     await loadPublic();
     renderAdminTournaments();
@@ -888,6 +1135,15 @@ $('loginForm').addEventListener('submit', async (event) => {
 });
 
 document.querySelectorAll('.tab-btn').forEach((btn) => btn.addEventListener('click', () => openTab(btn.dataset.tab)));
+
+['gameLogo', 'gameBanner'].forEach((id) => {
+  const input = $(id);
+  if (input) input.addEventListener('input', setGamePreviews);
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') closeTournamentDetails();
+});
 
 $('signupForm').addEventListener('submit', async (event) => {
   event.preventDefault();

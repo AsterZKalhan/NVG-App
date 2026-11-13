@@ -135,7 +135,7 @@ Fonction Edge `contact-message` (sans JWT) : reçoit le formulaire public (`cont
 - Écritures sensibles via fonctions `SECURITY DEFINER` (`nvg_tournament_create_team`, `join_team`, `leave_team`, `register_solo`, `register_team`, `cancel`) : un joueur = une équipe par tournoi, capitaine seul à inscrire l'équipe, places et dates vérifiées côté base.
 - Lien d'invitation : `https://letournoides9mondes.nvg-tv.com/?join=CODE` ; code prérempli après connexion.
 - Admin (`nvg_is_admin`) : jeux, création/modification/suppression de tournois, statuts, confirmation/attente/annulation des inscriptions.
-- Affichage des tournois en cartes façon Toornament : bannière (`banner_url`), logo du jeu, titre, dates, statut, mode, format, prix, compteur d'inscrits. Liaison Toornament préparée avec `toornament_url` (badge + bouton Détails) et `toornament_id` extrait du lien pour la future synchronisation API.
+- Affichage des tournois en cartes façon Toornament : bannière et logo hérités du jeu, titre, dates, statut, mode, format, compteur d'inscrits, fiche détaillée en modale (bouton **Fiche**) avec podium des récompenses (1re/2e/3e place, trophées or/argent/bronze). Visuels des jeux téléversés depuis le back-office dans le bucket public `games-img` (`nomdujeu-logo.png`, `nomdujeu-banniere.png`). Liaison Toornament préparée avec `toornament_url` (badge + bouton) et `toornament_id` extrait du lien pour la future synchronisation API.
 - Toornament : pas d'accès API pour l'instant, aucune synchronisation. Logo officiel (`logo-9mondes.png`, version web 1200×896) et favicon dédié dans `tournoi-site/Logos/`.
 - Détail : `.github/docs/tournament-9-mondes.md` ; SQL : `.github/sql/tournament-9-mondes.sql`.
 

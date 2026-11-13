@@ -55,8 +55,8 @@ Tables (préfixe `nvg_tournament_`) :
 
 | Table | Rôle |
 |---|---|
-| `nvg_tournament_games` | jeux proposés (nom, slug, logo) |
-| `nvg_tournaments` | tournois : mode `solo`/`team`, format `online`/`lan`/`both`, places, prix, dates, statut, publication |
+| `nvg_tournament_games` | jeux proposés (nom, slug, logo, bannière) |
+| `nvg_tournaments` | tournois : mode `solo`/`team`, format `online`/`lan`/`both`, places, prix (1re/2e/3e place), dates, statut, publication |
 | `nvg_tournament_teams` | équipes : nom, tag, capitaine, code d'invitation unique |
 | `nvg_tournament_team_members` | appartenance joueur ↔ équipe, rôle `captain`/`member` |
 | `nvg_tournament_registrations` | inscriptions solo ou équipe, statut `pending`/`confirmed`/`waitlist`/`cancelled` |
@@ -92,10 +92,14 @@ Statuts d'un tournoi : `draft`, `open`, `closed`, `running`, `finished`, `cancel
   inscription.
 - Les inscriptions sont créées en `pending` : la NVG confirme (`confirmed`),
   met en liste d'attente (`waitlist`) ou annule depuis le back-office.
+- Visuels des jeux : bucket public `games-img`, téléversement réservé à
+  `nvg_is_admin()` (`<slug>-logo.png`, `<slug>-banniere.png`, 4 Mo max,
+  PNG/JPG/WebP), lecture publique.
 
 ## Parcours membre
 
-1. Onglet **Tournois** : fiche du tournoi (jeu, mode, format, date, places, prix).
+1. Onglet **Tournois** : cartes des tournois, bouton **Fiche** pour le détail
+   (jeu, mode, format, dates, places, podium des récompenses, règlement).
 2. **S'inscrire** :
    - tournoi solo → confirmation directe, pseudo en jeu facultatif ;
    - tournoi en équipe → création de l'équipe (nom + tag).
@@ -122,25 +126,62 @@ Créer un tournoi en `draft` non publié permet de préparer la fiche avant
 ouverture. Pour rendre les inscriptions possibles : statut `open` **et**
 `published` coché.
 
+## Visuels des jeux (bucket `games-img`)
+
+Le logo et la bannière appartiennent au **jeu**, pas au tournoi : toutes les
+cartes d'un même jeu partagent donc le même visuel.
+
+- Dans le back-office, bloc **🎮 Jeu** : les boutons **📤 Téléverser** envoient
+  l'image dans le bucket public Supabase Storage `games-img`.
+- Noms de fichiers : `<slug-du-jeu>-logo.png` et `<slug-du-jeu>-banniere.png`
+  (ex. `league-of-legends-logo.png`). Un nouvel envoi remplace l'ancien
+  (`upsert`) ; l'URL stockée reçoit `?v=<horodatage>` pour contourner le cache.
+- Contraintes : PNG/JPG/WebP, 4 Mo maximum ; écriture réservée à `nvg_is_admin()`,
+  lecture publique.
+- Une URL externe reste acceptée (champ texte sous le bouton) : pratique pour un
+  visuel hébergé ailleurs.
+- Le bloc **🎮 Jeu** sert aussi à modifier un jeu existant (bouton ✏️ dans la
+  liste) : nom, logo, bannière.
+- Sur la carte, `banner_url` du tournoi reste prioritaire si elle est renseignée ;
+  sinon la bannière du jeu est utilisée.
+
+> L'hébergement IONOS ne reçoit pas d'upload depuis le navigateur (site
+> statique, pas de code serveur). Le bucket `games-img` joue le rôle du dossier
+> `games-img` : les fichiers sont publics et servis par Supabase Storage.
+
+## Récompenses (podium)
+
+- Trois champs distincts : `prize_first`, `prize_second`, `prize_third`
+  (l'ancien champ unique `prize` sert de repli pour la 1re place).
+- La carte affiche le lot de la 1re place avec un petit trophée.
+- La fiche détaillée (**bouton Fiche**) affiche le podium complet avec trois
+  trophées : or, argent, bronze ; une place sans montant indique
+  « À confirmer ».
+
 ## Fiches tournoi (style Toornament)
 
 Chaque tournoi s'affiche sous forme de carte inspirée des fiches Toornament :
 
-- bannière en haut de la carte (`banner_url`), avec repli sur le motif viking et
-  le nom du jeu quand aucune image n'est fournie ;
+- bannière du jeu (ou du tournoi) en haut de la carte, avec repli sur le motif
+  viking et le nom du jeu quand aucune image n'est fournie ;
 - logo du jeu dans un carré clair, nom du jeu, titre, dates de début et de fin ;
 - statut (« Inscriptions ouvertes », « En cours »…), mode
   (« Équipe (5–10 joueurs) » ou « Joueur (solo) ») et format
   (« En ligne », « LAN », « En ligne et LAN ») ;
-- prix, description courte, compteur d'inscrits, clôture des inscriptions ;
-- bouton **S'inscrire**, **Gérer mon équipe** ou badge **Inscrit** selon le cas.
+- prix (1re place + trophée), description courte, compteur d'inscrits, clôture ;
+- bouton **S'inscrire**, **Gérer mon équipe** ou badge **Inscrit**, plus
+  **Fiche** (modale détaillée) et **Toornament** si un lien est renseigné.
+
+La fiche détaillée reprend la bannière, le logo, les dates, le format, la
+description, le règlement, le podium des récompenses et les actions
+d'inscription. Elle se ferme par la croix, un clic sur le fond ou `Échap`.
 
 Liaison Toornament (préparation de la synchronisation API) :
 
 | Colonne | Rôle |
 |---|---|
-| `banner_url` | bannière large de la carte (URL https, facultatif) |
-| `toornament_url` | page publique du tournoi sur Toornament : affiche le badge **Toornament** sur la bannière et un bouton **Détails** |
+| `banner_url` | bannière large propre au tournoi (sinon celle du jeu) |
+| `toornament_url` | page publique du tournoi sur Toornament : badge **Toornament** sur la bannière et bouton dans la fiche |
 | `toornament_id` | identifiant numérique extrait automatiquement du lien, clé de la future synchronisation API |
 
 Ces champs se renseignent dans le back-office, à la création comme à la
@@ -172,7 +213,8 @@ git push origin main
 4. création de compte sur le site (pseudo, e-mail, mot de passe), réception du
    lien de confirmation, connexion, création d'équipe, lien d'invitation,
    inscription solo/équipe ;
-5. côté admin : création d'un jeu et d'un tournoi, confirmation d'une inscription.
+5. côté admin : création d'un jeu avec logo et bannière téléversés, création d'un
+   tournoi avec podium de récompenses, confirmation d'une inscription.
 
 ## Limites connues
 

@@ -201,10 +201,44 @@
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
-          <h2 class="text-sm font-black text-white">🎮 Nouveau jeu</h2>
+          <div class="flex items-center justify-between gap-2">
+            <h2 class="text-sm font-black text-white">🎮 Jeu</h2>
+            <button id="gameCancel" onclick="cancelGameEdit()" class="hidden text-[10px] font-bold text-gray-400 hover:text-white">Annuler la modification</button>
+          </div>
           <input id="gameName" placeholder="Nom du jeu" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-          <input id="gameLogo" placeholder="URL du logo (facultatif)" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-          <button onclick="createGame()" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-lg transition">Créer le jeu</button>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="space-y-2">
+              <p class="text-[10px] font-black uppercase tracking-wider text-gray-400">Logo carré</p>
+              <div class="flex items-start gap-2">
+                <div class="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#1f293d] bg-[#07090e]">
+                  <img id="gameLogoPreview" alt="" class="hidden h-full w-full object-contain p-1">
+                  <span id="gameLogoEmpty" class="text-[9px] text-gray-600">aucun</span>
+                </div>
+                <div class="min-w-0 flex-1 space-y-1.5">
+                  <label class="block cursor-pointer rounded-lg border border-[#1f293d] bg-white/5 px-3 py-2 text-center text-[10px] font-bold text-gray-300 transition hover:bg-white/10">
+                    📤 Téléverser
+                    <input id="gameLogoFile" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="uploadGameImage('logo', this)">
+                  </label>
+                  <input id="gameLogo" placeholder="ou URL du logo" class="w-full bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-1.5 text-[10px] text-white">
+                </div>
+              </div>
+              <p class="text-[9px] text-gray-500">PNG/JPG/WebP, 4 Mo max — fichier <span class="text-gray-400">nomdujeu-logo.png</span>.</p>
+            </div>
+            <div class="space-y-2">
+              <p class="text-[10px] font-black uppercase tracking-wider text-gray-400">Bannière</p>
+              <div class="relative aspect-[3/1] w-full overflow-hidden rounded-lg border border-[#1f293d] bg-[#07090e]">
+                <img id="gameBannerPreview" alt="" class="hidden h-full w-full object-cover">
+                <span id="gameBannerEmpty" class="absolute inset-0 flex items-center justify-center text-[9px] text-gray-600">aucune bannière</span>
+              </div>
+              <label class="block cursor-pointer rounded-lg border border-[#1f293d] bg-white/5 px-3 py-2 text-center text-[10px] font-bold text-gray-300 transition hover:bg-white/10">
+                📤 Téléverser la bannière
+                <input id="gameBannerFile" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="uploadGameImage('banner', this)">
+              </label>
+              <input id="gameBanner" placeholder="ou URL de la bannière" class="w-full bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-1.5 text-[10px] text-white">
+              <p class="text-[9px] text-gray-500">Format large conseillé (1600×500) — fichier <span class="text-gray-400">nomdujeu-banniere.png</span>.</p>
+            </div>
+          </div>
+          <button id="gameSubmit" onclick="saveGame()" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-lg transition">Créer le jeu</button>
           <div id="adminGames" class="text-[11px] text-gray-400 space-y-1"></div>
         </div>
 
@@ -232,10 +266,12 @@
             <input id="tourTeamMin" type="number" min="1" value="2" placeholder="Joueurs min." class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
             <input id="tourTeamMax" type="number" min="1" value="5" placeholder="Joueurs max." class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
             <input id="tourMax" type="number" min="1" placeholder="Places (facultatif)" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-            <input id="tourPrize" placeholder="Prix à gagner" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            <input id="tourPrizeFirst" placeholder="🥇 1re place" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            <input id="tourPrizeSecond" placeholder="🥈 2e place" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            <input id="tourPrizeThird" placeholder="🥉 3e place" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
             <input id="tourStart" type="datetime-local" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
             <input id="tourClose" type="datetime-local" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-            <input id="tourBanner" placeholder="URL de la bannière (facultatif)" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            <input id="tourBanner" placeholder="URL de la bannière (facultatif — sinon celle du jeu)" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
             <input id="tourToornament" placeholder="Lien Toornament (https://www.toornament.com/…)" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
             <textarea id="tourDesc" rows="2" placeholder="Description" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white"></textarea>
             <label class="sm:col-span-2 flex items-center gap-2 text-xs text-gray-300">
@@ -262,10 +298,12 @@
             <option value="cancelled">Annulé</option>
           </select>
           <input id="editMax" type="number" min="1" placeholder="Places (facultatif)" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-          <input id="editPrize" placeholder="Prix à gagner" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <input id="editPrizeFirst" placeholder="🥇 1re place" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <input id="editPrizeSecond" placeholder="🥈 2e place" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <input id="editPrizeThird" placeholder="🥉 3e place" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
           <input id="editStart" type="datetime-local" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
           <input id="editClose" type="datetime-local" class="bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-          <input id="editBanner" placeholder="URL de la bannière (facultatif)" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <input id="editBanner" placeholder="URL de la bannière (facultatif — sinon celle du jeu)" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
           <input id="editToornament" placeholder="Lien Toornament (https://www.toornament.com/…)" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
           <textarea id="editDesc" rows="2" placeholder="Description" class="sm:col-span-2 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white"></textarea>
           <label class="sm:col-span-2 flex items-center gap-2 text-xs text-gray-300">
@@ -288,6 +326,14 @@
         <div id="adminTournaments" class="space-y-2"></div>
       </div>
     </section>
+
+    <!-- FICHE TOURNOI -->
+    <div id="tournamentModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeTournamentDetails()"></div>
+      <div class="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[#1f293d] bg-[#0b0f17] shadow-2xl">
+        <div id="tournamentModalBody" class="overflow-y-auto"></div>
+      </div>
+    </div>
   </main>
 
   <footer class="max-w-6xl mx-auto px-4 pb-8 pt-2 text-center space-y-2">

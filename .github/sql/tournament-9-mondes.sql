@@ -12,8 +12,13 @@ create table if not exists public.nvg_tournament_games (
   name text not null,
   slug text not null unique,
   logo_url text,
+  banner_url text,
   created_at timestamptz not null default now()
 );
+
+-- Visuels du jeu : logo carré et bannière large, téléversés depuis le
+-- back-office dans le bucket public `games-img` (voir plus bas).
+alter table public.nvg_tournament_games add column if not exists banner_url text;
 
 create table if not exists public.nvg_tournaments (
   id uuid primary key default gen_random_uuid(),
@@ -28,6 +33,9 @@ create table if not exists public.nvg_tournaments (
   team_max int not null default 1 check (team_max between 1 and 20),
   max_participants int check (max_participants is null or max_participants > 0),
   prize text,
+  prize_first text,
+  prize_second text,
+  prize_third text,
   starts_at timestamptz,
   ends_at timestamptz,
   registration_closes_at timestamptz,
@@ -45,6 +53,14 @@ create table if not exists public.nvg_tournaments (
 alter table public.nvg_tournaments add column if not exists banner_url text;
 alter table public.nvg_tournaments add column if not exists toornament_url text;
 alter table public.nvg_tournaments add column if not exists toornament_id text;
+alter table public.nvg_tournaments add column if not exists prize_first text;
+alter table public.nvg_tournaments add column if not exists prize_second text;
+alter table public.nvg_tournaments add column if not exists prize_third text;
+
+-- Reprise de l'ancien champ unique `prize` vers la 1re place.
+update public.nvg_tournaments
+   set prize_first = prize
+ where prize_first is null and prize is not null;
 
 create index if not exists nvg_tournaments_toornament_id_idx
   on public.nvg_tournaments (toornament_id);
@@ -602,3 +618,37 @@ left join public.nvg_users u on u.id = r.user_id
 where r.status in ('pending', 'confirmed');
 
 grant select on public.nvg_tournament_registrations_public to anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Visuels des jeux (bucket public games-img)
+-- Fichiers : <slug-du-jeu>-logo.png et <slug-du-jeu>-banner.png.
+-- Lecture publique, écriture réservée aux admins NVG.
+-- ---------------------------------------------------------------------------
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('games-img', 'games-img', true, 4194304, array['image/png','image/jpeg','image/webp'])
+on conflict (id) do update
+  set public = true,
+      file_size_limit = 4194304,
+      allowed_mime_types = array['image/png','image/jpeg','image/webp'];
+
+drop policy if exists "games-img lecture" on storage.objects;
+create policy "games-img lecture" on storage.objects
+  for select to anon, authenticated
+  using (bucket_id = 'games-img');
+
+drop policy if exists "games-img upload admin" on storage.objects;
+create policy "games-img upload admin" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'games-img' and public.nvg_is_admin());
+
+drop policy if exists "games-img modif admin" on storage.objects;
+create policy "games-img modif admin" on storage.objects
+  for update to authenticated
+  using (bucket_id = 'games-img' and public.nvg_is_admin())
+  with check (bucket_id = 'games-img' and public.nvg_is_admin());
+
+drop policy if exists "games-img suppression admin" on storage.objects;
+create policy "games-img suppression admin" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'games-img' and public.nvg_is_admin());
