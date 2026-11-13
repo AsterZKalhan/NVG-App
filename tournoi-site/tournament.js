@@ -766,13 +766,15 @@ function renderMyTeams() {
 
 function renderMyRegistrations() {
   const box = $('myRegistrations');
-  if (!myRegistrations.length) {
+  // Une inscription annulée disparaît de l'espace membre (elle reste dans le back-office).
+  const visible = myRegistrations.filter((r) => r.status !== 'cancelled');
+  if (!visible.length) {
     box.innerHTML = '<div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 text-xs text-gray-400">Aucune inscription pour le moment.</div>';
     return;
   }
-  box.innerHTML = myRegistrations.map((reg) => {
+  box.innerHTML = visible.map((reg) => {
     const label = reg.nvg_tournament_teams?.name || reg.nvg_tournaments?.name || 'Tournoi';
-    const canEdit = reg.status !== 'cancelled' && (!reg.user_id || reg.user_id === currentUser?.id);
+    const canEdit = !reg.user_id || reg.user_id === currentUser?.id;
     return `
       <div class="bg-[#121722] border border-[#1f293d] rounded-xl px-4 py-3 space-y-2">
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -785,11 +787,11 @@ function renderMyRegistrations() {
             <p class="text-[10px] text-gray-500">${escapeHtml(feeLabel(reg.nvg_tournaments || {}))}</p>
           </div>
           <div class="flex items-center gap-2">
-            <span class="text-[9px] font-black uppercase px-2 py-1 rounded-full border ${reg.status === 'confirmed' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : reg.status === 'cancelled' ? 'text-gray-500 border-[#1f293d] bg-white/5' : 'text-amber-400 border-amber-500/30 bg-amber-500/10'}">${escapeHtml(REG_LABELS[reg.status] || reg.status)}</span>
-            ${reg.status !== 'cancelled' ? `<button onclick="cancelRegistration('${reg.id}')" class="text-[10px] font-bold text-red-400 hover:text-red-300">Annuler</button>` : ''}
+            <span class="text-[9px] font-black uppercase px-2 py-1 rounded-full border ${reg.status === 'confirmed' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-amber-400 border-amber-500/30 bg-amber-500/10'}">${escapeHtml(REG_LABELS[reg.status] || reg.status)}</span>
+            <button onclick="cancelRegistration('${reg.id}')" class="text-[10px] font-bold text-red-400 hover:text-red-300">Annuler</button>
           </div>
         </div>
-        ${reg.status !== 'cancelled' ? `<div class="flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-2">${paymentBadge(reg.payment_status)}${registrationPaymentBlock(reg)}</div>` : ''}
+        <div class="flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-2">${paymentBadge(reg.payment_status)}${registrationPaymentBlock(reg)}</div>
       </div>`;
   }).join('');
 }

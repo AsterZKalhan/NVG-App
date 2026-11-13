@@ -141,10 +141,12 @@ Statuts d'un tournoi : `draft`, `open`, `closed`, `running`, `finished`, `cancel
 4. Les coéquipiers se connectent avec leur compte Tournoi des 9 Mondes : le code
    est prérempli (y compris après connexion si le lien est ouvert déconnecté).
 5. Onglet **Mon espace** : équipes, membres, code, inscription de l'équipe,
-   annulation, liste des inscriptions avec statut et état du paiement. Chaque
-   inscription non annulée affiche **Pseudo en jeu : … ✏️ Modifier** : le joueur
-   corrige son identifiant en jeu (40 caractères max, champ facultatif) sans
-   annuler puis recréer son inscription.
+   annulation, liste des inscriptions avec statut et état du paiement. Une
+   inscription annulée (par le joueur ou par la NVG) **disparaît de Mon espace** ;
+   elle reste consultable dans le back-office. Chaque inscription active affiche
+   **Pseudo en jeu : … ✏️ Modifier** : le joueur corrige son identifiant en jeu
+   (40 caractères max, champ facultatif) sans annuler puis recréer son
+   inscription.
 6. Le capitaine peut dissoudre l'équipe ; un membre peut la quitter.
 
 ## Paiement des inscriptions
