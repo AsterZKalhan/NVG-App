@@ -286,10 +286,10 @@ function openTournamentDetails(id) {
     </div>
     <div class="space-y-5 p-5">
       <div class="flex items-start gap-3">
-        <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/90">
+        <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/5">
           ${logo
             ? `<img src="${logo}" alt="" onerror="this.remove()" class="h-full w-full object-contain p-1.5">`
-            : `<span class="text-base font-black text-[#0b0f17]">${initials}</span>`}
+            : `<span class="text-base font-black text-gray-400">${initials}</span>`}
         </div>
         <div class="min-w-0 flex-1">
           <p class="truncate text-[10px] font-black uppercase tracking-[0.18em] text-amber-400/80">${escapeHtml(gameName(t.game_id))}</p>
@@ -355,10 +355,10 @@ function tournamentCard(t) {
       ${tournamentBanner(t)}
       <div class="flex flex-1 flex-col gap-3 p-4">
         <div class="flex items-start gap-3">
-          <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/90">
+          <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/5">
             ${logo
               ? `<img src="${logo}" alt="" loading="lazy" onerror="this.remove()" class="h-full w-full object-contain p-1">`
-              : `<span class="text-sm font-black text-[#0b0f17]">${initials}</span>`}
+              : `<span class="text-sm font-black text-gray-400">${initials}</span>`}
           </div>
           <div class="min-w-0 flex-1">
             <p class="truncate text-[10px] font-black uppercase tracking-[0.18em] text-amber-400/80">${escapeHtml(gameName(t.game_id))}</p>
@@ -688,10 +688,10 @@ function renderAdminGames() {
     ? games.map((g) => `
       <div class="flex items-center justify-between gap-2 rounded-lg border border-[#1f293d] bg-[#07090e] px-2 py-1.5">
         <div class="flex min-w-0 items-center gap-2">
-          <span class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded bg-white/90">
+          <span class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded border border-white/10 bg-white/5">
             ${safeUrl(g.logo_url)
               ? `<img src="${safeUrl(g.logo_url)}" alt="" class="h-full w-full object-contain p-0.5" onerror="this.remove()">`
-              : `<span class="text-[9px] font-black text-[#0b0f17]">${escapeHtml((g.name || '?').slice(0, 2).toUpperCase())}</span>`}
+              : `<span class="text-[9px] font-black text-gray-400">${escapeHtml((g.name || '?').slice(0, 2).toUpperCase())}</span>`}
           </span>
           <span class="truncate text-[11px] font-bold text-gray-200">${escapeHtml(g.name)}</span>
         </div>
