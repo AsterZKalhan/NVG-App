@@ -115,9 +115,12 @@ async function loadVideos(force = false) {
     // Les vidéos déjà affichées restent en place ; l'erreur n'apparaît que si la page est vide.
     if (!videosCache.data) {
       showVideosPlayerError();
+      const countEl = document.getElementById('videosCount');
+      if (countEl) countEl.textContent = '0';
       grid.innerHTML = `
         <div class="col-span-full flex flex-col items-center justify-center gap-3 py-10 text-center">
           <p class="text-xs text-gray-400 italic">Impossible de charger les vidéos pour le moment.</p>
+          <p class="text-[11px] text-gray-500">Vérifie ta connexion. Si le problème persiste, désactive le bloqueur de publicités pour ce site, puis réessaie.</p>
           <button type="button" onclick="loadVideos(true)" class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-200 text-xs font-bold transition">Réessayer</button>
         </div>
       `;

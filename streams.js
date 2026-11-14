@@ -3,6 +3,7 @@
 // Le lecteur ne se recharge que lorsqu'on change de membre (pas à chaque actualisation du statut).
 
 let streamsMembers = [];
+let streamsLoadFailed = false;
 let streamsStatus = {};
 let selectedStreamChannel = null;
 let loadedPlayerChannel = null;
@@ -16,12 +17,28 @@ function streamStatusOf(login) {
   return streamsStatus[login] || { live: false, viewers: 0, title: '', game: '', avatar: '' };
 }
 
-async function renderStreams() {
+async function loadStreamersData() {
   const { data, error } = await supabaseClient.from('nvg_streamers').select('*').order('name');
-  if (error) {
-    console.error("Erreur chargement des streamers :", error);
-    return;
+  if (!error) return data || [];
+
+  console.error('Erreur chargement des streamers :', error);
+  // Repli : lecture publique de la vue, sans jeton de session. Utile quand la
+  // session du navigateur est expirée ou refusée par un bloqueur de requêtes.
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/nvg_streamers?select=*&order=name`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+    });
+    if (res.ok) return await res.json();
+    console.error('Erreur chargement des streamers (repli) : HTTP', res.status);
+  } catch (err) {
+    console.error('Erreur réseau des streamers :', err);
   }
+  return null;
+}
+
+async function renderStreams() {
+  const data = await loadStreamersData();
+  streamsLoadFailed = data === null;
   // Seuls les Viking, Grand Jarl et Divinité sont listés (les Petits Vikings sont exclus).
   const allowedRanks = ['Viking', 'Grand Jarl', 'Divinité'];
   streamsMembers = (data || []).filter(s => s.twitch_channel && allowedRanks.includes(s.rank));
@@ -67,7 +84,13 @@ function renderStreamMembers(sorted) {
   const list = document.getElementById('streamsMembers');
   if (!list) return;
   if (sorted.length === 0) {
-    list.innerHTML = `<p class="text-xs text-gray-500 italic p-2">Aucun membre n'a renseigné sa chaîne Twitch.</p>`;
+    list.innerHTML = streamsLoadFailed
+      ? `<div class="p-2 space-y-2">
+          <p class="text-xs text-red-400 italic">Impossible de charger les chaînes Twitch.</p>
+          <p class="text-[11px] text-gray-500">Vérifie ta connexion. Si le problème persiste, désactive le bloqueur de publicités pour ce site, puis réessaie.</p>
+          <button type="button" onclick="renderStreams()" class="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-200 text-[11px] font-bold transition">Réessayer</button>
+        </div>`
+      : `<p class="text-xs text-gray-500 italic p-2">Aucun membre n'a renseigné sa chaîne Twitch.</p>`;
     return;
   }
 
