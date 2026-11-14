@@ -56,6 +56,10 @@ chaque espace part dans son propre dossier (`/APP`, `/BOT`, `/tournoides9mondes`
 - Connexion e-mail + mot de passe sur le site du tournoi (même session Supabase).
   Les erreurs courantes sont traduites en français (identifiants invalides,
   e-mail non confirmé, compte déjà existant, mot de passe trop court).
+- **Session partagée** avec l'application et l'espace bot : le jeton est conservé
+  dans des cookies du domaine `.nvg-tv.com` (`auth-shared.js`), donc se connecter
+  sur l'un des trois espaces connecte les autres. La déconnexion les déconnecte
+  tous. Voir `NOTES.md`, section « Session partagée ».
 - La déconnexion renvoie sur la page du tournoi.
 - L'accès admin (jeux, tournois, inscriptions) est réservé à `nvg_is_admin()` :
   admin, Grand Jarl, Divinité.

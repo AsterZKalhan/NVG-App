@@ -15,7 +15,7 @@ La page est accessible depuis l'application par le menu **🤖 Bot Discord (Staf
 
 ## Parcours utilisateur
 
-1. Connexion avec le **compte NVG** (même e-mail et mot de passe que l'application, Supabase Auth).
+1. Connexion avec le **compte NVG** (même e-mail et mot de passe que l'application, Supabase Auth). La session est **partagée avec l'application et le tournoi** via un cookie `.nvg-tv.com` (`auth-shared.js`) : une connexion sur l'un des trois espaces vaut pour les autres.
 2. Bouton **Se connecter avec Discord** (OAuth2, scopes `identify` et `guilds`).
 3. Discord renvoie la liste des serveurs du membre. Seuls ceux où il est **propriétaire** ou possède **Gérer le serveur** sont retenus.
 4. La page affiche :
