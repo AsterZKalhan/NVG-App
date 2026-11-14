@@ -297,6 +297,11 @@ function enterStreamsPip() {
   const section = document.getElementById('streams');
   const player = document.getElementById('streamsPlayer');
   if (!section || !player) return false;
+  // Un seul mini-lecteur à la fois : on ferme celui des vidéos s'il est ouvert.
+  const videosSection = document.getElementById('videos');
+  if (videosSection && videosSection.classList.contains('videos-pip-mode') && typeof closeVideosPip === 'function') {
+    closeVideosPip();
+  }
   section.classList.remove('hidden');
   section.classList.add('streams-pip-mode');
   restoreStreamsPipPosition();

@@ -190,11 +190,6 @@ function showTab(tabId) {
 	}
   }
 
-  // Coupe la lecture vidéo dès qu'on quitte l'onglet Vidéos.
-  if (tabId !== 'videos' && typeof stopVideosPlayer === 'function') {
-    stopVideosPlayer();
-  }
-
   if (window.innerWidth < 768) {
     document.getElementById('mainNav').classList.add('hidden');
   }
@@ -216,9 +211,19 @@ function showTab(tabId) {
     if (!streamsPipActive && typeof pauseStreamsIfNotPip === 'function') pauseStreamsIfNotPip();
   }
 
+  // Lecteur YouTube : même principe, le mini-lecteur ne s'ouvre que si la vidéo joue.
+  let videosPipActive = false;
+  if (tabId === 'videos') {
+    if (typeof exitVideosPip === 'function') exitVideosPip();
+  } else if (typeof enterVideosPip === 'function') {
+    videosPipActive = enterVideosPip();
+    if (!videosPipActive && typeof pauseVideosIfNotPip === 'function') pauseVideosIfNotPip();
+  }
+
   const tabs = document.querySelectorAll('.tab-content');
   tabs.forEach(tab => {
     if (streamsPipActive && tab.id === 'streams') return;
+    if (videosPipActive && tab.id === 'videos') return;
     tab.classList.add('hidden');
   });
 

@@ -60,6 +60,68 @@
       border-radius: 12px;
       box-shadow: 0 12px 40px rgba(0, 0, 0, .6);
     }
+    /* Mini-lecteur vidéo : mêmes règles que le mini-lecteur Twitch. */
+    #videos.videos-pip-mode {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      left: auto;
+      top: auto;
+      width: min(360px, calc(100vw - 32px));
+      z-index: 60;
+      margin: 0;
+      display: block;
+    }
+    #videos.videos-pip-mode .videos-header,
+    #videos.videos-pip-mode .videos-meta,
+    #videos.videos-pip-mode .videos-grid { display: none !important; }
+    #videos.videos-pip-mode .videos-player {
+      border-radius: 12px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, .6);
+    }
+    #videosPipClose {
+      display: none;
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 2;
+      width: 28px;
+      height: 28px;
+      border-radius: 9999px;
+      background: rgba(0, 0, 0, .75);
+      border: 1px solid rgba(255, 255, 255, .25);
+      color: #fff;
+      font-size: 14px;
+      line-height: 1;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    #videosPipClose:hover { background: #dc2626; border-color: #dc2626; }
+    #videos.videos-pip-mode #videosPipClose { display: flex; }
+    #videosPipDrag {
+      display: none;
+      position: absolute;
+      top: 8px;
+      right: 44px;
+      z-index: 2;
+      width: 28px;
+      height: 28px;
+      border-radius: 9999px;
+      background: rgba(0, 0, 0, .75);
+      border: 1px solid rgba(255, 255, 255, .25);
+      color: #fff;
+      font-size: 15px;
+      line-height: 1;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+    }
+    #videosPipDrag:active { cursor: grabbing; background: #dc2626; border-color: #dc2626; }
+    #videos.videos-pip-mode #videosPipDrag { display: flex; }
+    #videos.videos-pip-dragging { opacity: .92; }
     #streamsPipClose {
       display: none;
       position: absolute;
@@ -106,6 +168,7 @@
     .videos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
     .videos-player { aspect-ratio: 16 / 9; width: 100%; position: relative; }
     .videos-player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+    .videos-player #videosPlayer { position: absolute; inset: 0; width: 100%; height: 100%; }
     .events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 460px)); justify-content: start; align-items: start; gap: 1rem; }
     .event-card { background: #000; border-color: #9b1c20; container-type: inline-size; padding: 4%; aspect-ratio: 8 / 5; }
     .event-card:has(details[open]) { z-index: 30; }
@@ -471,7 +534,7 @@
 
     <!-- ONGLET VIDÉOS YOUTUBE -->
     <section id="videos" class="tab-content hidden space-y-6">
-      <div class="flex flex-wrap items-center justify-between gap-2">
+      <div class="videos-header flex flex-wrap items-center justify-between gap-2">
         <h2 class="text-xl font-black text-white uppercase">Dernières vidéos</h2>
         <div class="flex items-center gap-3">
           <span class="text-xs text-gray-400 font-bold">Vidéos : <span id="videosCount">0</span></span>
@@ -480,10 +543,13 @@
       </div>
 
       <div class="videos-player bg-black rounded-2xl overflow-hidden border border-[#1f293d]">
-        <iframe id="videosPlayer" title="Lecteur vidéo YouTube" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+        <div id="videosPlayer"></div>
+        <button type="button" id="videosPipClose" onclick="closeVideosPip()" title="Fermer le mini-lecteur" aria-label="Fermer le mini-lecteur">✕</button>
+        <button type="button" id="videosPipDrag" title="Déplacer le mini-lecteur" aria-label="Déplacer le mini-lecteur"
+          onpointerdown="startVideosPipDrag(event)" onpointermove="moveVideosPipDrag(event)" onpointerup="endVideosPipDrag(event)" onpointercancel="endVideosPipDrag(event)">⠿</button>
       </div>
 
-      <div class="flex flex-wrap items-start justify-between gap-3 bg-[#121722] border border-[#1f293d] rounded-2xl p-3">
+      <div class="videos-meta flex flex-wrap items-start justify-between gap-3 bg-[#121722] border border-[#1f293d] rounded-2xl p-3">
         <div class="min-w-0">
           <div id="videosCurrentTitle" class="text-sm font-black text-white"></div>
           <div id="videosCurrentMeta" class="text-[11px] text-gray-400"></div>

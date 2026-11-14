@@ -16,7 +16,20 @@ let videosCache = loadStoredVideos();
 let videosLoading = false;
 let selectedVideoId = null;
 let selectedByUser = false;
-let loadedVideoId = null;
+
+// Lecteur YouTube : l'API IFrame permet de connaître l'état de lecture, donc de
+// n'ouvrir le mini-lecteur que si la vidéo joue réellement.
+let ytApiPromise = null;
+let videosPlayer = null;
+let videosPlayerReady = false;
+let videosPlayerCreating = false;
+let videosPlayerVideoId = null;
+let videosPlaybackState = -1;
+let videosApiUnavailable = false;
+let pendingVideoId = null;
+let videosPipClosed = false;
+let videosPipDrag = null;
+const VIDEOS_PIP_POS_KEY = 'nvg_videos_pip_pos';
 
 function loadStoredVideos() {
   try {
@@ -203,13 +216,25 @@ function renderVideos(data) {
 }
 
 function renderVideosPlayer(videos) {
-  const player = document.getElementById('videosPlayer');
   const current = videos.find(v => v.id === selectedVideoId);
-  if (!player || !current) return;
+  if (!current) return;
 
-  if (loadedVideoId !== current.id) {
-    player.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(current.id)}?rel=0&modestbranding=1`;
-    loadedVideoId = current.id;
+  if (videosApiUnavailable) {
+    renderVideosFallback(current.id);
+  } else if (!videosPlayer) {
+    if (videosPlayerCreating) {
+      if (videosPlayerVideoId !== current.id) pendingVideoId = current.id;
+    } else {
+      createVideosPlayer(current.id);
+    }
+  } else if (videosPlayerVideoId !== current.id) {
+    videosPlayerVideoId = current.id;
+    videosPlaybackState = -1;
+    try {
+      videosPlayer.cueVideoById(current.id);
+    } catch (_err) {
+      pendingVideoId = current.id;
+    }
   }
 
   const titleEl = document.getElementById('videosCurrentTitle');
@@ -224,6 +249,289 @@ function renderVideosPlayer(videos) {
   if (linkEl) linkEl.href = current.url;
 }
 
+// --- LECTEUR YOUTUBE (API IFrame) ---
+// L'API officielle donne l'état de lecture (lecture, pause, fin). Le mini-lecteur
+// ne s'affiche donc jamais sur une vidéo en pause ou arrêtée.
+
+function loadYouTubeApi() {
+  if (window.YT && window.YT.Player) return Promise.resolve();
+  if (ytApiPromise) return ytApiPromise;
+  ytApiPromise = new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      ytApiPromise = null;
+      reject(new Error('API YouTube indisponible'));
+    }, 8000);
+    const previousReady = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      if (typeof previousReady === 'function') previousReady();
+      clearTimeout(timer);
+      resolve();
+    };
+    const script = document.createElement('script');
+    script.src = 'https://www.youtube.com/iframe_api';
+    script.async = true;
+    script.onerror = () => {
+      clearTimeout(timer);
+      ytApiPromise = null;
+      reject(new Error('API YouTube indisponible'));
+    };
+    document.head.appendChild(script);
+  });
+  return ytApiPromise;
+}
+
+function createVideosPlayer(videoId) {
+  if (videosPlayerCreating || videosPlayer || videosApiUnavailable) return;
+  videosPlayerCreating = true;
+  videosPlayerVideoId = videoId;
+  loadYouTubeApi().then(() => {
+    if (!document.getElementById('videosPlayer')) {
+      videosPlayerCreating = false;
+      return;
+    }
+    try {
+      videosPlayer = new YT.Player('videosPlayer', {
+        videoId,
+        host: 'https://www.youtube-nocookie.com',
+        playerVars: {
+          rel: 0,
+          modestbranding: 1,
+          playsinline: 1,
+          origin: window.location.origin
+        },
+        events: {
+          onReady: () => {
+            videosPlayerCreating = false;
+            videosPlayerReady = true;
+            if (pendingVideoId && pendingVideoId !== videosPlayerVideoId) {
+              videosPlayerVideoId = pendingVideoId;
+              try { videosPlayer.cueVideoById(pendingVideoId); } catch (_err) { /* ignore */ }
+            }
+            pendingVideoId = null;
+          },
+          onStateChange: (event) => {
+            videosPlaybackState = event.data;
+            if (videosPlaybackState !== 1 && videosPlaybackState !== 3) {
+              leaveVideosPipOnStop();
+            }
+          }
+        }
+      });
+    } catch (err) {
+      videosPlayerCreating = false;
+      videosApiUnavailable = true;
+      console.error('Lecteur YouTube indisponible :', err);
+      renderVideosFallback(videoId);
+    }
+  }).catch((err) => {
+    videosPlayerCreating = false;
+    videosApiUnavailable = true;
+    console.error('Lecteur YouTube indisponible :', err);
+    renderVideosFallback(selectedVideoId);
+  });
+}
+
+// Repli sans API (bloqueur de publicités, réseau) : iframe classique, sans
+// mini-lecteur puisque l'état de lecture est alors inconnu.
+function renderVideosFallback(videoId) {
+  if (!videoId) return;
+  let host = document.getElementById('videosPlayer');
+  if (!host) return;
+  if (host.tagName !== 'IFRAME') {
+    const iframe = document.createElement('iframe');
+    iframe.id = 'videosPlayer';
+    iframe.title = 'Lecteur vidéo YouTube';
+    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+    iframe.allowFullscreen = true;
+    host.replaceWith(iframe);
+    host = iframe;
+  }
+  if (host.dataset.videoId === videoId) return;
+  host.dataset.videoId = videoId;
+  host.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?rel=0&modestbranding=1`;
+}
+
+// --- MINI-LECTEUR VIDÉO (picture-in-picture de l'application) ---
+// Même principe que le mini-lecteur Twitch : la section Vidéos reste visible,
+// réduite dans un coin, tant que la vidéo joue. Une pause ou une fin de vidéo
+// referme le mini-lecteur.
+
+function videosCurrentState() {
+  if (videosPlayer && videosPlayerReady) {
+    try {
+      if (typeof videosPlayer.getPlayerState === 'function') return videosPlayer.getPlayerState();
+    } catch (_err) {
+      // Lecteur pas encore prêt : on se fie à l'état connu.
+    }
+  }
+  return videosPlaybackState;
+}
+
+function videosIsPlaying() {
+  const state = videosCurrentState();
+  return state === 1 || state === 3;
+}
+
+function pauseVideosIfNotPip() {
+  const section = document.getElementById('videos');
+  if (section && section.classList.contains('videos-pip-mode')) return;
+  if (videosPlayer && videosPlayerReady && videosIsPlaying()) {
+    try { videosPlayer.pauseVideo(); } catch (_err) { /* lecteur non prêt */ }
+  }
+}
+
+function enterVideosPip() {
+  if (videosApiUnavailable || !videosPlayerReady || videosPipClosed) return false;
+  if (!videosIsPlaying()) return false;
+  const section = document.getElementById('videos');
+  if (!section) return false;
+  // Un seul mini-lecteur à la fois : on ferme celui de Twitch s'il est ouvert.
+  const streamsSection = document.getElementById('streams');
+  if (streamsSection && streamsSection.classList.contains('streams-pip-mode') && typeof closeStreamsPip === 'function') {
+    closeStreamsPip();
+  }
+  section.classList.remove('hidden');
+  section.classList.add('videos-pip-mode');
+  restoreVideosPipPosition();
+  return true;
+}
+
+function exitVideosPip() {
+  const section = document.getElementById('videos');
+  if (section) {
+    section.classList.remove('videos-pip-mode');
+    section.classList.remove('videos-pip-dragging');
+    section.style.left = '';
+    section.style.top = '';
+    section.style.right = '';
+    section.style.bottom = '';
+  }
+  videosPipClosed = false;
+}
+
+function closeVideosPip() {
+  videosPipClosed = true;
+  videosPipDrag = null;
+  if (videosPlayer && videosPlayerReady) {
+    try { videosPlayer.pauseVideo(); } catch (_err) { /* lecteur non prêt */ }
+  }
+  const section = document.getElementById('videos');
+  if (section) {
+    section.classList.remove('videos-pip-mode');
+    section.classList.remove('videos-pip-dragging');
+    section.style.left = '';
+    section.style.top = '';
+    section.style.right = '';
+    section.style.bottom = '';
+    section.classList.add('hidden');
+  }
+}
+
+// Pause ou fin de vidéo pendant le mini-lecteur : on le referme.
+function leaveVideosPipOnStop() {
+  const section = document.getElementById('videos');
+  if (!section || !section.classList.contains('videos-pip-mode')) return;
+  videosPipDrag = null;
+  section.classList.remove('videos-pip-mode');
+  section.classList.remove('videos-pip-dragging');
+  section.style.left = '';
+  section.style.top = '';
+  section.style.right = '';
+  section.style.bottom = '';
+  section.classList.add('hidden');
+}
+
+// --- Déplacement du mini-lecteur vidéo ---
+
+function applyVideosPipPosition(left, top) {
+  const section = document.getElementById('videos');
+  if (!section || !section.classList.contains('videos-pip-mode')) return;
+  const rect = section.getBoundingClientRect();
+  const margin = 8;
+  const width = rect.width || Math.min(360, window.innerWidth - 32);
+  const height = rect.height || (width * 9 / 16);
+  const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+  const maxTop = Math.max(margin, window.innerHeight - height - margin);
+  const x = Math.min(Math.max(left, margin), maxLeft);
+  const y = Math.min(Math.max(top, margin), maxTop);
+  section.style.left = x + 'px';
+  section.style.top = y + 'px';
+  section.style.right = 'auto';
+  section.style.bottom = 'auto';
+}
+
+function restoreVideosPipPosition() {
+  let saved = null;
+  try {
+    saved = JSON.parse(localStorage.getItem(VIDEOS_PIP_POS_KEY) || 'null');
+  } catch (_err) {
+    saved = null;
+  }
+  if (!saved || !Number.isFinite(saved.left) || !Number.isFinite(saved.top)) return;
+  applyVideosPipPosition(saved.left, saved.top);
+}
+
+function saveVideosPipPosition() {
+  const section = document.getElementById('videos');
+  if (!section) return;
+  const rect = section.getBoundingClientRect();
+  try {
+    localStorage.setItem(VIDEOS_PIP_POS_KEY, JSON.stringify({
+      left: Math.round(rect.left),
+      top: Math.round(rect.top)
+    }));
+  } catch (_err) {
+    // Stockage indisponible : la position reste valable pour la session.
+  }
+}
+
+function startVideosPipDrag(event) {
+  const section = document.getElementById('videos');
+  if (!section || !section.classList.contains('videos-pip-mode')) return;
+  event.preventDefault();
+  const rect = section.getBoundingClientRect();
+  videosPipDrag = {
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top
+  };
+  section.classList.add('videos-pip-dragging');
+  const handle = event.currentTarget;
+  if (handle && handle.setPointerCapture) {
+    try { handle.setPointerCapture(event.pointerId); } catch (_err) { /* ignore */ }
+  }
+}
+
+function moveVideosPipDrag(event) {
+  if (!videosPipDrag) return;
+  event.preventDefault();
+  applyVideosPipPosition(
+    event.clientX - videosPipDrag.offsetX,
+    event.clientY - videosPipDrag.offsetY
+  );
+}
+
+function endVideosPipDrag(event) {
+  if (!videosPipDrag) return;
+  videosPipDrag = null;
+  const section = document.getElementById('videos');
+  if (section) {
+    section.classList.remove('videos-pip-dragging');
+    saveVideosPipPosition();
+  }
+  const handle = event.currentTarget;
+  if (handle && handle.releasePointerCapture) {
+    try { handle.releasePointerCapture(event.pointerId); } catch (_err) { /* ignore */ }
+  }
+}
+
+// Garde le mini-lecteur dans l'écran si la fenêtre est redimensionnée.
+window.addEventListener('resize', () => {
+  const section = document.getElementById('videos');
+  if (!section || !section.classList.contains('videos-pip-mode')) return;
+  const rect = section.getBoundingClientRect();
+  applyVideosPipPosition(rect.left, rect.top);
+});
+
 function selectVideo(videoId) {
   selectedVideoId = videoId;
   selectedByUser = true;
@@ -231,19 +539,19 @@ function selectVideo(videoId) {
 }
 
 function stopVideosPlayer() {
-  const player = document.getElementById('videosPlayer');
-  if (!player) return;
-  if (!player.getAttribute('src')) return;
-  // Vider la source arrête la lecture ; elle sera remise au retour sur l'onglet.
-  player.removeAttribute('src');
-  loadedVideoId = null;
+  if (videosPlayer && videosPlayerReady) {
+    try { videosPlayer.stopVideo(); } catch (_err) { /* lecteur non prêt */ }
+  }
+  videosPlaybackState = -1;
+  leaveVideosPipOnStop();
 }
 
 function showVideosPlayerError() {
   const player = document.getElementById('videosPlayer');
-  if (!player) return;
-  player.removeAttribute('src');
-  loadedVideoId = null;
+  if (player && player.tagName === 'IFRAME' && player.dataset.videoId) {
+    player.removeAttribute('src');
+    delete player.dataset.videoId;
+  }
   const titleEl = document.getElementById('videosCurrentTitle');
   if (titleEl) titleEl.textContent = 'Vidéos indisponibles';
   const metaEl = document.getElementById('videosCurrentMeta');

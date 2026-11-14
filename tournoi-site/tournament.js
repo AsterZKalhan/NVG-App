@@ -1863,4 +1863,15 @@ $('signupForm').addEventListener('submit', async (event) => {
   }
 });
 
+// Pages légales : indique l'espace d'origine afin que leur lien « Retour »
+// ramène au tournoi (et à la page en cours) plutôt qu'à l'application NVG.
+document.addEventListener('click', (event) => {
+  const link = event.target.closest &&
+    event.target.closest('a[href*="app.nvg-tv.com/privacy.html"], a[href*="app.nvg-tv.com/mentions-legales.html"]');
+  if (!link) return;
+  const url = new URL(link.href);
+  url.searchParams.set('from', window.location.href);
+  link.href = url.href;
+});
+
 init();
