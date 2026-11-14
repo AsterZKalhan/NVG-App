@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"><title>Test session partagée</title></head>
+<body>
+<pre id="out">…</pre>
+<script src="auth-shared.js"></script>
+<script>
+(function () {
+  const KEY = 'sb-fxewefwwpowhnacrxfdp-auth-token';
+  const action = new URLSearchParams(location.search).get('action') || 'read';
+  const storage = window.NVG_SHARED_AUTH_STORAGE;
+  const lines = ['host=' + location.host, 'action=' + action, 'storage=' + !!storage];
+
+  function checksum(value) {
+    let h = 0;
+    for (let i = 0; i < value.length; i++) h = ((h * 31) + value.charCodeAt(i)) % 1000000007;
+    return h;
+  }
+
+  if (!storage) {
+    lines.push('ERREUR: adaptateur absent');
+  } else if (action === 'set') {
+    const value = JSON.stringify({ test: 'x'.repeat(7000), n: 42 });
+    storage.setItem(KEY, value);
+    const back = storage.getItem(KEY);
+    lines.push('écrit=' + value.length, 'relu=' + (back ? back.length : 'null'), 'checksum=' + (back ? checksum(back) : 'null'));
+  } else if (action === 'clear') {
+    storage.removeItem(KEY);
+    lines.push('après suppression=' + (storage.getItem(KEY) === null ? 'null (ok)' : 'ENCORE PRÉSENT'));
+  } else {
+    const back = storage.getItem(KEY);
+    lines.push('relu=' + (back ? back.length : 'null'), 'checksum=' + (back ? checksum(back) : 'null'));
+  }
+
+  lines.push('cookies=' + document.cookie.split('; ').filter(c => c.indexOf('nvg_') === 0).map(c => c.split('=')[0]).join(','));
+  document.getElementById('out').textContent = lines.join('\n');
+})();
+</script>
+</body></html>

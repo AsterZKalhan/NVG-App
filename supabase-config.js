@@ -4,6 +4,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 // La bibliothèque n'est pas chargée sur les pages autonomes (ex. contact.html),
 // qui n'ont besoin que de l'URL et de la clé publique.
+// La session est partagée avec le bot et le tournoi via les cookies .nvg-tv.com.
 const supabaseClient = window.supabase
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY,
+      window.NVG_SHARED_AUTH_STORAGE ? { auth: { storage: window.NVG_SHARED_AUTH_STORAGE } } : undefined)
   : null;

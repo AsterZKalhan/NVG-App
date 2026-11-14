@@ -16,7 +16,9 @@ const ANNOUNCE_KINDS = [
   { kind: 'game_proposed', label: '🎮 Proposition de jeu (staff)' }
 ];
 
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseClient = window.NVG_SHARED_AUTH_STORAGE
+  ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { storage: window.NVG_SHARED_AUTH_STORAGE } })
+  : supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUser = null;
 let guilds = [];
 let routes = [];
