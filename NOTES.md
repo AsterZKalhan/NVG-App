@@ -151,6 +151,7 @@ Fonction Edge `contact-message` (sans JWT) : reçoit le formulaire public (`cont
 - Cookies `Secure`, `SameSite=Lax`, 1 an, découpés en morceaux de 3 000 caractères (la session JSON dépasse parfois 4 Ko), avec un compteur `_n`. Le nom du cookie est dérivé de la clé Supabase (`sb-<ref>-auth-token`, vérificateur PKCE…).
 - Repli automatique sur le stockage local si les cookies sont refusés ou hors `nvg-tv.com` ; **migration transparente** des sessions déjà stockées localement ; `signOut()` efface les cookies, donc la déconnexion vaut pour les trois espaces.
 - Vérifié de bout en bout le 14 novembre 2026 : connexion sur l'app → session lue sur le tournoi et le bot ; déconnexion sur le tournoi → session absente sur l'app.
+- **Reprise à chaud** : si la connexion est faite dans un autre espace alors que la page du bot ou du tournoi est déjà ouverte, elle est reprise au retour sur l'onglet (`focus` / `visibilitychange`), sans nouvelle saisie : le bot ouvre directement l'espace, le tournoi recharge la page pour charger le profil.
 - **Sécurité** : le jeton est lisible par tout script d'un sous-domaine `*.nvg-tv.com` (comme avant en stockage local, mais la portée couvre désormais les trois espaces). Le cookie n'est pas `HttpOnly` car le client Supabase doit le lire. Aucun cookie publicitaire ni traceur.
 - Pages de confidentialité de l'app et du bot mises à jour (cookie de connexion `nvg-tv.com`).
 

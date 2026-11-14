@@ -1874,4 +1874,26 @@ document.addEventListener('click', (event) => {
   link.href = url.href;
 });
 
-init();
+// Session partagée : si la connexion vient d'être faite dans un autre espace
+// NVG, on recharge la page au retour sur l'onglet pour récupérer le profil et
+// l'espace membre, sans redemander les identifiants.
+let refreshingSession = false;
+async function refreshSessionFromSharedStorage() {
+  if (currentUser || refreshingSession) return;
+  refreshingSession = true;
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) window.location.reload();
+  } catch (err) {
+    console.error('Reprise de session impossible :', err);
+  } finally {
+    refreshingSession = false;
+  }
+}
+
+init().then(() => {
+  window.addEventListener('focus', () => refreshSessionFromSharedStorage());
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshSessionFromSharedStorage();
+  });
+});

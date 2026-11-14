@@ -448,4 +448,30 @@ $('loginForm').addEventListener('submit', async (event) => {
   await enterApp();
 });
 
-init();
+// Session partagée : si la connexion a été faite dans un autre espace NVG
+// (Application ou Tournoi) pendant que cette page était ouverte, on la reprend
+// au retour sur l'onglet, sans demander de se reconnecter.
+let refreshingSession = false;
+async function refreshSessionFromSharedStorage() {
+  if (currentUser || refreshingSession) return;
+  refreshingSession = true;
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) return;
+    currentUser = session.user;
+    await enterApp();
+  } catch (err) {
+    console.error('Reprise de session impossible :', err);
+  } finally {
+    refreshingSession = false;
+  }
+}
+
+// Les écouteurs sont posés après la vérification initiale, pour ne pas doubler
+// le chargement de l'espace si une session est déjà active.
+init().then(() => {
+  window.addEventListener('focus', () => refreshSessionFromSharedStorage());
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshSessionFromSharedStorage();
+  });
+});
