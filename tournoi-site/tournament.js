@@ -21,6 +21,8 @@ let publicTeams = [];
 let tournamentMatches = [];
 let myTeams = [];
 let myRegistrations = [];
+let myParticipations = [];
+let manageTournamentId = null;
 let adminRegs = [];
 let adminPlayers = [];
 let editingPlayerId = null;
@@ -759,17 +761,14 @@ function openTournamentDetails(id, options = {}) {
         </div>` : ''}
 
       <div class="flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-4">
-        ${already
+        ${currentUser && (already || myTeam || (t.mode === 'team' && open) || myParticipations.some((p) => p.tournament_id === t.id))
           ? `<div class="flex flex-wrap items-center gap-2">
-              <span class="px-2 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase tracking-wider rounded-lg">✅ Inscrit</span>
-              <a href="${accountUrl('registrations')}" onclick="event.preventDefault();closeTournamentDetails({ push: false });goAccount('registrations')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">📋 Gérer mon inscription</a>
-              ${myTeam ? `<a href="${accountUrl('teams')}" onclick="event.preventDefault();closeTournamentDetails({ push: false });goAccount('teams')" class="px-3 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-300 text-[11px] font-bold rounded-lg transition">🛡️ Gérer mon équipe</a>` : ''}
+              ${already ? '<span class="px-2 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase tracking-wider rounded-lg">✅ Inscrit</span>' : ''}
+              <button onclick="closeTournamentDetails({ push: false });openManage('${t.id}')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">⚙️ Gérer ma participation</button>
             </div>`
-          : myTeam
-            ? `<a href="${accountUrl('teams')}" onclick="event.preventDefault();closeTournamentDetails({ push: false });goAccount('teams')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">🛡️ Gérer mon équipe</a>`
-            : open
-              ? `<button onclick="signupFromDetails('${t.id}')" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-black text-xs rounded-lg transition">S'inscrire</button>`
-              : '<span class="px-3 py-2 bg-white/5 border border-[#1f293d] text-gray-500 text-[11px] font-bold rounded-lg">Inscriptions fermées</span>'}
+          : open
+            ? `<button onclick="signupFromDetails('${t.id}')" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-black text-xs rounded-lg transition">S'inscrire</button>`
+            : '<span class="px-3 py-2 bg-white/5 border border-[#1f293d] text-gray-500 text-[11px] font-bold rounded-lg">Inscriptions fermées</span>'}
         ${toornament ? `<a href="${toornament}" target="_blank" rel="noopener" class="px-3 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-300 text-[11px] font-bold rounded-lg transition">Page Toornament</a>` : ''}
         ${t.registration_closes_at ? `<span class="ml-auto text-[10px] text-gray-500">Clôture : ${escapeHtml(formatDate(t.registration_closes_at))}</span>` : ''}
       </div>
@@ -2387,13 +2386,11 @@ function tournamentCard(t) {
         ${t.description ? `<p class="text-xs text-gray-400 line-clamp-2">${escapeHtml(t.description)}</p>` : ''}
         ${hasPrizes(t) ? `<p class="flex items-center gap-1.5 text-[11px] text-gray-300"><span class="text-amber-400">${trophyIcon('h-3.5 w-3.5')}</span>${escapeHtml(t.prize_first || t.prize)}</p>` : ''}
         <div class="mt-auto flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-3">
-          ${already
-            ? `<a href="${accountUrl('registrations')}" onclick="event.preventDefault();goAccount('registrations')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">📋 Gérer mon inscription</a>`
-            : myTeam
-              ? `<a href="${accountUrl('teams')}" onclick="event.preventDefault();goAccount('teams')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">🛡️ Gérer mon équipe</a>`
-              : open
-                ? `<button onclick="openSignup('${t.id}')" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-black text-xs rounded-lg transition">S'inscrire</button>`
-                : `<span class="px-3 py-2 bg-white/5 border border-[#1f293d] text-gray-500 text-[11px] font-bold rounded-lg">Inscriptions fermées</span>`}
+          ${currentUser && (already || myTeam || (t.mode === 'team' && open) || myParticipations.some((p) => p.tournament_id === t.id))
+            ? `<button onclick="openManage('${t.id}')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">⚙️ Gérer ma participation</button>`
+            : open
+              ? `<button onclick="openSignup('${t.id}')" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-black text-xs rounded-lg transition">S'inscrire</button>`
+              : `<span class="px-3 py-2 bg-white/5 border border-[#1f293d] text-gray-500 text-[11px] font-bold rounded-lg">Inscriptions fermées</span>`}
           <button onclick="openTournamentDetails('${t.id}')" class="px-3 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-300 text-[11px] font-bold rounded-lg transition">Fiche</button>
           ${toornament ? `<a href="${toornament}" target="_blank" rel="noopener" title="Ouvrir la page Toornament du tournoi" class="px-3 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-300 text-[11px] font-bold rounded-lg transition">Toornament</a>` : ''}
           <span class="ml-auto text-[10px] font-bold text-gray-500">👥 ${escapeHtml(places)}</span>
@@ -2558,18 +2555,23 @@ function copyText(text) {
 
 async function loadMember() {
   if (!currentUser) return;
-  const [teams, regs] = await Promise.all([
+  const [teams, regs, parts] = await Promise.all([
     supabaseClient.from('nvg_tournament_teams')
-      .select('id,tournament_id,name,tag,captain_id,invite_code,created_at,nvg_tournament_team_members(user_id,role,nvg_users(name,rank)),nvg_tournaments(name,mode,team_min,team_max,status)')
+      .select('id,tournament_id,name,tag,logo_url,captain_id,invite_code,created_at,nvg_tournament_team_members(user_id,role,nvg_users(name,rank)),nvg_tournaments(name,mode,team_min,team_max,status)')
       .order('created_at', { ascending: false }),
     supabaseClient.from('nvg_tournament_registrations')
       .select('id,tournament_id,team_id,user_id,status,platform_id,payment_status,payment_reference,paid_at,created_at,nvg_tournaments(name,mode,team_min,team_max,entry_fee_cents,payment_url,payment_instructions),nvg_tournament_teams(name)')
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: false }),
+    supabaseClient.from('nvg_tournament_players')
+      .select('tournament_id,platform_id,joined_at')
+      .eq('user_id', currentUser.id)
   ]);
   myTeams = teams.data || [];
   myRegistrations = regs.data || [];
+  myParticipations = parts.data || [];
   renderMyTeams();
   renderMyRegistrations();
+  if (manageTournamentId) renderManage();
 }
 
 function renderMyTeams() {
@@ -2611,6 +2613,234 @@ function renderMyTeams() {
         </div>
       </article>`;
   }).join('');
+}
+
+// --- Gestion tournoi : page du joueur pour un tournoi ---
+// Participation à l'évènement, pseudo en jeu, équipe (nom, tag, logo, code),
+// inscription et paiement.
+
+function manageSection(title, body) {
+  return `<section class="space-y-3 rounded-xl border border-[#1f293d] bg-[#07090e] p-4">
+    <h3 class="text-[10px] font-black uppercase tracking-wider text-amber-300">${escapeHtml(title)}</h3>
+    ${body}
+  </section>`;
+}
+
+const MANAGE_INPUT_CLASS = 'w-full bg-[#0b0f17] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white';
+
+function openManage(tournamentId) {
+  if (!currentUser) {
+    notify('Connecte-toi pour gérer ta participation.', true);
+    goAccount('info');
+    return;
+  }
+  manageTournamentId = tournamentId;
+  renderManage();
+  const modal = $('manageModal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  document.body.classList.add('overflow-hidden');
+  loadMember();
+}
+
+function closeManage() {
+  manageTournamentId = null;
+  const modal = $('manageModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+  document.body.classList.remove('overflow-hidden');
+}
+
+function renderManage() {
+  const box = $('manageModalBody');
+  const t = tournamentById(manageTournamentId);
+  if (!box || !t) return;
+  const isTeam = t.mode === 'team';
+  const open = t.status === 'open';
+  const participation = myParticipations.find((p) => p.tournament_id === t.id);
+  const team = myTeams.find((x) => x.tournament_id === t.id);
+  const reg = myRegistrations.find((r) => r.tournament_id === t.id && r.status !== 'cancelled');
+  const members = team?.nvg_tournament_team_members || [];
+  const isCaptain = team?.captain_id === currentUser?.id;
+  const teamMax = Number(t.team_max) || 5;
+  const teamMin = Number(t.team_min) || 1;
+  const sections = [];
+
+  if (isTeam) {
+    sections.push(manageSection('1 · Participation à l’évènement', participation
+      ? `<p class="text-xs text-emerald-400">✅ Tu as rejoint l’évènement${participation.joined_at ? ` le ${escapeHtml(formatDate(participation.joined_at))}` : ''}.</p>`
+      : `<p class="text-xs text-gray-400">Rejoins l’évènement pour créer une équipe. Si tu rejoins une équipe avec un code, tu es ajouté à l’évènement automatiquement.</p>
+         ${open
+           ? '<button onclick="joinEventFromManage()" class="rounded-lg bg-amber-500 px-3 py-2 text-[11px] font-black text-black transition hover:bg-amber-400">Rejoindre l’évènement</button>'
+           : '<p class="text-[11px] text-gray-500">Inscriptions fermées.</p>'}`));
+
+    sections.push(manageSection('2 · Pseudo en jeu', `
+      <div class="flex flex-wrap items-center gap-2">
+        <input id="managePseudo" maxlength="40" value="${escapeHtml(participation?.platform_id || '')}" placeholder="Ton pseudo en jeu" ${participation ? '' : 'disabled'} class="${MANAGE_INPUT_CLASS} min-w-0 flex-1 disabled:opacity-40">
+        <button onclick="savePlayerPseudo('${t.id}')" ${participation ? '' : 'disabled'} class="rounded-lg border border-[#1f293d] bg-white/5 px-3 py-2 text-[11px] font-bold text-gray-200 transition hover:bg-white/10 disabled:opacity-40">Enregistrer</button>
+      </div>
+      <p class="text-[10px] text-gray-500">Propre à ce tournoi : chaque joueur indique son pseudo.</p>`));
+
+    let body;
+    if (team) {
+      const initials = escapeHtml((team.name || '?').slice(0, 2).toUpperCase());
+      body = `
+        <div class="flex items-center gap-3">
+          <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/5">
+            ${safeUrl(team.logo_url) ? `<img src="${safeUrl(team.logo_url)}" alt="" onerror="this.remove()" class="h-full w-full object-contain p-1">` : `<span class="text-[10px] font-black text-gray-500">${initials}</span>`}
+          </div>
+          <div class="min-w-0">
+            <p class="truncate text-sm font-black text-white">${escapeHtml(team.name)} ${team.tag ? `<span class="text-gray-500">[${escapeHtml(team.tag)}]</span>` : ''}</p>
+            <p class="text-[10px] text-gray-400">${members.length}/${teamMax} joueurs · ${isCaptain ? 'tu es capitaine' : 'membre'}</p>
+          </div>
+        </div>
+        <ul class="space-y-1 text-[11px] text-gray-300">
+          ${members.map((m) => `<li>${m.role === 'captain' ? '👑' : '•'} ${escapeHtml(m.nvg_users?.name || 'Joueur')}${m.user_id === currentUser?.id ? ' <span class="text-gray-600">(toi)</span>' : ''}</li>`).join('')}
+        </ul>
+        <div class="flex flex-wrap items-center gap-2">
+          <input readonly value="${escapeHtml(inviteUrl(team.invite_code))}" class="min-w-[160px] flex-1 rounded-lg border border-[#1f293d] bg-[#0b0f17] px-3 py-2 text-[10px] text-gray-400">
+          <button onclick="copyText('${escapeHtml(inviteUrl(team.invite_code))}')" class="rounded-lg border border-[#1f293d] bg-white/5 px-3 py-2 text-[10px] font-bold text-gray-300 transition hover:bg-white/10">Copier</button>
+        </div>
+        <p class="text-[10px] text-gray-500">Code : <strong class="text-amber-300">${escapeHtml(team.invite_code)}</strong> — à partager à tes coéquipiers (${teamMax} joueurs maximum).</p>
+        <button onclick="leaveTeam('${team.id}')" class="rounded-lg border border-red-600/40 bg-red-600/20 px-3 py-2 text-[10px] font-bold text-red-400 transition hover:bg-red-600 hover:text-white">${isCaptain ? 'Dissoudre l’équipe' : 'Quitter l’équipe'}</button>`;
+    } else if (participation) {
+      body = `
+        <div class="grid gap-2 sm:grid-cols-2">
+          <label class="block sm:col-span-2">
+            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Nom de l’équipe</span>
+            <input id="manageTeamName" maxlength="60" placeholder="Nom de l’équipe" class="${MANAGE_INPUT_CLASS}">
+          </label>
+          <label class="block">
+            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Tag (10 caractères max)</span>
+            <input id="manageTeamTag" maxlength="10" placeholder="Tag" class="${MANAGE_INPUT_CLASS}">
+          </label>
+          <div class="block">
+            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Logo (URL ou image)</span>
+            <div class="flex flex-wrap items-center gap-2">
+              <input id="manageTeamLogo" placeholder="Vide = pas de logo" class="${MANAGE_INPUT_CLASS} min-w-0 flex-1">
+              <label class="cursor-pointer rounded-lg border border-[#1f293d] bg-white/5 px-3 py-2 text-[10px] font-bold text-gray-300 transition hover:bg-white/10">
+                📤 Téléverser
+                <input id="manageTeamLogoFile" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="uploadTournamentImage('teamlogo', 'manageTeamLogo', 'manageTeamName', this)">
+              </label>
+            </div>
+          </div>
+        </div>
+        <button onclick="createTeamFromManage('${t.id}')" class="rounded-lg bg-amber-500 px-3 py-2 text-[11px] font-black text-black transition hover:bg-amber-400">Créer mon équipe</button>
+        <p class="text-[10px] text-gray-500">Tu seras capitaine : un code d’invitation est généré pour tes coéquipiers.</p>
+        <div class="space-y-2 border-t border-[#1f293d] pt-3">
+          <p class="text-[10px] font-black uppercase tracking-wider text-gray-400">Ou rejoins une équipe avec un code</p>
+          <div class="flex flex-wrap gap-2">
+            <input id="manageJoinCode" placeholder="Code d’invitation" class="${MANAGE_INPUT_CLASS} min-w-0 flex-1">
+            <button onclick="joinTeamFromManage()" class="rounded-lg border border-[#1f293d] bg-white/5 px-3 py-2 text-[11px] font-bold text-gray-200 transition hover:bg-white/10">Rejoindre</button>
+          </div>
+        </div>`;
+    } else {
+      body = `
+        <p class="text-xs text-gray-400">Rejoins d’abord l’évènement, ou rejoins directement une équipe avec un code.</p>
+        <div class="flex flex-wrap gap-2">
+          <input id="manageJoinCode" placeholder="Code d’invitation" class="${MANAGE_INPUT_CLASS} min-w-0 flex-1">
+          <button onclick="joinTeamFromManage()" class="rounded-lg border border-[#1f293d] bg-white/5 px-3 py-2 text-[11px] font-bold text-gray-200 transition hover:bg-white/10">Rejoindre</button>
+        </div>`;
+    }
+    sections.push(manageSection('3 · Équipe', body));
+  } else {
+    sections.push(manageSection('Pseudo en jeu', `<p class="text-xs text-gray-300">${escapeHtml(reg?.platform_id || 'Non renseigné')}</p><p class="text-[10px] text-gray-500">Modifiable dans « Mes inscriptions ».</p>`));
+  }
+
+  let regBody;
+  if (reg) {
+    const confirmed = reg.status === 'confirmed';
+    regBody = `
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-wider ${confirmed ? 'border-emerald-500/40 text-emerald-400' : 'border-amber-500/40 text-amber-300'}">${confirmed ? 'Inscription confirmée' : 'En attente de validation'}</span>
+        ${paymentBadge(reg.payment_status)}
+      </div>
+      ${registrationPaymentBlock(reg)}
+      ${!team || isCaptain ? `<button onclick="cancelRegistration('${reg.id}')" class="rounded-lg border border-red-600/40 bg-red-600/20 px-3 py-2 text-[10px] font-bold text-red-400 transition hover:bg-red-600 hover:text-white">Annuler mon inscription</button>` : ''}`;
+  } else if (isTeam && team && isCaptain) {
+    const complete = members.length >= teamMin;
+    regBody = `
+      <p class="text-xs text-gray-400">${complete
+        ? 'Ton équipe est prête : inscris-la au tournoi.'
+        : `Équipe incomplète : ${members.length}/${teamMin} joueur(s) minimum.`}</p>
+      ${open
+        ? `<button onclick="registerTeam('${team.id}')" ${complete ? '' : 'disabled'} class="rounded-lg bg-amber-500 px-3 py-2 text-[11px] font-black text-black transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40">Inscrire l’équipe</button>`
+        : '<p class="text-[11px] text-gray-500">Inscriptions fermées.</p>'}`;
+  } else if (isTeam && team) {
+    regBody = '<p class="text-xs text-gray-400">En attente de l’inscription de l’équipe par son capitaine.</p>';
+  } else if (!isTeam) {
+    regBody = open
+      ? '<p class="text-xs text-gray-400">Utilise « S’inscrire » sur la fiche du tournoi.</p>'
+      : '<p class="text-[11px] text-gray-500">Inscriptions fermées.</p>';
+  } else {
+    regBody = '<p class="text-xs text-gray-400">Pas encore inscrit : crée ou rejoins une équipe ci-dessus.</p>';
+  }
+  sections.push(manageSection(isTeam ? '4 · Inscription et paiement' : '2 · Inscription et paiement', regBody));
+
+  box.innerHTML = `
+    <div class="flex items-start gap-3">
+      <div class="min-w-0 flex-1">
+        <h2 class="text-sm font-black text-white">${escapeHtml(t.name)}</h2>
+        <p class="text-[10px] text-gray-400">${escapeHtml(STATUS_LABELS[t.status] || t.status)} · ${escapeHtml(modeLabel(t))}</p>
+      </div>
+    </div>
+    ${sections.join('')}`;
+}
+
+async function joinEventFromManage() {
+  if (!manageTournamentId) return;
+  try {
+    await rpc('nvg_tournament_join_event', { p_tournament: manageTournamentId });
+    notify('Tu as rejoint l’évènement.');
+    await loadMember();
+  } catch (err) {
+    notify('Erreur : ' + err.message, true);
+  }
+}
+
+async function savePlayerPseudo(tournamentId) {
+  const value = $('managePseudo')?.value.trim() || '';
+  if (value.length > 40) { notify('Pseudo trop long (40 caractères maximum).', true); return; }
+  const { error } = await supabaseClient.from('nvg_tournament_players')
+    .update({ platform_id: value || null })
+    .eq('tournament_id', tournamentId)
+    .eq('user_id', currentUser.id);
+  if (error) { notify('Erreur : ' + error.message, true); return; }
+  notify('Pseudo enregistré.');
+  await loadMember();
+}
+
+async function createTeamFromManage(tournamentId) {
+  const name = $('manageTeamName')?.value.trim() || '';
+  const tag = $('manageTeamTag')?.value.trim() || '';
+  const logo = safeUrl($('manageTeamLogo')?.value) || '';
+  if (!name) { notify('Saisis un nom d’équipe.', true); return; }
+  try {
+    const res = await rpc('nvg_tournament_create_team', {
+      p_tournament: tournamentId,
+      p_name: name,
+      p_tag: tag || null,
+      p_logo: logo || null
+    });
+    notify(`Équipe créée. Code : ${res.invite_code}`);
+    await loadMember();
+  } catch (err) {
+    notify('Erreur : ' + err.message, true);
+  }
+}
+
+async function joinTeamFromManage() {
+  const code = $('manageJoinCode')?.value.trim() || '';
+  if (!code) { notify('Saisis un code d’invitation.', true); return; }
+  try {
+    await rpc('nvg_tournament_join_team', { p_code: code });
+    notify('Tu as rejoint l’équipe.');
+    await loadMember();
+  } catch (err) {
+    notify('Erreur : ' + err.message, true);
+  }
 }
 
 function renderMyRegistrations() {
@@ -3535,7 +3765,9 @@ async function uploadTournamentImage(kind, urlFieldId, nameFieldId, input) {
     if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) throw new Error('format accepté : PNG, JPG ou WebP.');
     const name = $(nameFieldId)?.value.trim() || 'tournoi';
     const ext = /png/i.test(file.type) ? 'png' : /webp/i.test(file.type) ? 'webp' : 'jpg';
-    const path = `tournois/${slugify(name)}-${kind === 'logo' ? 'logo' : 'banniere'}-${Date.now()}.${ext}`;
+    const folder = kind === 'teamlogo' ? 'equipes' : 'tournois';
+    const label = kind === 'banner' ? 'banniere' : 'logo';
+    const path = `${folder}/${slugify(name)}-${label}-${Date.now()}.${ext}`;
     notify('Envoi de la bannière…');
     const { error } = await supabaseClient.storage
       .from(GAME_IMG_BUCKET)
@@ -3543,7 +3775,7 @@ async function uploadTournamentImage(kind, urlFieldId, nameFieldId, input) {
     if (error) throw error;
     const { data } = supabaseClient.storage.from(GAME_IMG_BUCKET).getPublicUrl(path);
     $(urlFieldId).value = data.publicUrl;
-    notify(kind === 'logo' ? 'Logo envoyé.' : 'Bannière envoyée.');
+    notify(kind === 'banner' ? 'Bannière envoyée.' : 'Logo envoyé.');
   } catch (err) {
     notify('Envoi impossible : ' + (err.message || err), true);
   } finally {
