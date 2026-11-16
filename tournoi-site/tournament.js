@@ -3020,7 +3020,10 @@ function renderManage() {
 
   if (isTeam) {
     sections.push(manageSection('1 · Participation à l’évènement', participation
-      ? `<p class="text-xs text-emerald-400">✅ Tu as rejoint l’évènement${participation.joined_at ? ` le ${escapeHtml(formatDate(participation.joined_at))}` : ''}.</p>`
+      ? `<p class="text-xs text-emerald-400">✅ Tu as rejoint l’évènement${participation.joined_at ? ` le ${escapeHtml(formatDate(participation.joined_at))}` : ''}.</p>
+         ${team
+           ? '<p class="text-[10px] text-gray-500">Quitte d’abord ton équipe pour quitter l’évènement.</p>'
+           : `<button onclick="leaveEvent('${t.id}')" class="rounded-lg border border-red-600/40 bg-red-600/20 px-3 py-2 text-[10px] font-bold text-red-400 transition hover:bg-red-600 hover:text-white">Quitter l’évènement</button>`}`
       : `<p class="text-xs text-gray-400">Rejoins l’évènement pour créer une équipe. Si tu rejoins une équipe avec un code, tu es ajouté à l’évènement automatiquement.</p>
          ${open
            ? '<button onclick="joinEventFromManage()" class="rounded-lg bg-amber-500 px-3 py-2 text-[11px] font-black text-black transition hover:bg-amber-400">Rejoindre l’évènement</button>'
@@ -3192,15 +3195,46 @@ async function joinTeamFromManage() {
   }
 }
 
+// Quitter l'évènement (règles vérifiées côté base : ni équipe, ni inscription active).
+async function leaveEvent(tournamentId) {
+  if (!window.confirm('Quitter cet évènement ?')) return;
+  try {
+    await rpc('nvg_tournament_leave_event', { p_tournament: tournamentId });
+    notify('Tu as quitté l’évènement.');
+    await loadMember();
+  } catch (err) {
+    notify('Erreur : ' + err.message, true);
+  }
+}
+
 function renderMyRegistrations() {
   const box = $('myRegistrations');
   // Une inscription annulée disparaît de l'espace membre (elle reste dans le back-office).
   const visible = myRegistrations.filter((r) => r.status !== 'cancelled');
-  if (!visible.length) {
+  // Participation à un évènement en équipe sans ligne d'inscription (ex. membre d'équipe).
+  const participationOnly = myParticipations.filter((p) => !visible.some((r) => r.tournament_id === p.tournament_id));
+  if (!visible.length && !participationOnly.length) {
     box.innerHTML = '<div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 text-xs text-gray-400">Aucune inscription pour le moment.</div>';
     return;
   }
-  box.innerHTML = visible.map((reg) => {
+  const participationCards = participationOnly.map((p) => {
+    const t = tournamentById(p.tournament_id) || {};
+    const team = myTeams.find((x) => x.tournament_id === p.tournament_id);
+    return `
+      <div class="bg-[#121722] border border-[#1f293d] rounded-xl px-4 py-3 space-y-2">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="min-w-0">
+            <p class="text-xs font-black text-white truncate">${escapeHtml(t.name || 'Tournoi')}</p>
+            <p class="text-[10px] text-gray-400">${team ? `Équipe : ${escapeHtml(team.name)}` : 'Participant à l’évènement, sans équipe'} · rejoint le ${escapeHtml(formatDate(p.joined_at))}</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="openManage('${p.tournament_id}')" class="text-[10px] font-bold text-amber-400 hover:text-amber-300">⚙️ Gérer</button>
+            ${team ? '' : `<button onclick="leaveEvent('${p.tournament_id}')" class="text-[10px] font-bold text-red-400 hover:text-red-300">Quitter l’évènement</button>`}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+  box.innerHTML = participationCards + visible.map((reg) => {
     const label = reg.nvg_tournament_teams?.name || reg.nvg_tournaments?.name || 'Tournoi';
     const canEdit = !reg.user_id || reg.user_id === currentUser?.id;
     return `
