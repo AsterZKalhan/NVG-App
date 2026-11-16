@@ -2828,7 +2828,7 @@ function renderAdminGames() {
               : `<span class="text-[9px] font-black text-gray-400">${escapeHtml((g.name || '?').slice(0, 2).toUpperCase())}</span>`}
           </span>
           <span class="truncate text-[11px] font-bold text-gray-200">${escapeHtml(g.name)}</span>
-          ${Number(g.team_size) && g.scoring_mode !== 'bo3' ? `<span class="shrink-0 rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-bold text-sky-300" title="Joueurs par équipe">${Number(g.team_size)}v${Number(g.team_size)}</span>` : ''}
+          ${Number(g.team_size) ? `<span class="shrink-0 rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-bold text-sky-300" title="Joueurs par équipe">${Number(g.team_size)}v${Number(g.team_size)}</span>` : ''}
           ${g.scoring_mode === 'cumulative' ? '<span class="shrink-0 rounded border border-fuchsia-500/30 bg-fuchsia-500/10 px-1.5 py-0.5 text-[9px] font-bold text-fuchsia-300" title="Total des points des joueurs">Cumul</span>' : ''}
           ${g.scoring_mode === 'wins' ? '<span class="shrink-0 rounded border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 text-[9px] font-bold text-violet-300" title="Victoires individuelles en 1v1">Victoires</span>' : ''}
           ${g.scoring_mode === 'none' ? '<span class="shrink-0 rounded border border-gray-500/40 bg-white/5 px-1.5 py-0.5 text-[9px] font-bold text-gray-400" title="Mode de score non précisé">Aucun</span>' : ''}
