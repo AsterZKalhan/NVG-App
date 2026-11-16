@@ -788,6 +788,16 @@
     </section>
 
     <!-- FICHE TOURNOI -->
+    <div id="manageModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeManage()"></div>
+      <div class="relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[#1f293d] bg-[#0b0f17] shadow-2xl">
+        <div class="flex items-center justify-between gap-3 border-b border-[#1f293d] px-5 py-3">
+          <p class="text-[10px] font-black uppercase tracking-[0.18em] text-amber-400">⚙️ Gestion tournoi</p>
+          <button onclick="closeManage()" class="px-2 py-1 text-gray-400 hover:text-white text-sm" aria-label="Fermer">✕</button>
+        </div>
+        <div id="manageModalBody" class="overflow-y-auto p-5 space-y-4"></div>
+      </div>
+    </div>
     <div id="tournamentModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeTournamentDetails()"></div>
       <div class="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[#1f293d] bg-[#0b0f17] shadow-2xl">

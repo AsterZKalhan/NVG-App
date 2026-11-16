@@ -806,6 +806,16 @@ function teamLabelById(id) {
   return tag ? `${teamNameById(id)} [${tag}]` : teamNameById(id);
 }
 
+// Format d'un jeu dans le BO9, affiché sous son nom.
+function bo9SlotFormatLabel(slot) {
+  if (!slot.game_id) return { text: 'Jeu à choisir', tone: 'text-gray-500' };
+  if (slot.scoring === 'cumulative') return { text: `cumul · ${bo9DuelCount(slot) * 2} joueurs`, tone: 'text-fuchsia-300' };
+  if (slot.scoring === 'wins') return { text: `victoires · ${bo9DuelCount(slot)} 1v1`, tone: 'text-violet-300' };
+  if (bo9SlotPairMode(slot)) return { text: bo9SlotPairBo3(slot) ? '2v2 · BO3' : '2v2 · finale si 1–1', tone: 'text-emerald-300' };
+  const size = gameTeamSize(slot.game_id);
+  return { text: size ? `${size}v${size} · confrontation` : 'confrontation', tone: 'text-sky-300' };
+}
+
 function bo9FormatBlock(t) {
   const cfg = bo9Config(t);
   if (!cfg) return '';
@@ -826,13 +836,12 @@ function bo9FormatBlock(t) {
             <p class="text-[10px] font-black uppercase tracking-wider ${cat.tone}">${cat.icon} ${cat.label}</p>
             <ul class="mt-1.5 space-y-1">
               ${slots.map((s) => {
-                const cumulative = s.scoring === 'cumulative';
-                const wins = s.scoring === 'wins';
-                const pairMode = bo9SlotPairMode(s);
-                const pairBo3 = bo9SlotPairBo3(s);
-                const players = bo9DuelCount(s) * 2;
+                const format = bo9SlotFormatLabel(s);
                 return `<li class="flex items-center justify-between gap-2 text-[10px]">
-                <span class="flex min-w-0 items-center gap-1 truncate text-gray-200">${gameLogo(s.game_id) ? `<img src="${gameLogo(s.game_id)}" alt="" onerror="this.remove()" class="inline-block h-[1em] w-[1em] shrink-0 object-contain">` : ''}<span class="truncate">${escapeHtml(gameName(s.game_id))}</span>${cumulative ? ` <span class="font-bold text-fuchsia-300" title="Cumul des points des joueurs">· cumul${players ? ` ${players} joueurs` : ''}</span>` : ''}${wins ? ` <span class="font-bold text-violet-300" title="Chaque joueur affronte son homologue en 1v1">· victoires ${bo9DuelCount(s)} 1v1</span>` : ''}${pairMode ? ` <span class="font-bold text-emerald-300" title="${pairBo3 ? 'Deux BO1 de binômes, départage 2v2 en BO3 si 1–1' : 'Deux BO1 de binômes, finale 2v2 si 1–1'}">· ${pairBo3 ? '2v2 BO3' : '2v2'}</span>` : ''}</span>
+                <span class="flex min-w-0 items-center gap-1.5 text-gray-200">${gameLogo(s.game_id) ? `<img src="${gameLogo(s.game_id)}" alt="" onerror="this.remove()" class="inline-block h-[1em] w-[1em] shrink-0 object-contain">` : ''}<span class="min-w-0">
+                  <span class="block truncate">${escapeHtml(gameName(s.game_id))}</span>
+                  <span class="block truncate text-[9px] font-bold ${format.tone}">${escapeHtml(format.text)}</span>
+                </span></span>
                 <span class="shrink-0 text-gray-500">${formatPoints(Number(s.units) * Number(s.points_per_unit))} pts</span>
               </li>`;
               }).join('')}
