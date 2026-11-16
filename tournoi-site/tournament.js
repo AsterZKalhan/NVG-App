@@ -1305,7 +1305,8 @@ function adminBo9MatchCard(match, cfg, labelText = '') {
     : cfg.games.map((g) => g.slot);
   const slotByNumber = new Map(cfg.games.map((g) => [Number(g.slot), g]));
   const played = new Map((Array.isArray(match.games) ? match.games : []).map((g) => [Number(g.slot), g]));
-  const duelSlots = cfg.games.filter((g) => g.category === 'duel').sort((a, b) => a.slot - b.slot);
+  // La carte capitaine ne double qu'un duel 1v1 joué en confrontation.
+  const duelSlots = cfg.games.filter((g) => g.category === 'duel' && g.scoring !== 'cumulative').sort((a, b) => a.slot - b.slot);
   const cards = match.captain_card || {};
   const finished = match.status === 'finished';
   return `
