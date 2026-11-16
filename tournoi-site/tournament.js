@@ -1356,6 +1356,7 @@ function previewBo9Match(matchId) {
 async function saveBo9MatchResult(matchId) {
   const match = tournamentMatches.find((m) => m.id === matchId);
   if (!match) return;
+  if (!resultsOpen(tournamentById(match.tournament_id))) return;
   const t = tournamentById(match.tournament_id);
   const cfg = bo9Config(t);
   if (!cfg) return;
@@ -2339,6 +2340,13 @@ function adminStandardMatchCard(m, labelText = '') {
     </div>`;
 }
 
+// Les résultats ne se saisissent qu'une fois le tournoi « en cours ».
+function resultsOpen(t) {
+  if (t?.status === 'running') return true;
+  notify('Les résultats se saisissent quand le tournoi est « en cours ».', true);
+  return false;
+}
+
 // Mode de score d'un tournoi standard = mode du jeu choisi (confrontation par défaut).
 function standardScoringMode(t) {
   return gameById(t?.game_id)?.scoring_mode || 'versus';
@@ -2561,6 +2569,7 @@ async function saveStandardMatchResult(matchId) {
   const match = tournamentMatches.find((m) => m.id === matchId);
   if (!match) return;
   const matchTournament = tournamentById(match.tournament_id);
+  if (!resultsOpen(matchTournament)) return;
   if (isStandardBo3(match, matchTournament)) {
     await saveStandardBo3Result(match, matchTournament);
     return;
@@ -2608,7 +2617,7 @@ function renderStandardMatchPanel(t) {
   const teams = adminTeamsFor(t.id);
   const format = standardFormat(t);
   const generated = STANDARD_GENERATED_FORMATS.includes(format);
-  $('adminMatchSubtitle').textContent = `${t.name} · ${STANDARD_FORMAT_LABELS[format] || format} · ${teams.length} équipe(s) confirmée(s) · ${standardScoreHint(t)}`;
+  $('adminMatchSubtitle').textContent = `${t.name} · ${STANDARD_FORMAT_LABELS[format] || format} · ${teams.length} équipe(s) confirmée(s) · ${standardScoreHint(t)}${t.status === 'running' ? '' : ' · résultats verrouillés (tournoi non « en cours »)'}`;
   $('adminMatchTools').innerHTML = `
     ${generated ? `<button onclick="generateStandardMatches('${t.id}')" class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-[10px] font-bold text-amber-300 transition hover:bg-amber-500/20">🏗️ ${format === 'swiss' ? 'Générer la ronde 1' : 'Générer les matchs'}</button>` : ''}
     ${format === 'swiss' && matches.length ? `<button onclick="generateSwissRound('${t.id}')" class="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold text-emerald-300 transition hover:bg-emerald-500/20">➕ Ronde suivante</button>` : ''}
@@ -2634,6 +2643,10 @@ function renderStandardMatchPanel(t) {
       </div>` : ''}
       ${bracket.length ? `<div class="space-y-2">
         <h3 class="text-xs font-black uppercase tracking-wider text-white">🏆 Tableau</h3>
+        <div class="space-y-1">
+          <p class="text-[9px] font-black uppercase tracking-wider text-gray-500">Aperçu en arbre (lecture seule)</p>
+          ${standardBracketPublicHtml(bracket)}
+        </div>
         ${standardBracketHtml(bracket, (m) => adminStandardMatchCard(m))}
       </div>` : ''}`;
   }
