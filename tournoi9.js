@@ -6,6 +6,7 @@ const T9_STATUS = { draft: 'Brouillon', open: 'Inscriptions ouvertes', closed: '
 let t9Tournaments = [];
 let t9Matches = [];
 let t9Teams = new Map();
+let t9Games = new Map();
 let t9SelectedId = null;
 
 function t9Esc(value) {
@@ -27,10 +28,11 @@ async function loadTournoi9() {
   const box = document.getElementById('t9Body');
   if (!box || !supabaseClient) return;
   box.innerHTML = '<p class="text-xs text-gray-400">Chargement du tournoi…</p>';
-  const [tournaments, matches, teams] = await Promise.all([
+  const [tournaments, matches, teams, games] = await Promise.all([
     supabaseClient.from('nvg_tournaments').select('id,name,status,starts_at,format_config').eq('published', true).neq('status', 'draft').order('starts_at', { ascending: true, nullsFirst: false }),
     supabaseClient.from('nvg_tournament_matches').select('*').order('created_at', { ascending: true }),
-    supabaseClient.from('nvg_tournament_teams_public').select('id,tournament_id,name,tag')
+    supabaseClient.from('nvg_tournament_teams_public').select('id,tournament_id,name,tag'),
+    supabaseClient.from('nvg_tournament_games').select('id,name,logo_url')
   ]);
   if (tournaments.error || matches.error) {
     box.innerHTML = '<p class="text-xs text-red-400">Impossible de charger le tournoi pour le moment.</p>';
@@ -39,6 +41,7 @@ async function loadTournoi9() {
   t9Tournaments = tournaments.data || [];
   t9Matches = matches.data || [];
   t9Teams = new Map((teams.data || []).map((team) => [team.id, team]));
+  t9Games = new Map((games.data || []).map((game) => [game.id, game]));
   if (!t9Tournaments.some((t) => t.id === t9SelectedId)) {
     const withMatches = t9Tournaments.find((t) => t9Matches.some((m) => m.tournament_id === t.id));
     t9SelectedId = (withMatches || t9Tournaments[0] || {}).id || null;
@@ -109,14 +112,78 @@ function t9MatchLine(m, label = '') {
   </div>`;
 }
 
+function t9TreeSize(t) {
+  return (Number(t.format_config?.pool_count) || 2) * (Number(t.format_config?.qualifiers_per_pool) || 2);
+}
+
+// Finale BO3 : arbre simple (dernier tour) ou grande finale (arbre double).
+function t9IsBo3(m, t) {
+  if (t.format_config?.format !== 'groups_playoffs') return false;
+  const rounds = Math.log2(t9TreeSize(t));
+  return m.phase === 'grand' || (m.phase === 'bracket' && m.round === rounds);
+}
+
+// Clé du tour, comme sur le site (B1, W2, WF, L1, P1, T).
+function t9RoundKey(m, t) {
+  if (m.phase === 'pool') return `P${m.round}`;
+  if (m.phase === 'third') return 'T';
+  if (t9IsBo3(m, t)) return null;
+  if (m.phase === 'bracket') return `B${m.round}`;
+  if (m.phase === 'winners') return m.round === Math.log2(t9TreeSize(t)) ? 'WF' : `W${m.round}`;
+  if (m.phase === 'losers') return `L${m.round}`;
+  return null;
+}
+
+// Jeu du tour (ou jeux de la BO3), affiché sous le titre de la phase.
+function t9GameTag(m, t, centered = false) {
+  if (!m || !t) return '';
+  const rg = t.format_config?.round_games || {};
+  const name = (id) => t9Games.get(id)?.name || 'Jeu libre';
+  const cls = `mt-0.5 ${centered ? 'text-center' : ''} text-[9px] font-bold text-violet-300`;
+  if (t9IsBo3(m, t)) {
+    const lines = [1, 2, 3].filter((n) => rg[`F${n}`]).map((n) => `<p class="truncate">Jeu ${n} · ${t9Esc(name(rg[`F${n}`]))}</p>`);
+    return lines.length ? `<div class="${cls}">${lines.join('')}</div>` : '';
+  }
+  const gameId = rg[t9RoundKey(m, t)];
+  if (!gameId) return '';
+  const logo = t9Games.get(gameId)?.logo_url;
+  const safeLogo = logo && /^https?:\/\//.test(logo) ? logo : '';
+  return `<p class="${cls} flex items-center ${centered ? 'justify-center' : ''} gap-1">${safeLogo ? `<img src="${t9Esc(safeLogo)}" alt="" onerror="this.remove()" class="inline-block h-[1em] w-[1em] shrink-0 object-contain">` : ''}<span class="truncate">${t9Esc(name(gameId))}</span></p>`;
+}
+
+// Classement final : 1er et 2e (finale), 3e (petite finale).
+function t9Podium(matches) {
+  const lastRound = Math.max(0, ...matches.filter((m) => m.phase === 'bracket' || m.phase === 'winners').map((m) => m.round));
+  const final = matches.find((m) => m.phase === 'grand') || matches.find((m) => (m.phase === 'bracket' || m.phase === 'winners') && m.round === lastRound);
+  const third = matches.find((m) => m.phase === 'third');
+  const winner = (m) => (m && m.status === 'finished' && m.winner_team ? m.winner_team : null);
+  const loser = (m) => {
+    const w = winner(m);
+    if (!w || !m.team_a || !m.team_b) return null;
+    return w === m.team_a ? m.team_b : m.team_a;
+  };
+  const rows = [['1er', winner(final)], ['2e', loser(final)], ['3e', winner(third)]];
+  if (!rows.some(([, id]) => id)) return '';
+  return `<div class="space-y-1.5">
+    <h4 class="text-[10px] font-black uppercase tracking-wider text-amber-300">Classement final</h4>
+    ${rows.map(([place, id]) => `<div class="flex items-center justify-between gap-2 rounded-lg border border-[#1f293d] bg-[#07090e] px-2.5 py-1.5">
+      <span class="text-[10px] font-black text-amber-300">${place}</span>
+      <span class="truncate text-[11px] font-bold ${id ? 'text-gray-200' : 'text-gray-500'}">${id ? t9Esc(t9TeamName(id)) : 'À déterminer'}</span>
+    </div>`).join('')}
+  </div>`;
+}
+
 // Arbre : une colonne par tour, chaque match centré entre ses deux qualifiés.
-function t9Tree(list) {
+function t9Tree(list, t) {
   const TREE_ROW = 36;
   const CARD = 64;
   const rounds = [...new Set(list.map((m) => m.round))].sort((a, b) => a - b);
   const count = rounds.length;
   const first = list.filter((m) => m.round === rounds[0]).length;
-  const labels = rounds.map((round, ri) => `<p style="grid-column:${ri + 1};grid-row:1" class="text-center text-[10px] font-black uppercase tracking-wider text-gray-400">${count - ri === 1 ? 'Finale' : count - ri === 2 ? 'Demi-finale' : count - ri === 3 ? 'Quart de finale' : `Tour ${round}`}</p>`);
+  const labels = rounds.map((round, ri) => `<div style="grid-column:${ri + 1};grid-row:1" class="text-center">
+      <p class="text-[10px] font-black uppercase tracking-wider text-gray-400">${count - ri === 1 ? 'Finale' : count - ri === 2 ? 'Demi-finale' : count - ri === 3 ? 'Quart de finale' : `Tour ${round}`}</p>
+      ${t9GameTag(list.find((m) => m.round === round), t, true)}
+    </div>`);
   const cards = rounds.flatMap((round, ri) => {
     const span = 2 ** (ri + 1);
     return list.filter((m) => m.round === round).sort((a, b) => a.position - b.position).map((m, p) => {
@@ -139,7 +206,7 @@ function t9Tree(list) {
     });
   });
   return `<div class="overflow-x-auto pb-2">
-    <div class="grid" style="grid-template-columns:repeat(${count},minmax(170px,1fr));column-gap:24px;grid-template-rows:24px repeat(${first * 2},${TREE_ROW}px);min-width:${count * 200}px">
+    <div class="grid" style="grid-template-columns:repeat(${count},minmax(170px,1fr));column-gap:24px;grid-template-rows:auto repeat(${first * 2},${TREE_ROW}px);min-width:${count * 200}px">
       ${labels.join('')}${cards.join('')}
     </div>
   </div>`;
@@ -183,9 +250,14 @@ function renderTournoi9() {
       <h3 class="text-xs font-black uppercase tracking-wider text-white">🏆 Arbre</h3>
       ${bracketTree.length ? `<div class="space-y-2">
         <h4 class="text-[10px] font-black uppercase tracking-wider text-amber-300">${phaseTitle[bracketTree.some((m) => m.phase === 'winners') ? 'winners' : 'bracket']}</h4>
-        ${t9Tree(bracketTree.filter((m) => m.phase === (bracketTree.some((x) => x.phase === 'winners') ? 'winners' : 'bracket')))}
+        ${t9Tree(bracketTree.filter((m) => m.phase === (bracketTree.some((x) => x.phase === 'winners') ? 'winners' : 'bracket')), t)}
       </div>` : ''}
-      ${others.length ? `<div class="grid gap-2 md:grid-cols-2">${others.map((m) => t9MatchLine(m, m.phase === 'third' ? 'Petite finale' : m.phase === 'grand' ? 'Grande finale' : `Repêchage · tour ${m.round}`)).join('')}</div>` : ''}
+      ${others.length ? `<div class="grid gap-2 md:grid-cols-2">${others.map((m) => `<div class="space-y-1">
+        <p class="text-[10px] font-black uppercase tracking-wider text-gray-400">${m.phase === 'third' ? 'Petite finale' : m.phase === 'grand' ? 'Grande finale' : `Repêchage · tour ${m.round}`}</p>
+        ${t9GameTag(m, t)}
+        ${t9MatchLine(m)}
+      </div>`).join('')}</div>` : ''}
+      ${t9Podium(bracket)}
     </div>` : ''}
   `;
 }
