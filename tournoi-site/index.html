@@ -411,7 +411,7 @@
             </label>
             <label id="tourStdWrap" class="block sm:col-span-2">
               <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Type de compétition</span>
-              <select id="tourStdFormat" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+              <select id="tourStdFormat" onchange="toggleStandardOptions()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
                 <option value="single_elim">Élimination directe</option>
                 <option value="double_elim">Double élimination</option>
                 <option value="round_robin">Poules (round robin)</option>
@@ -420,6 +420,28 @@
                 <option value="swiss">Suisse</option>
               </select>
               <span class="mt-1 block text-[9px] text-gray-500">Le nombre de joueurs par équipe est repris du jeu choisi ci-dessus.</span>
+              <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <div id="tourStdPoolsWrap" class="hidden">
+                  <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Nombre de poules</span>
+                  <select id="tourStdPools" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
+                    <option value="2">2 poules</option>
+                    <option value="3">3 poules</option>
+                    <option value="4">4 poules</option>
+                  </select>
+                </div>
+                <div id="tourStdQualWrap" class="hidden">
+                  <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Qualifiés par poule</span>
+                  <select id="tourStdQualifiers" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
+                    <option value="1">1 qualifié</option>
+                    <option value="2" selected>2 qualifiés</option>
+                    <option value="4">4 qualifiés</option>
+                  </select>
+                </div>
+                <div id="tourStdRoundsWrap" class="hidden">
+                  <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Nombre de rondes</span>
+                  <input id="tourStdRounds" type="number" min="1" max="10" placeholder="Auto" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
+                </div>
+              </div>
             </label>
             <label id="tourGameWrap" class="block">
               <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Jeu</span>
