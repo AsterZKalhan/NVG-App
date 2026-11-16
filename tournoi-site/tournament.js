@@ -3410,13 +3410,13 @@ function renderAdminPlayers() {
   box.innerHTML = list.length
     ? list.map((p) => {
       const fullName = [p.first_name, p.last_name].filter(Boolean).join(' ') || '—';
-      const birth = p.birth_date ? new Date(p.birth_date).toLocaleDateString('fr-FR') : '—';
+      const birth = adminAgeHtml(p.birth_date);
       const count = playerRegCount(p.id);
       return `
         <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#1f293d] bg-[#07090e] px-3 py-2">
           <div class="min-w-0">
             <p class="text-xs font-bold text-white truncate">${escapeHtml(p.name || 'Joueur')}${p.verified ? ' <span class="text-emerald-400" title="Compte vérifié">✓</span>' : ''}</p>
-            <p class="text-[10px] text-gray-500 truncate">${escapeHtml(p.email || '')} · ${escapeHtml(fullName)} · né(e) le ${escapeHtml(birth)}</p>
+            <p class="text-[10px] text-gray-500 truncate">${escapeHtml(p.email || '')} · ${escapeHtml(fullName)} · ${birth}</p>
           </div>
           <div class="flex shrink-0 items-center gap-2">
             <span class="text-[10px] text-gray-400">${count} inscription(s)</span>
@@ -3892,14 +3892,14 @@ function adminEventPlayerRow(tournamentId, p, teamName) {
   const search = [p.nvg_users?.name, p.nvg_users?.first_name, p.nvg_users?.last_name, p.nvg_users?.email, p.platform_id, teamName]
     .filter(Boolean).join(' ').toLowerCase();
   const u = adminPlayers.find((x) => x.id === p.user_id) || {};
-  const birth = u.birth_date ? new Date(u.birth_date).toLocaleDateString('fr-FR') : '—';
+  const birth = adminAgeHtml(u.birth_date);
   const firstName = p.nvg_users?.first_name || u.first_name;
   const lastName = p.nvg_users?.last_name || u.last_name;
   const details = `<dl class="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 pl-5 text-[10px] sm:grid-cols-4">
     <div><dt class="text-gray-500">Pseudo en jeu</dt><dd class="font-bold text-gray-200">${escapeHtml(p.platform_id || '—')}</dd></div>
     <div><dt class="text-gray-500">Prénom</dt><dd class="font-bold text-gray-200">${escapeHtml(firstName || '—')}</dd></div>
     <div><dt class="text-gray-500">Nom</dt><dd class="font-bold text-gray-200">${escapeHtml(lastName || '—')}</dd></div>
-    <div><dt class="text-gray-500">Naissance</dt><dd class="font-bold text-gray-200">${escapeHtml(birth)}</dd></div>
+    <div><dt class="text-gray-500">Naissance</dt><dd class="font-bold text-gray-200">${birth}</dd></div>
     <div class="col-span-2"><dt class="text-gray-500">Identité complète</dt><dd class="font-bold text-gray-200">${escapeHtml([firstName, lastName].filter(Boolean).join(' ') || '—')}</dd></div>
     <div class="col-span-2"><dt class="text-gray-500">Adresse e-mail</dt><dd class="font-bold text-gray-200">${escapeHtml(p.nvg_users?.email || u.email || '—')}</dd></div>
     <div class="col-span-2"><dt class="text-gray-500">Inscrit le</dt><dd class="font-bold text-gray-200">${escapeHtml(p.joined_at ? formatDate(p.joined_at) : '—')}</dd></div>
@@ -4049,6 +4049,17 @@ function showAdminRegs(tournamentId) {
 
 }
 
+// Âge d'un joueur (affiché à la place de la date de naissance). Orange sous 18 ans.
+function adminAgeHtml(birthDate) {
+  if (!birthDate) return '—';
+  const birth = new Date(birthDate);
+  const now = new Date();
+  let age = now.getFullYear() - birth.getFullYear();
+  const monthDiff = now.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) age -= 1;
+  return `<span class="${age < 18 ? 'font-black text-orange-400' : 'font-bold text-gray-200'}">${age} ans</span>`;
+}
+
 const PLAYER_PAY_LABELS = {
   not_required: 'Gratuit',
   awaiting: 'Billet à prendre',
@@ -4076,12 +4087,12 @@ function adminTeamPlayersBlock(r) {
         m.role === 'captain' ? '' : `<button onclick="adminRemoveEventPlayer('${r.tournament_id}', '${m.user_id}')" class="${btn} text-red-400 hover:text-red-300">🗑️ Retirer</button>`
       ].join('');
       const u = adminPlayers.find((x) => x.id === m.user_id) || {};
-      const birth = u.birth_date ? new Date(u.birth_date).toLocaleDateString('fr-FR') : '—';
+      const birth = adminAgeHtml(u.birth_date);
       const details = `<dl class="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 pl-5 text-[10px] sm:grid-cols-4">
         <div><dt class="text-gray-500">Pseudo en jeu</dt><dd class="font-bold text-gray-200">${escapeHtml(player?.platform_id || '—')}</dd></div>
         <div><dt class="text-gray-500">Prénom</dt><dd class="font-bold text-gray-200">${escapeHtml(u.first_name || '—')}</dd></div>
         <div><dt class="text-gray-500">Nom</dt><dd class="font-bold text-gray-200">${escapeHtml(u.last_name || '—')}</dd></div>
-        <div><dt class="text-gray-500">Naissance</dt><dd class="font-bold text-gray-200">${escapeHtml(birth)}</dd></div>
+        <div><dt class="text-gray-500">Naissance</dt><dd class="font-bold text-gray-200">${birth}</dd></div>
         <div class="col-span-2"><dt class="text-gray-500">Identité complète</dt><dd class="font-bold text-gray-200">${escapeHtml([u.first_name, u.last_name].filter(Boolean).join(' ') || '—')}</dd></div>
         <div class="col-span-2"><dt class="text-gray-500">Inscrit le</dt><dd class="font-bold text-gray-200">${escapeHtml(player?.joined_at ? formatDate(player.joined_at) : '—')}</dd></div>
       </dl>`;
@@ -4117,7 +4128,7 @@ function adminRegistrationRow(r) {
   const team = r.nvg_tournament_teams;
   const pseudo = user.name || 'Participant';
   const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || '—';
-  const birth = user.birth_date ? new Date(user.birth_date).toLocaleDateString('fr-FR') : '—';
+  const birth = adminAgeHtml(user.birth_date);
   const payment = r.payment_status || 'not_required';
   return `
     <div class="rounded-xl border border-[#1f293d] bg-[#07090e] p-3 space-y-2">
@@ -4138,7 +4149,7 @@ function adminRegistrationRow(r) {
         <div><dt class="text-gray-500">Pseudo en jeu</dt><dd class="font-bold text-gray-200">${escapeHtml(r.platform_id || '—')}</dd></div>
         <div><dt class="text-gray-500">Prénom</dt><dd class="font-bold text-gray-200">${escapeHtml(user.first_name || '—')}</dd></div>
         <div><dt class="text-gray-500">Nom</dt><dd class="font-bold text-gray-200">${escapeHtml(user.last_name || '—')}</dd></div>
-        <div><dt class="text-gray-500">Naissance</dt><dd class="font-bold text-gray-200">${escapeHtml(birth)}</dd></div>
+        <div><dt class="text-gray-500">Naissance</dt><dd class="font-bold text-gray-200">${birth}</dd></div>
         <div class="col-span-2"><dt class="text-gray-500">Identité complète</dt><dd class="font-bold text-gray-200">${escapeHtml(fullName)}</dd></div>
         <div class="col-span-2"><dt class="text-gray-500">Inscrit le</dt><dd class="font-bold text-gray-200">${escapeHtml(formatDate(r.created_at))}</dd></div>
       </dl>`}
