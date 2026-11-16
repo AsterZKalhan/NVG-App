@@ -3604,6 +3604,25 @@ function adminTeamCard(team, teamMax) {
     </article>`;
 }
 
+// Ligne d'un joueur de l'évènement : voyant de paiement, pseudo, actions (payé, annuler, rembourser, retirer).
+function adminEventPlayerRow(tournamentId, p, inTeam) {
+  const status = p.payment_status || 'not_required';
+  const light = status === 'paid' ? 'bg-emerald-400' : status === 'refunded' ? 'bg-sky-400' : status === 'not_required' ? 'bg-gray-500' : 'bg-red-500';
+  const btn = 'text-[10px] font-bold transition';
+  const actions = [
+    status !== 'paid' && status !== 'not_required' ? `<button onclick="setPlayerPayment('${tournamentId}', '${p.user_id}', 'paid')" class="${btn} text-emerald-400 hover:text-emerald-300">✅ Marquer payé</button>` : '',
+    status === 'paid' ? `<button onclick="setPlayerPayment('${tournamentId}', '${p.user_id}', 'awaiting')" class="${btn} text-amber-400 hover:text-amber-300">↩️ Annuler le paiement</button>` : '',
+    status === 'paid' ? `<button onclick="setPlayerPayment('${tournamentId}', '${p.user_id}', 'refunded')" class="${btn} text-sky-400 hover:text-sky-300">💸 Rembourser</button>` : '',
+    status === 'refunded' ? `<button onclick="setPlayerPayment('${tournamentId}', '${p.user_id}', 'awaiting')" class="${btn} text-amber-400 hover:text-amber-300">↩️ Remettre en attente</button>` : '',
+    `<button onclick="adminRemoveEventPlayer('${tournamentId}', '${p.user_id}')" class="${btn} text-red-400 hover:text-red-300">🗑️ Retirer</button>`
+  ].join('');
+  return `<li class="flex flex-wrap items-center gap-2 rounded-lg border border-[#1f293d] bg-[#07090e] px-3 py-2 text-[11px]">
+    <span class="h-2.5 w-2.5 shrink-0 rounded-full ${light}" title="${escapeHtml(PLAYER_PAY_LABELS[status] || status)}"></span>
+    <span class="min-w-0 flex-1 truncate text-gray-200">${escapeHtml(p.nvg_users?.name || 'Joueur')} <span class="text-gray-500">· pseudo : ${escapeHtml(p.platform_id || '—')} · ${escapeHtml(PLAYER_PAY_LABELS[status] || status)}</span>${inTeam ? '' : ' <span class="text-[9px] font-bold text-amber-300">sans équipe</span>'}</span>
+    <div class="flex flex-wrap items-center gap-2">${actions}</div>
+  </li>`;
+}
+
 function renderAdminTeams() {
   const panel = $('adminTeamsPanel');
   const t = tournamentById(viewingTeamsTournamentId);
@@ -3617,10 +3636,7 @@ function renderAdminTeams() {
   $('adminTeamsBody').innerHTML = `
     <section class="space-y-2">
       <h3 class="text-[10px] font-black uppercase tracking-wider text-amber-300">Joueurs de l’évènement (${players.length})</h3>
-      ${players.length ? `<ul class="space-y-1">${players.map((p) => `<li class="flex items-center justify-between gap-2 rounded-lg border border-[#1f293d] bg-[#07090e] px-3 py-2 text-[11px]">
-        <span class="min-w-0 truncate text-gray-200">${escapeHtml(p.nvg_users?.name || 'Joueur')} <span class="text-gray-500">· pseudo : ${escapeHtml(p.platform_id || '—')}</span>${inTeam.has(p.user_id) ? '' : ' <span class="text-[9px] font-bold text-amber-300">sans équipe</span>'}</span>
-        <button onclick="adminRemoveEventPlayer('${t.id}', '${p.user_id}')" class="shrink-0 text-[10px] font-bold text-red-400 hover:text-red-300">Retirer</button>
-      </li>`).join('')}</ul>` : '<p class="text-xs text-gray-500">Aucun joueur n’a encore rejoint l’évènement.</p>'}
+      ${players.length ? `<ul class="space-y-1.5">${players.map((p) => adminEventPlayerRow(t.id, p, inTeam.has(p.user_id))).join('')}</ul>` : '<p class="text-xs text-gray-500">Aucun joueur n’a encore rejoint l’évènement.</p>'}
     </section>
     <section class="space-y-2">
       <h3 class="text-[10px] font-black uppercase tracking-wider text-amber-300">Équipes (${teams.length})</h3>
