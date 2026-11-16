@@ -3141,8 +3141,18 @@ function renderManage() {
     ${sections.join('')}`;
 }
 
+// Identité requise pour rejoindre un évènement ou une équipe.
+function requireIdentity() {
+  if (identityComplete()) return true;
+  notify('Complète ton nom, prénom et date de naissance dans « Mon espace » avant de rejoindre un tournoi.', true);
+  closeManage();
+  goAccount('info');
+  $('profileHint')?.classList.remove('hidden');
+  return false;
+}
+
 async function joinEventFromManage() {
-  if (!manageTournamentId) return;
+  if (!manageTournamentId || !requireIdentity()) return;
   try {
     await rpc('nvg_tournament_join_event', { p_tournament: manageTournamentId });
     notify('Tu as rejoint l’évènement.');
@@ -3165,6 +3175,7 @@ async function savePlayerPseudo(tournamentId) {
 }
 
 async function createTeamFromManage(tournamentId) {
+  if (!requireIdentity()) return;
   const name = $('manageTeamName')?.value.trim() || '';
   const tag = $('manageTeamTag')?.value.trim() || '';
   const logo = safeUrl($('manageTeamLogo')?.value) || '';
@@ -3184,6 +3195,7 @@ async function createTeamFromManage(tournamentId) {
 }
 
 async function joinTeamFromManage() {
+  if (!requireIdentity()) return;
   const code = $('manageJoinCode')?.value.trim() || '';
   if (!code) { notify('Saisis un code d’invitation.', true); return; }
   try {
