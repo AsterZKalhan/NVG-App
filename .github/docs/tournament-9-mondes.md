@@ -93,13 +93,13 @@ tournoi** dès que le jeu est sélectionné ; l'organisateur peut toujours le
 modifier pour un événement particulier. Le libellé du jeu dans les menus
 indique aussi le format (`League of Legends — 5 joueurs`).
 
-## Format BO9 — Décathlon Esport
+## Format BO9 — Multigaming Esport
 
 Le formulaire **➕ Nouveau tournoi** commence par un menu **Format du tournoi** :
 
 - **Jeu unique** : fonctionnement historique (un jeu, 1 à 6 joueurs, tableau
   à élimination géré par l'organisateur ou Toornament) ;
-- **BO9 — Décathlon Esport (9 jeux)** : tournoi multi-jeux, équipes de
+- **BO9 — Multigaming Esport (9 jeux)** : tournoi multi-jeux, équipes de
   **5 joueurs**, phase de poules puis bracket.
 
 ### Les 9 jeux et le barème

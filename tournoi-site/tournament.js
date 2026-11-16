@@ -169,7 +169,7 @@ function applyGameTeamSize() {
 }
 
 // ---------------------------------------------------------------------------
-// Format BO9 « Décathlon Esport »
+// Format BO9 « Multigaming Esport »
 // ---------------------------------------------------------------------------
 // 9 jeux en trois catégories. Chaque catégorie vaut 9 points (ou 15 en All-In) :
 //   collectif 5v5    : 1 unité × 3 pts   (All-In × 5)
@@ -332,7 +332,7 @@ function bo9MatchTotals(match, cfg) {
 // Libellé d'un tournoi : jeu unique ou « 9 jeux · Décathlon Esport ».
 function tournamentGamesLabel(t) {
   const cfg = bo9Config(t);
-  if (cfg) return `9 jeux · Décathlon Esport`;
+  if (cfg) return `9 jeux · Multigaming Esport`;
   return gameName(t.game_id);
 }
 
@@ -816,7 +816,7 @@ function bo9FormatBlock(t) {
   return `
     <div class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <h3 class="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-300">⚔️ Format BO9 — Décathlon Esport</h3>
+        <h3 class="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-300">⚔️ Format BO9 — Multigaming Esport</h3>
         <span class="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-amber-300">${total} points · ${escapeHtml(bo9PointsModeLabel(cfg))}</span>
       </div>
       <div class="mt-3 grid gap-2 sm:grid-cols-3">

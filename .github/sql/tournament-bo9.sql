@@ -1,4 +1,4 @@
--- Tournoi des 9 Mondes — format BO9 « Décathlon Esport ».
+-- Tournoi des 9 Mondes — format BO9 « Multigaming Esport ».
 -- Gestion locale des poules et du bracket (sans Toornament).
 --
 -- Un tournoi BO9 garde ses 9 jeux dans `nvg_tournaments.format_config` :
