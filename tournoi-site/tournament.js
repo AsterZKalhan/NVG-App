@@ -3200,7 +3200,7 @@ async function loadAdmin() {
       .order('created_at', { ascending: false })
       .limit(500),
     supabaseClient.from('nvg_tournament_players')
-      .select('tournament_id,user_id,platform_id,joined_at,nvg_users(name)')
+      .select('tournament_id,user_id,platform_id,joined_at,payment_status,payment_reference,paid_at,nvg_users(name)')
       .order('joined_at', { ascending: false })
       .limit(2000)
   ]);
@@ -3723,6 +3723,54 @@ function showAdminRegs(tournamentId) {
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+const PLAYER_PAY_LABELS = {
+  not_required: 'Gratuit',
+  awaiting: 'Billet à prendre',
+  paid: 'Billet pris',
+  refunded: 'Remboursé'
+};
+
+// Liste des joueurs d'une équipe avec leur état de paiement (voyant) et leurs actions.
+function adminTeamPlayersBlock(r) {
+  const team = adminTeams.find((x) => x.id === r.team_id);
+  const members = team?.nvg_tournament_team_members || [];
+  if (!members.length) return '';
+  return `<div class="space-y-1.5 border-t border-[#1f293d] pt-2">
+    <p class="text-[9px] font-black uppercase tracking-wider text-gray-500">Joueurs de l’équipe</p>
+    ${members.map((m) => {
+      const player = adminEventPlayers.find((p) => p.tournament_id === r.tournament_id && p.user_id === m.user_id);
+      const status = player?.payment_status || 'not_required';
+      const light = status === 'paid' ? 'bg-emerald-400' : status === 'refunded' ? 'bg-sky-400' : status === 'not_required' ? 'bg-gray-500' : 'bg-red-500';
+      const btn = 'text-[10px] font-bold transition';
+      const actions = [
+        status !== 'paid' && status !== 'not_required' ? `<button onclick="setPlayerPayment('${r.tournament_id}', '${m.user_id}', 'paid')" class="${btn} text-emerald-400 hover:text-emerald-300">✅ Marquer payé</button>` : '',
+        status === 'paid' ? `<button onclick="setPlayerPayment('${r.tournament_id}', '${m.user_id}', 'awaiting')" class="${btn} text-amber-400 hover:text-amber-300">↩️ Annuler le paiement</button>` : '',
+        status === 'paid' ? `<button onclick="setPlayerPayment('${r.tournament_id}', '${m.user_id}', 'refunded')" class="${btn} text-sky-400 hover:text-sky-300">💸 Rembourser</button>` : '',
+        status === 'refunded' ? `<button onclick="setPlayerPayment('${r.tournament_id}', '${m.user_id}', 'awaiting')" class="${btn} text-amber-400 hover:text-amber-300">↩️ Remettre en attente</button>` : '',
+        m.role === 'captain' ? '' : `<button onclick="adminRemoveEventPlayer('${r.tournament_id}', '${m.user_id}')" class="${btn} text-red-400 hover:text-red-300">🗑️ Retirer</button>`
+      ].join('');
+      return `<div class="flex flex-wrap items-center gap-2 text-[11px]">
+        <span class="h-2.5 w-2.5 shrink-0 rounded-full ${light}" title="${escapeHtml(PLAYER_PAY_LABELS[status] || status)}"></span>
+        <span class="min-w-0 flex-1 truncate text-gray-200">${m.role === 'captain' ? '👑 ' : ''}${escapeHtml(m.nvg_users?.name || 'Joueur')} <span class="text-gray-500">· ${escapeHtml(PLAYER_PAY_LABELS[status] || status)}</span></span>
+        <div class="flex flex-wrap items-center gap-2">${actions}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+async function setPlayerPayment(tournamentId, userId, status) {
+  const { error } = await supabaseClient.from('nvg_tournament_players')
+    .update({
+      payment_status: status,
+      paid_at: status === 'paid' ? new Date().toISOString() : null
+    })
+    .eq('tournament_id', tournamentId)
+    .eq('user_id', userId);
+  if (error) { notify('Erreur : ' + error.message, true); return; }
+  notify('Paiement mis à jour.');
+  await loadAdmin();
+}
+
 function adminRegistrationRow(r) {
   const user = r.nvg_users || {};
   const team = r.nvg_tournament_teams;
@@ -3753,6 +3801,7 @@ function adminRegistrationRow(r) {
         <div class="col-span-2"><dt class="text-gray-500">Identité complète</dt><dd class="font-bold text-gray-200">${escapeHtml(fullName)}</dd></div>
         <div class="col-span-2"><dt class="text-gray-500">Inscrit le</dt><dd class="font-bold text-gray-200">${escapeHtml(formatDate(r.created_at))}</dd></div>
       </dl>
+      ${adminTeamPlayersBlock(r)}
       <div class="flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-2">
         <button onclick="setRegistrationStatus('${r.id}','confirmed')" class="text-[10px] font-bold text-emerald-400 hover:text-emerald-300">Confirmer</button>
         <button onclick="setRegistrationStatus('${r.id}','waitlist')" class="text-[10px] font-bold text-amber-400 hover:text-amber-300">Liste d'attente</button>
