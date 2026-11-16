@@ -216,6 +216,22 @@
           </div>
           <button onclick="changePassword()" class="px-4 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-200 font-bold text-xs rounded-lg transition">Changer mon mot de passe</button>
         </div>
+
+        <div class="rounded-2xl border border-red-600/40 bg-red-600/5 p-5 space-y-3">
+          <h2 class="text-sm font-black text-white uppercase tracking-wider">🗑️ Supprimer mon compte</h2>
+          <p class="text-xs text-gray-400">Le compte est partagé avec l'application NVG et le bot Discord : sa suppression les concerne aussi. Elle est refusée si tu as une inscription active, un billet payé, ou si tu es capitaine d'une équipe avec d'autres membres.</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Ton mot de passe</span>
+              <input id="deleteAccountPassword" type="password" autocomplete="current-password" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Tape SUPPRIMER</span>
+              <input id="deleteAccountWord" type="text" autocomplete="off" placeholder="SUPPRIMER" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+          </div>
+          <button onclick="deleteMyAccount()" class="px-4 py-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white font-bold text-xs rounded-lg transition">Supprimer définitivement mon compte</button>
+        </div>
         </div>
 
         <div id="accountPane-teams" class="account-pane hidden space-y-4">

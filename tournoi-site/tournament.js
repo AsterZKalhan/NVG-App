@@ -3194,6 +3194,26 @@ async function createTeamFromManage(tournamentId) {
   }
 }
 
+// Suppression du compte : mot de passe retapé, mot « SUPPRIMER », confirmation finale.
+async function deleteMyAccount() {
+  if (!currentUser) return;
+  const password = $('deleteAccountPassword')?.value || '';
+  const word = ($('deleteAccountWord')?.value || '').trim();
+  if (word !== 'SUPPRIMER') { notify('Tape SUPPRIMER pour confirmer.', true); return; }
+  if (!password) { notify('Saisis ton mot de passe.', true); return; }
+  if (!window.confirm('Supprimer définitivement ton compte ? Cette action est irréversible.')) return;
+  try {
+    const { error: authError } = await supabaseClient.auth.signInWithPassword({ email: currentUser.email, password });
+    if (authError) { notify('Mot de passe incorrect.', true); return; }
+    await rpc('nvg_delete_my_account');
+    await supabaseClient.auth.signOut();
+    notify('Ton compte a été supprimé.');
+    setTimeout(() => window.location.reload(), 1500);
+  } catch (err) {
+    notify('Suppression impossible : ' + err.message, true);
+  }
+}
+
 // Transfert du rôle de capitaine à un membre (capitaine actuel ou admin).
 async function setTeamCaptain(teamId, userId) {
   if (!window.confirm('Passer le rôle de capitaine à ce joueur ?')) return;
