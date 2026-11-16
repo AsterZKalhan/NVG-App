@@ -354,6 +354,13 @@ function tournamentLogoUrl(t) {
   return safeUrl(t.logo_url) || gameLogo(t.game_id) || gameLogo(bo9FirstGameId(t));
 }
 
+// Image affichée quand ni l'événement ni son jeu n'ont de logo.
+const NO_LOGO_IMAGE = './Logos/no-logo.jpeg';
+
+function noLogoImg(cls, url = '') {
+  return `<img src="${url || NO_LOGO_IMAGE}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${NO_LOGO_IMAGE}'" class="${cls}">`;
+}
+
 
 function safeUrl(value) {
   const raw = String(value ?? '').trim();
@@ -721,7 +728,6 @@ function openTournamentDetails(id, options = {}) {
   if (options.push !== false) pushRoute(routeState().tab, { tournament: id });
   const banner = tournamentBannerUrl(t);
   const logo = tournamentLogoUrl(t);
-  const initials = escapeHtml((gameById(t.game_id)?.name || t.name || '?').slice(0, 2).toUpperCase());
   const toornament = externalLink(t.toornament_url);
   const count = registeredCount(t.id);
   const unit = t.mode === 'team' ? 'équipe(s)' : 'joueur(s)';
@@ -744,9 +750,7 @@ function openTournamentDetails(id, options = {}) {
     <div class="space-y-5 p-5">
       <div class="flex items-start gap-3">
         <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/5">
-          ${logo
-            ? `<img src="${logo}" alt="" onerror="this.remove()" class="h-full w-full object-contain p-1.5">`
-            : `<span class="text-base font-black text-gray-400">${initials}</span>`}
+          ${noLogoImg('h-full w-full object-contain p-1.5', logo)}
         </div>
         <div class="min-w-0 flex-1">
           <p class="truncate text-[10px] font-black uppercase tracking-[0.18em] text-amber-400/80">${escapeHtml(tournamentGamesLabel(t))}</p>
@@ -2733,7 +2737,6 @@ function tournamentCard(t) {
   const myTeam = t.mode === 'team' ? myTeams.find((team) => team.tournament_id === t.id) : null;
   const toornament = externalLink(t.toornament_url);
   const logo = tournamentLogoUrl(t);
-  const initials = escapeHtml((gameById(t.game_id)?.name || t.name || '?').slice(0, 2).toUpperCase());
   const title = escapeHtml(t.name);
   const statusTone = {
     open: 'text-emerald-400',
@@ -2749,9 +2752,7 @@ function tournamentCard(t) {
       <div class="flex flex-1 flex-col gap-3 p-4">
         <div class="flex items-start gap-3">
           <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/5">
-            ${logo
-              ? `<img src="${logo}" alt="" loading="lazy" onerror="this.remove()" class="h-full w-full object-contain p-1">`
-              : `<span class="text-sm font-black text-gray-400">${initials}</span>`}
+            ${noLogoImg('h-full w-full object-contain p-1', logo)}
           </div>
           <div class="min-w-0 flex-1">
             <p class="truncate text-[10px] font-black uppercase tracking-[0.18em] text-amber-400/80">${escapeHtml(tournamentGamesLabel(t))}</p>
@@ -2806,7 +2807,7 @@ function renderHomeTournaments() {
     <div class="flex items-center gap-3 overflow-hidden rounded-xl border border-[#1f293d] bg-[#07090e] transition hover:border-amber-500/40">
       <div class="relative h-16 w-24 shrink-0 overflow-hidden bg-[#121722]">
         ${banner ? `<img src="${banner}" alt="" loading="lazy" onerror="this.remove()" class="h-full w-full object-cover">` : ''}
-        ${!banner && logo ? `<img src="${logo}" alt="" loading="lazy" onerror="this.remove()" class="absolute inset-0 m-auto max-h-10 max-w-[80%] object-contain opacity-70">` : ''}
+        ${!banner ? noLogoImg('absolute inset-0 m-auto max-h-10 max-w-[80%] object-contain opacity-70', logo) : ''}
       </div>
       <div class="min-w-0 flex-1 py-2">
         <p class="truncate text-xs font-black text-white">${toornament ? `<a href="${toornament}" target="_blank" rel="noopener" class="hover:text-amber-300">${escapeHtml(t.name)}</a>` : escapeHtml(t.name)}</p>

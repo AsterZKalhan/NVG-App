@@ -95,13 +95,14 @@ function t9Table(matches) {
   </div>`;
 }
 
-function t9MatchLine(m, label = '') {
+function t9MatchLine(m, label = '', t = null) {
   const finished = m.status === 'finished';
   const score = finished ? `${t9Num(m.points_a)} — ${t9Num(m.points_b)}` : '—';
   const aWin = finished && m.winner_team && m.winner_team === m.team_a;
   const bWin = finished && m.winner_team && m.winner_team === m.team_b;
   return `<div class="rounded-lg border border-[#1f293d] bg-[#07090e] p-2.5">
     ${label ? `<p class="text-[9px] font-black uppercase tracking-wider text-gray-500">${t9Esc(label)}</p>` : ''}
+    ${t ? t9GameTag(m, t) : ''}
     <div class="mt-0.5 flex items-center justify-between gap-2">
       <div class="min-w-0 space-y-0.5">
         <p class="truncate text-[11px] font-bold ${aWin ? 'text-emerald-300' : 'text-gray-200'}">${t9Esc(t9TeamName(m.team_a))}</p>
@@ -243,7 +244,7 @@ function renderTournoi9() {
       </div>
       <h3 class="text-xs font-black uppercase tracking-wider text-white">Matchs de poule</h3>
       <div class="grid gap-2 md:grid-cols-2">
-        ${pools.sort((a, b) => a.round - b.round || a.position - b.position).map((m) => t9MatchLine(m, `${m.group_name ? `Poule ${m.group_name} · ` : ''}Round ${m.round}`)).join('')}
+        ${pools.sort((a, b) => a.round - b.round || a.position - b.position).map((m) => t9MatchLine(m, `${m.group_name ? `Poule ${m.group_name} · ` : ''}Round ${m.round}`, t)).join('')}
       </div>
     </div>` : ''}
     ${bracket.length ? `<div class="space-y-3">
@@ -254,8 +255,7 @@ function renderTournoi9() {
       </div>` : ''}
       ${others.length ? `<div class="grid gap-2 md:grid-cols-2">${others.map((m) => `<div class="space-y-1">
         <p class="text-[10px] font-black uppercase tracking-wider text-gray-400">${m.phase === 'third' ? 'Petite finale' : m.phase === 'grand' ? 'Grande finale' : `Repêchage · tour ${m.round}`}</p>
-        ${t9GameTag(m, t)}
-        ${t9MatchLine(m)}
+        ${t9MatchLine(m, '', t)}
       </div>`).join('')}</div>` : ''}
       ${t9Podium(bracket)}
     </div>` : ''}
