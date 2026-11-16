@@ -1091,6 +1091,10 @@ async function generateBo9Pools(tournamentId) {
   const t = tournamentById(tournamentId);
   const cfg = bo9Config(t);
   if (!cfg) return;
+  if (!cfg.complete) {
+    notify('Choisis les 9 jeux du tournoi avant de générer les poules.', true);
+    return;
+  }
   const poolCount = Number(cfg.pool_count) || 4;
   const poolSize = Number(cfg.pool_size) || 4;
   const teams = adminTeamsFor(tournamentId);
@@ -2266,9 +2270,19 @@ function syncBo9Slots() {
   }
 }
 
+const STANDARD_FORMAT_LABELS = {
+  single_elim: 'Élimination directe',
+  double_elim: 'Double élimination',
+  round_robin: 'Poules (round robin)',
+  groups_playoffs: 'Poules + élimination',
+  league: 'Championnat (round robin global)',
+  swiss: 'Suisse'
+};
+
 function toggleTournamentFormat() {
   const bo9 = $('tourFormatType')?.value === 'bo9';
   $('tourBo9Wrap')?.classList.toggle('hidden', !bo9);
+  $('tourStdWrap')?.classList.toggle('hidden', bo9);
   $('tourGameWrap')?.classList.toggle('hidden', bo9);
   $('tourTeamSizeWrap')?.classList.toggle('hidden', bo9);
   if (bo9) {
@@ -2286,12 +2300,9 @@ function toggleTournamentFormat() {
 function bo9FormConfig() {
   const mode = $('tourBo9Points').value === 'allin' ? 'allin' : 'classic';
   const gameIds = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => $(`bo9Game${n}`)?.value || '');
-  if (gameIds.some((id) => !id)) {
-    notify('Sélectionne les 9 jeux du BO9.', true);
-    return null;
-  }
-  if (new Set(gameIds).size !== 9) {
-    notify('Les 9 jeux du BO9 doivent être différents.', true);
+  const filled = gameIds.filter(Boolean);
+  if (new Set(filled).size !== filled.length) {
+    notify('Les jeux du BO9 doivent être différents.', true);
     return null;
   }
   const poolCount = Number($('tourBo9Pools').value) || 4;
@@ -2328,6 +2339,7 @@ function bo9FormConfig() {
     type: 'bo9',
     points_mode: mode,
     games: gamesConfig,
+    complete: filled.length === 9,
     pool_count: poolCount,
     pool_size: poolSize,
     qualifiers_per_pool: qualifiers,
@@ -2865,6 +2877,7 @@ async function createTournament() {
   let mode = 'solo';
   let teamSize = parseInt($('tourTeamSize').value, 10) || 1;
   let maxParticipants = parseInt($('tourMax').value, 10) || null;
+  let published = $('tourPublished').checked;
   if (bo9) {
     formatConfig = bo9FormConfig();
     if (!formatConfig) return;
@@ -2872,8 +2885,13 @@ async function createTournament() {
     mode = 'team';
     teamSize = 5;
     maxParticipants = Number(formatConfig.pool_count) * Number(formatConfig.pool_size);
+    if (!formatConfig.complete) {
+      published = false;
+      notify('Tournoi enregistré en brouillon : choisis les 9 jeux avant de le publier.');
+    }
   } else {
     mode = teamSize === 1 ? 'solo' : 'team';
+    formatConfig = { type: 'standard', format: $('tourStdFormat')?.value || 'single_elim' };
   }
   const bannerUrl = safeUrl($('tourBanner').value);
   const toornamentUrl = safeUrl($('tourToornament').value);
@@ -2896,7 +2914,7 @@ async function createTournament() {
       starts_at: $('tourStart').value ? new Date($('tourStart').value).toISOString() : null,
       registration_closes_at: $('tourClose').value ? new Date($('tourClose').value).toISOString() : null,
       status: $('tourStatus').value,
-      published: $('tourPublished').checked,
+      published,
       banner_url: bannerUrl || null,
       toornament_url: toornamentUrl || null,
       toornament_id: toornamentIdFromUrl(toornamentUrl),
