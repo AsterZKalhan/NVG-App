@@ -1721,8 +1721,14 @@ function standardFormat(t) {
 }
 
 async function generateStandardMatches(tournamentId) {
+  await loadPublic();
   const t = tournamentById(tournamentId);
-  if (!t || !isStandard(t)) return;
+  if (!t) {
+    notify('Ce tournoi n’existe plus. Rafraîchis la page.', true);
+    closeAdminMatchPanel();
+    return;
+  }
+  if (!isStandard(t)) return;
   const format = standardFormat(t);
   if (!STANDARD_GENERATED_FORMATS.includes(format)) {
     notify(`Le format « ${STANDARD_FORMAT_LABELS[format] || format} » n’est pas encore généré.`, true);
