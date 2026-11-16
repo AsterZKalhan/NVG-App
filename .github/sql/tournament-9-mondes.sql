@@ -12,7 +12,7 @@ create table if not exists public.nvg_tournament_games (
   name text not null,
   slug text not null unique,
   team_size integer check (team_size is null or team_size between 1 and 6),
-  scoring_mode text not null default 'versus' check (scoring_mode in ('versus', 'cumulative')),
+  scoring_mode text not null default 'versus' check (scoring_mode in ('versus', 'cumulative', 'wins')),
   logo_url text,
   banner_url text,
   created_at timestamptz not null default now()

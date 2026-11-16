@@ -74,7 +74,7 @@ Tables (préfixe `nvg_tournament_`) :
 
 | Table | Rôle |
 |---|---|
-| `nvg_tournament_games` | jeux proposés (nom, slug, **joueurs par équipe** `team_size`, **mode de score** `scoring_mode` `versus`/`cumulative`, logo, bannière) |
+| `nvg_tournament_games` | jeux proposés (nom, slug, **joueurs par équipe** `team_size`, **mode de score** `scoring_mode` `versus`/`cumulative`/`wins`, logo, bannière) |
 | `nvg_tournaments` | tournois : mode `solo`/`team`, format `online`/`lan`/`both`, taille d'équipe, places (`max_participants`), prix (1re/2e/3e place), dates, statut, publication, frais et consignes de paiement |
 | `nvg_tournament_teams` | équipes : nom, tag, capitaine, code d'invitation unique |
 | `nvg_tournament_team_members` | appartenance joueur ↔ équipe, rôle `captain`/`member` |
@@ -128,12 +128,44 @@ Chaque jeu décrit aussi son **mode de score** dans **Admin → 🎮 Jeux** :
   Trackmania en time attack à 5 contre 5 (1v1v1v1v1v1v1v1v1v1). L'admin saisit
   le **total de points de chaque équipe** ; le plus haut total remporte les
   points du jeu (3 en Classique, 5 en All-In pour un jeu collectif). En cas
-  d'égalité, les points du jeu sont partagés.
+  d'égalité, les points du jeu sont partagés ;
+- **Victoires individuelles** : chaque joueur affronte son homologue en 1v1
+  (A1–B1, A2–B2, A3–B3…), par exemple Hearthstone sur 5 joueurs. L'admin saisit
+  le **nombre de duels gagnés par équipe** ; l'équipe qui en gagne le plus
+  remporte le jeu. En cas d'égalité, les points du jeu sont partagés.
 
-Le site ne saisit pas les classements individuels joueur par joueur : c'est le
-total d'équipe qui compte. Le reste du barème, le seuil de mercy et le bracket
-ne changent pas. Le détail public affiche les totaux bruts du jeu
-(ex. `320 — 280`, marqué **cumul**).
+En **cumul**, le site ne saisit pas les classements individuels joueur par
+joueur : c'est le total d'équipe qui compte. Le reste du barème, le seuil de
+mercy et le bracket ne changent pas. Le détail public affiche les totaux bruts
+du jeu (ex. `320 — 280`, marqué **cumul**).
+
+### Jeux à 2 joueurs (2v2)
+
+Pour un jeu réglé sur **2 joueurs par équipe** (escarmouche), la rencontre se
+joue avec les 5 joueurs de l'équipe :
+
+1. **Binôme 1** : A1/A2 contre B1/B2 en BO1 ;
+2. **Binôme 2** : A3/A4 contre B3/B4 en BO1 ;
+3. si une équipe gagne les deux BO1, elle remporte le jeu (**2–0**) ;
+4. si chaque équipe gagne un BO1 (**1–1**), les deux binômes vainqueurs jouent
+   une **finale 2v2**. Chaque équipe peut remplacer un de ses deux joueurs par
+   le **5e joueur** (remplaçant).
+
+L'admin saisit le vainqueur de chaque BO1 ; la finale n'apparaît que si les BO1
+sont partagés. Le vainqueur du jeu empoche la totalité des points du slot
+(3 points en Classique, 5 en All-In), sans partage. Le détail public affiche le
+score des binômes (`2 — 0` ou `1 — 2`, marqué **2v2 · finale** si nécessaire).
+Le mode est figé dans `format_config.games[].pair_mode` à la création du BO9.
+
+### Victoires individuelles (Hearthstone…)
+
+Pour un jeu réglé sur ce mode, le nombre de duels est le **nombre de joueurs
+par équipe** du jeu (ex. 5 pour un 5v5). Chaque joueur affronte son homologue :
+A1–B1, A2–B2, etc. L'admin saisit simplement le nombre de duels gagnés par
+chaque équipe (0 à N, la somme ne pouvant pas dépasser N) ; l'équipe qui en
+gagne le plus remporte le jeu et la totalité des points du slot. En cas
+d'égalité, les points sont partagés. Le détail public affiche le score des
+duels (`3 — 2`, marqué **victoires**).
 
 ### Options de compétition
 
@@ -180,7 +212,7 @@ Le tournoi BO9 reste compatible avec les tournois « jeu unique » existants :
   "type": "bo9",
   "points_mode": "classic",
   "games": [
-    { "slot": 1, "category": "collectif", "game_id": "…", "units": 1, "points_per_unit": 3, "scoring": "versus" }
+    { "slot": 1, "category": "collectif", "game_id": "…", "units": 1, "points_per_unit": 3, "scoring": "versus", "pair_mode": false }
   ],
   "pool_count": 4,
   "pool_size": 4,
@@ -205,8 +237,9 @@ Dans **📋 Gestion des tournois**, chaque tournoi BO9 affiche un bouton
 - effacer tous les matchs pour repartir de zéro ;
 - suivre les classements et l'avancement de chaque poule ;
 - ouvrir chaque match pour saisir les unités par jeu (ou les **totaux cumulés**
-  pour un jeu en cumul), choisir l'ordre pick & ban (🔀 tirage, ▲/▼) et
-  désigner la carte capitaine de chaque équipe ;
+  pour un jeu en cumul ; les **vainqueurs des deux BO1 2v2** et la finale si
+  1–1 ; ou le **nombre de victoires individuelles**), choisir l'ordre pick &
+  ban (🔀 tirage, ▲/▼) et désigner la carte capitaine de chaque équipe ;
 - enregistrer un résultat : le vainqueur est propagé au match suivant, les
   perdants des demi-finales alimentent la petite finale.
 
@@ -328,7 +361,7 @@ menus :
 | Menu | Contenu |
 |---|---|
 | **👥 Joueurs** | recherche par pseudo, nom ou e-mail ; modification du pseudo, du prénom, du nom et de la date de naissance ; nombre d'inscriptions par joueur. Les rangs et rôles restent gérés dans l'application NVG. |
-| **🎮 Jeux** | création et modification d'un jeu (nom, **joueurs par équipe 1–6**, **mode de score confrontation/cumul**, logo et bannière téléversés ou URL externe). |
+| **🎮 Jeux** | création et modification d'un jeu (nom, **joueurs par équipe 1–6**, **mode de score confrontation/cumul/victoires**, logo et bannière téléversés ou URL externe). |
 | **➕ Nouveau tournoi** | formulaire complet de création (format du tournoi jeu unique ou BO9, jeu(x), format de jeu 1–6, type, statut, slots, frais, podium, dates, visuels, Toornament, paiement, description, publication). En BO9 : 9 jeux par catégorie, mode de points, poules et options de compétition. |
 | **📋 Gestion des tournois** | liste filtrable (tous / en cours et ouverts / brouillons / terminés et annulés) avec barre de remplissage, changement de statut, modification, suppression, accès aux inscriptions et bouton **⚔️ Gérer** pour les tournois BO9. |
 
