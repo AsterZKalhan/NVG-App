@@ -1015,7 +1015,7 @@ function bo9PoolMatchesBlock(groupName, cfg, matches) {
         <span class="text-[9px] font-bold ${finished === list.length ? 'text-emerald-400' : 'text-gray-500'}">${finished} / ${list.length} terminés</span>
       </summary>
       <div class="space-y-1.5 border-t border-[#1f293d] p-2">
-        ${list.map((m) => bo9PublicMatchCard(m, cfg, `Journée ${m.round}`)).join('')}
+        ${list.map((m) => bo9PublicMatchCard(m, cfg, `Round ${m.round}`)).join('')}
       </div>
     </details>`;
 }
@@ -1673,7 +1673,7 @@ function renderAdminMatchPanel() {
         </div>
         ${bo9PoolTable(group, cfg, poolMatches)}
         <div class="space-y-1.5">
-          ${poolMatches.filter((m) => m.group_name === group).sort((a, b) => a.round - b.round || a.position - b.position).map((m) => adminBo9MatchCard(m, cfg, `Journée ${m.round}`)).join('')}
+          ${poolMatches.filter((m) => m.group_name === group).sort((a, b) => a.round - b.round || a.position - b.position).map((m) => adminBo9MatchCard(m, cfg, `Round ${m.round}`)).join('')}
         </div>
       </div>`).join('')}
     ${matches.some((m) => m.phase !== 'pool') ? `<div class="space-y-2">
@@ -2142,9 +2142,9 @@ function standardPoolFilters(scopeId, matches) {
       <option value="all">Toutes les poules</option>
       ${groups.map((g) => `<option value="${escapeHtml(g)}">Poule ${escapeHtml(g)}</option>`).join('')}
     </select>` : ''}
-    <select data-filter="round" onchange="filterStandardPools('${scopeId}')" class="${select}" aria-label="Filtrer par journée">
-      <option value="all">Toutes les journées</option>
-      ${rounds.map((r) => `<option value="${r}">Journée ${r}</option>`).join('')}
+    <select data-filter="round" onchange="filterStandardPools('${scopeId}')" class="${select}" aria-label="Filtrer par round">
+      <option value="all">Tous les rounds</option>
+      ${rounds.map((r) => `<option value="${r}">Round ${r}</option>`).join('')}
     </select>
   </div>`;
 }
@@ -2223,6 +2223,71 @@ function standardBracketHtml(matches, cardFn) {
   </div>`).join('');
 }
 
+// Affichage en arbre : une colonne par tour, chaque match centré entre ses deux qualifiés.
+const TREE_ROW_PX = 36;
+const TREE_CARD_PX = 64;
+const TREE_LINE = '#334155';
+
+function standardTreeCard(m) {
+  const finished = m.status === 'finished';
+  const row = (team, score, winner) => `<div class="flex items-center justify-between gap-2 px-2 ${winner ? 'font-black text-emerald-300' : 'text-gray-300'}" style="height:${TREE_CARD_PX / 2 - 1}px">
+    <span class="truncate text-[10px]">${escapeHtml(team ? teamLabelById(team) : (m.team_a || m.team_b ? 'Exempt' : 'À déterminer'))}</span>
+    <span class="shrink-0 text-[10px] font-black">${finished && team ? formatPoints(score) : ''}</span>
+  </div>`;
+  const winA = finished && m.winner_team && m.winner_team === m.team_a;
+  const winB = finished && m.winner_team && m.winner_team === m.team_b;
+  return `<div class="rounded-lg border border-[#1f293d] bg-[#0f141f] overflow-hidden" style="height:${TREE_CARD_PX}px">
+    ${row(m.team_a, m.points_a, winA)}
+    <div class="border-t border-[#1f293d]"></div>
+    ${row(m.team_b, m.points_b, winB)}
+  </div>`;
+}
+
+function standardTreeHtml(list) {
+  const rounds = [...new Set(list.map((m) => m.round))].sort((a, b) => a - b);
+  const count = rounds.length;
+  const first = list.filter((m) => m.round === rounds[0]).length;
+  const rowsTotal = first * 2;
+  const labels = rounds.map((round, ri) => `<p style="grid-column:${ri + 1};grid-row:1" class="text-center text-[10px] font-black uppercase tracking-wider text-gray-400">${escapeHtml(bracketRoundLabel(round, count))}</p>`);
+  const cards = rounds.flatMap((round, ri) => {
+    const span = 2 ** (ri + 1);
+    return list.filter((m) => m.round === round)
+      .sort((a, b) => a.position - b.position)
+      .map((m, p) => {
+        const hasNext = ri < count - 1;
+        const upper = p % 2 === 0;
+        const connectors = hasNext ? `
+          <span class="absolute" style="right:-12px;top:50%;width:12px;border-top:1px solid ${TREE_LINE}"></span>
+          ${upper ? `<span class="absolute" style="right:-12px;top:50%;height:${span * TREE_ROW_PX}px;border-right:1px solid ${TREE_LINE}"></span>` : ''}` : '';
+        return `<div class="relative self-center" style="grid-column:${ri + 1};grid-row:${p * span + 2} / span ${span}">
+          ${standardTreeCard(m)}
+          ${connectors}
+        </div>`;
+      });
+  });
+  return `<div class="overflow-x-auto pb-2">
+    <div class="grid" style="grid-template-columns:repeat(${count},minmax(170px,1fr));column-gap:24px;grid-template-rows:24px repeat(${rowsTotal},${TREE_ROW_PX}px);min-width:${count * 200}px">
+      ${labels.join('')}
+      ${cards.join('')}
+    </div>
+  </div>`;
+}
+
+// Tableau public : arbre pour le tableau et les gagnants, cartes pour le repêchage, la finale et la petite finale.
+function standardBracketPublicHtml(matches) {
+  return ['bracket', 'winners', 'losers', 'grand', 'third'].map((phase) => {
+    const list = matches.filter((m) => m.phase === phase);
+    if (!list.length) return '';
+    if (phase === 'bracket' || phase === 'winners') {
+      return `<div class="space-y-2">
+        <h4 class="text-[10px] font-black uppercase tracking-wider text-amber-300">${phase === 'bracket' ? 'Tableau' : 'Tableau des gagnants'}</h4>
+        ${standardTreeHtml(list)}
+      </div>`;
+    }
+    return standardBracketHtml(list, (m) => standardPublicMatchCard(m));
+  }).join('');
+}
+
 function standardCompetitionBlock(t) {
   const matches = tournamentMatches.filter((m) => m.tournament_id === t.id);
   if (!matches.length) return '';
@@ -2237,13 +2302,13 @@ function standardCompetitionBlock(t) {
         <div id="stdPoolsPublic" class="mt-2 space-y-2">
           ${standardPoolFilters('stdPoolsPublic', pools)}
           <div class="grid gap-2 sm:grid-cols-2">
-            ${pools.sort((a, b) => a.round - b.round || a.position - b.position).map((m) => `<div data-pool-item data-group="${escapeHtml(m.group_name || '')}" data-round="${m.round}">${standardPublicMatchCard(m, `${m.label || 'Match'} · Journée ${m.round}`)}</div>`).join('')}
+            ${pools.sort((a, b) => a.round - b.round || a.position - b.position).map((m) => `<div data-pool-item data-group="${escapeHtml(m.group_name || '')}" data-round="${m.round}">${standardPublicMatchCard(m, `${m.label || 'Match'} · Round ${m.round}`)}</div>`).join('')}
           </div>
         </div>
       </div>` : ''}
       ${bracket.length ? `<div class="space-y-3">
         <h3 class="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">🏆 ${escapeHtml(STANDARD_FORMAT_LABELS[format] || 'Tableau')}</h3>
-        ${standardBracketHtml(bracket, (m) => standardPublicMatchCard(m))}
+        ${standardBracketPublicHtml(bracket)}
       </div>` : ''}
     </div>`;
 }
@@ -2352,7 +2417,7 @@ function standardRoundKeys(t) {
 }
 
 function standardRoundKeyLabel(key) {
-  if (key.startsWith('P')) return `Poules · journée ${key.slice(1)}`;
+  if (key.startsWith('P')) return `Poules · round ${key.slice(1)}`;
   if (key === 'WF') return 'Finale des gagnants';
   if (key.startsWith('W')) return `Gagnants · tour ${key.slice(1)}`;
   if (key.startsWith('L')) return `Repêchage · tour ${key.slice(1)}`;
@@ -2564,7 +2629,7 @@ function renderStandardMatchPanel(t) {
         ${standardStandingsBlocks(matches)}
         <div id="stdPoolsAdmin" class="space-y-2">
           ${standardPoolFilters('stdPoolsAdmin', pools)}
-          <div class="space-y-1.5">${pools.map((m) => `<div data-pool-item data-group="${escapeHtml(m.group_name || '')}" data-round="${m.round}">${adminStandardMatchCard(m, `${m.label || 'Match'} · Journée ${m.round}`)}</div>`).join('')}</div>
+          <div class="space-y-1.5">${pools.map((m) => `<div data-pool-item data-group="${escapeHtml(m.group_name || '')}" data-round="${m.round}">${adminStandardMatchCard(m, `${m.label || 'Match'} · Round ${m.round}`)}</div>`).join('')}</div>
         </div>
       </div>` : ''}
       ${bracket.length ? `<div class="space-y-2">
