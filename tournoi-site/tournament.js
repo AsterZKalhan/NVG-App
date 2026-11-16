@@ -2771,8 +2771,13 @@ async function loadMember() {
       .select('tournament_id,platform_id,joined_at')
       .eq('user_id', currentUser.id)
   ]);
-  myTeams = teams.data || [];
-  myRegistrations = regs.data || [];
+  // Les admins voient toutes les équipes et inscriptions : on ne garde que celles
+  // dont le joueur connecté est capitaine ou membre.
+  const uid = currentUser.id;
+  myTeams = (teams.data || []).filter((team) => team.captain_id === uid
+    || (team.nvg_tournament_team_members || []).some((m) => m.user_id === uid));
+  const myTeamIds = new Set(myTeams.map((team) => team.id));
+  myRegistrations = (regs.data || []).filter((r) => r.user_id === uid || myTeamIds.has(r.team_id));
   myParticipations = parts.data || [];
   renderMyTeams();
   renderMyRegistrations();
