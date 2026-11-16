@@ -74,7 +74,7 @@ Tables (préfixe `nvg_tournament_`) :
 
 | Table | Rôle |
 |---|---|
-| `nvg_tournament_games` | jeux proposés (nom, slug, logo, bannière) |
+| `nvg_tournament_games` | jeux proposés (nom, slug, **joueurs par équipe** `team_size`, logo, bannière) |
 | `nvg_tournaments` | tournois : mode `solo`/`team`, format `online`/`lan`/`both`, taille d'équipe, places (`max_participants`), prix (1re/2e/3e place), dates, statut, publication, frais et consignes de paiement |
 | `nvg_tournament_teams` | équipes : nom, tag, capitaine, code d'invitation unique |
 | `nvg_tournament_team_members` | appartenance joueur ↔ équipe, rôle `captain`/`member` |
@@ -85,6 +85,13 @@ Format d'équipe : le back-office propose un seul menu **Format de jeu**
 (1 à 6 joueurs). Pour `N ≥ 2`, le site enregistre `mode = 'team'` et
 `team_min = team_max = N` ; pour `N = 1`, `mode = 'solo'` et
 `team_min = team_max = 1`. La taille exacte est donc vérifiée à l'inscription.
+
+Chaque jeu peut décrire son **nombre de joueurs par équipe** (`team_size`,
+1 à 6, facultatif) dans le menu **🎮 Jeux**. Ce format est affiché dans la liste
+des jeux (`5v5`) et repris automatiquement dans le formulaire **➕ Nouveau
+tournoi** dès que le jeu est sélectionné ; l'organisateur peut toujours le
+modifier pour un événement particulier. Le libellé du jeu dans les menus
+indique aussi le format (`League of Legends — 5 joueurs`).
 
 ## Format BO9 — Décathlon Esport
 
@@ -302,7 +309,7 @@ menus :
 | Menu | Contenu |
 |---|---|
 | **👥 Joueurs** | recherche par pseudo, nom ou e-mail ; modification du pseudo, du prénom, du nom et de la date de naissance ; nombre d'inscriptions par joueur. Les rangs et rôles restent gérés dans l'application NVG. |
-| **🎮 Jeux** | création et modification d'un jeu (nom, logo et bannière téléversés ou URL externe). |
+| **🎮 Jeux** | création et modification d'un jeu (nom, **joueurs par équipe 1–6**, logo et bannière téléversés ou URL externe). |
 | **➕ Nouveau tournoi** | formulaire complet de création (format du tournoi jeu unique ou BO9, jeu(x), format de jeu 1–6, type, statut, slots, frais, podium, dates, visuels, Toornament, paiement, description, publication). En BO9 : 9 jeux par catégorie, mode de points, poules et options de compétition. |
 | **📋 Gestion des tournois** | liste filtrable (tous / en cours et ouverts / brouillons / terminés et annulés) avec barre de remplissage, changement de statut, modification, suppression, accès aux inscriptions et bouton **⚔️ Gérer** pour les tournois BO9. |
 

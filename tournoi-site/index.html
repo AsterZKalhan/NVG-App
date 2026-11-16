@@ -326,7 +326,25 @@
             <h2 class="text-sm font-black text-white">🎮 Jeu</h2>
             <button id="gameCancel" onclick="cancelGameEdit()" class="hidden text-[10px] font-bold text-gray-400 hover:text-white">Annuler la modification</button>
           </div>
-          <input id="gameName" placeholder="Nom du jeu" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Nom du jeu</span>
+              <input id="gameName" placeholder="Nom du jeu" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Joueurs par équipe</span>
+              <select id="gameTeamSize" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+                <option value="">Non précisé</option>
+                <option value="1">1 joueur (solo)</option>
+                <option value="2">2 joueurs</option>
+                <option value="3">3 joueurs</option>
+                <option value="4">4 joueurs</option>
+                <option value="5">5 joueurs</option>
+                <option value="6">6 joueurs</option>
+              </select>
+            </label>
+          </div>
+          <p class="text-[9px] text-gray-500">Le format indiqué pour le jeu est repris automatiquement à la création d'un tournoi « jeu unique ».</p>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div class="space-y-2">
               <p class="text-[10px] font-black uppercase tracking-wider text-gray-400">Logo carré</p>
@@ -383,7 +401,7 @@
             </label>
             <label id="tourGameWrap" class="block">
               <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Jeu</span>
-              <select id="tourGame" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white"></select>
+              <select id="tourGame" onchange="applyGameTeamSize()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white"></select>
             </label>
             <label id="tourTeamSizeWrap" class="block">
               <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Format de jeu</span>
@@ -395,6 +413,7 @@
                 <option value="5">Équipe de 5 joueurs</option>
                 <option value="6">Équipe de 6 joueurs</option>
               </select>
+              <span id="tourTeamSizeHint" class="mt-1 block text-[9px] text-gray-500"></span>
             </label>
             <div id="tourBo9Wrap" class="hidden sm:col-span-2 space-y-4">
               <div class="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-[11px] leading-relaxed text-amber-100/80">

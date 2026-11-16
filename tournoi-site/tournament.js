@@ -119,6 +119,36 @@ function gameById(id) {
   return games.find((g) => g.id === id) || null;
 }
 
+// Nombre de joueurs par équipe rattaché au jeu (null = non précisé).
+function gameTeamSize(id) {
+  const size = Number(gameById(id)?.team_size) || 0;
+  return size >= 1 && size <= 6 ? size : 0;
+}
+
+function gameOptionLabel(game) {
+  const size = Number(game?.team_size) || 0;
+  if (!size) return game.name;
+  return `${game.name} — ${size === 1 ? 'solo' : `${size} joueurs`}`;
+}
+
+function applyGameTeamSize() {
+  if ($('tourFormatType')?.value === 'bo9') return;
+  const gameId = $('tourGame')?.value;
+  const hint = $('tourTeamSizeHint');
+  if (!gameId) {
+    if (hint) hint.textContent = '';
+    return;
+  }
+  const size = gameTeamSize(gameId);
+  const select = $('tourTeamSize');
+  if (size && select) select.value = String(size);
+  if (hint) {
+    hint.textContent = size
+      ? `Format du jeu : ${size === 1 ? 'solo' : `${size} joueurs par équipe`}`
+      : 'Le format du jeu n’est pas précisé.';
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Format BO9 « Décathlon Esport »
 // ---------------------------------------------------------------------------
@@ -1881,6 +1911,7 @@ function renderAdminGames() {
               : `<span class="text-[9px] font-black text-gray-400">${escapeHtml((g.name || '?').slice(0, 2).toUpperCase())}</span>`}
           </span>
           <span class="truncate text-[11px] font-bold text-gray-200">${escapeHtml(g.name)}</span>
+          ${Number(g.team_size) ? `<span class="shrink-0 rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-bold text-sky-300" title="Joueurs par équipe">${Number(g.team_size)}v${Number(g.team_size)}</span>` : ''}
         </div>
         <div class="flex shrink-0 items-center gap-1">
           ${safeUrl(g.banner_url) ? '<span class="text-[9px] text-emerald-400" title="Bannière enregistrée">bannière</span>' : ''}
@@ -1890,7 +1921,7 @@ function renderAdminGames() {
     : '<p class="text-gray-500">Aucun jeu enregistré.</p>';
   const select = $('tourGame');
   if (select) {
-    select.innerHTML = '<option value="">Jeu (facultatif)</option>' + games.map((g) => `<option value="${g.id}">${escapeHtml(g.name)}</option>`).join('');
+    select.innerHTML = '<option value="">Jeu (facultatif)</option>' + games.map((g) => `<option value="${g.id}">${escapeHtml(gameOptionLabel(g))}</option>`).join('');
   }
   fillBo9GameSelects();
 }
@@ -1907,7 +1938,7 @@ function fillBo9GameSelects() {
   document.querySelectorAll('.bo9-game').forEach((select, index) => {
     const current = select.value;
     select.innerHTML = `<option value="">Jeu ${index + 1}…</option>`
-      + games.map((g) => `<option value="${g.id}">${escapeHtml(g.name)}</option>`).join('');
+      + games.map((g) => `<option value="${g.id}">${escapeHtml(gameOptionLabel(g))}</option>`).join('');
     if (current && games.some((g) => g.id === current)) select.value = current;
     select.onchange = updateBo9GamesStatus;
   });
@@ -1956,8 +1987,12 @@ function toggleTournamentFormat() {
   if (bo9) {
     const teamSize = $('tourTeamSize');
     if (teamSize) teamSize.value = '5';
+    const hint = $('tourTeamSizeHint');
+    if (hint) hint.textContent = '';
     syncBo9Slots();
     fillBo9GameSelects();
+  } else {
+    applyGameTeamSize();
   }
 }
 
@@ -2389,6 +2424,7 @@ function setGamePreviews() {
 function resetGameForm() {
   editingGameId = null;
   ['gameName', 'gameLogo', 'gameBanner'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
+  if ($('gameTeamSize')) $('gameTeamSize').value = '';
   ['gameLogoFile', 'gameBannerFile'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
   const submit = $('gameSubmit');
   if (submit) submit.textContent = 'Créer le jeu';
@@ -2406,6 +2442,7 @@ function editGame(id) {
   if (!g) return;
   editingGameId = id;
   $('gameName').value = g.name || '';
+  if ($('gameTeamSize')) $('gameTeamSize').value = g.team_size ? String(g.team_size) : '';
   $('gameLogo').value = g.logo_url || '';
   $('gameBanner').value = g.banner_url || '';
   const submit = $('gameSubmit');
@@ -2466,6 +2503,7 @@ async function saveGame() {
   const payload = {
     name,
     slug: slugify(name),
+    team_size: Number($('gameTeamSize')?.value) || null,
     logo_url: safeUrl($('gameLogo').value) || null,
     banner_url: safeUrl($('gameBanner').value) || null
   };
