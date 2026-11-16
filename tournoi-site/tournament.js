@@ -3250,6 +3250,7 @@ function renderMyRegistrations() {
           </div>
           <div class="flex items-center gap-2">
             <span class="text-[9px] font-black uppercase px-2 py-1 rounded-full border ${reg.status === 'confirmed' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-amber-400 border-amber-500/30 bg-amber-500/10'}">${escapeHtml(REG_LABELS[reg.status] || reg.status)}</span>
+            <button onclick="openManage('${reg.tournament_id}')" class="rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black text-black transition hover:bg-amber-400">⚙️ Gérer mon inscription</button>
             <button onclick="cancelRegistration('${reg.id}')" class="text-[10px] font-bold text-red-400 hover:text-red-300">Annuler</button>
           </div>
         </div>
