@@ -608,10 +608,25 @@ function paymentBadge(status) {
   return `<span class="rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-wider ${PAYMENT_STYLES[key] || PAYMENT_STYLES.not_required}">${escapeHtml(PAYMENT_LABELS[key] || key)}</span>`;
 }
 
+// Le paiement n'est possible que tant que les inscriptions sont ouvertes.
+function paymentOpen(t) {
+  return t?.status === 'open';
+}
+
+function paymentClosedNote() {
+  return '<p class="text-[10px] text-gray-400">Paiement clôturé : contacte l’organisation pour toute modification ou remboursement.</p>';
+}
+
 function registrationPaymentBlock(reg) {
   const status = reg.payment_status || 'not_required';
   const fee = Number(reg.nvg_tournaments?.entry_fee_cents) || 0;
   if (status !== 'awaiting') return '';
+  if (!paymentOpen(reg.nvg_tournaments)) {
+    return `<div class="flex flex-col items-start gap-1">
+      <span class="text-[10px] font-bold text-amber-400">⏳ ${fee > 0 ? `${escapeHtml(formatFee(fee))} à régler` : 'Paiement en attente'}</span>
+      ${paymentClosedNote()}
+    </div>`;
+  }
   return `<div class="flex flex-col items-start gap-1">
       <span class="text-[10px] font-bold text-amber-400">⏳ ${fee > 0 ? `${escapeHtml(formatFee(fee))} à régler` : 'Paiement en attente'}</span>
       <button onclick="payRegistration('${reg.id}')" class="rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black text-black transition hover:bg-amber-400">Régler mon inscription</button>
@@ -622,6 +637,10 @@ function payRegistration(registrationId) {
   const reg = myRegistrations.find((r) => r.id === registrationId);
   if (!reg) return;
   const t = reg.nvg_tournaments || {};
+  if (!paymentOpen(t)) {
+    notify('Paiement clôturé : contacte l’organisation pour toute modification ou remboursement.', true);
+    return;
+  }
   const url = externalLink(t.payment_url);
   if (url) {
     window.open(url, '_blank', 'noopener');
@@ -760,7 +779,7 @@ function openTournamentDetails(id, options = {}) {
         <div class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3">
           <p class="text-[10px] font-black uppercase tracking-wider text-amber-400">Inscription : ${escapeHtml(formatFee(t.entry_fee_cents))}</p>
           ${t.payment_instructions ? `<p class="mt-1 whitespace-pre-line text-[11px] leading-relaxed text-gray-300">${escapeHtml(t.payment_instructions)}</p>` : ''}
-          ${externalLink(t.payment_url) ? `<a href="${externalLink(t.payment_url)}" target="_blank" rel="noopener" class="mt-2 inline-block rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black text-black transition hover:bg-amber-400">Régler mon inscription</a>` : ''}
+          ${!paymentOpen(t) ? `<div class="mt-2">${paymentClosedNote()}</div>` : externalLink(t.payment_url) ? `<a href="${externalLink(t.payment_url)}" target="_blank" rel="noopener" class="mt-2 inline-block rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black text-black transition hover:bg-amber-400">Régler mon inscription</a>` : ''}
         </div>` : ''}
 
       <div class="flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-4">
@@ -2886,7 +2905,7 @@ async function loadMember() {
       .select('id,tournament_id,name,tag,logo_url,captain_id,invite_code,created_at,nvg_tournament_team_members(user_id,role,nvg_users(name,rank)),nvg_tournaments(name,mode,team_min,team_max,status)')
       .order('created_at', { ascending: false }),
     supabaseClient.from('nvg_tournament_registrations')
-      .select('id,tournament_id,team_id,user_id,status,platform_id,payment_status,payment_reference,paid_at,created_at,nvg_tournaments(name,mode,team_min,team_max,entry_fee_cents,payment_url,payment_instructions),nvg_tournament_teams(name)')
+      .select('id,tournament_id,team_id,user_id,status,platform_id,payment_status,payment_reference,paid_at,created_at,nvg_tournaments(name,mode,team_min,team_max,status,entry_fee_cents,payment_url,payment_instructions),nvg_tournament_teams(name)')
       .order('created_at', { ascending: false }),
     supabaseClient.from('nvg_tournament_players')
       .select('tournament_id,platform_id,joined_at')
