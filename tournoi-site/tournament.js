@@ -2336,7 +2336,9 @@ function standardMatchGameLine(m) {
   const t = tournamentById(m.tournament_id);
   if (!t || isStandardBo3(m, t)) return '';
   const gameId = standardRoundGameId(t, standardRoundKey(m, t));
-  return gameId ? `<p class="text-[9px] font-bold text-violet-300">🎮 ${escapeHtml(gameName(gameId))}</p>` : '';
+  if (!gameId) return '';
+  const logo = gameLogo(gameId);
+  return `<p class="flex items-center gap-1 text-[9px] font-bold text-violet-300">${logo ? `<img src="${logo}" alt="" onerror="this.remove()" class="inline-block h-[1em] w-[1em] shrink-0 object-contain">` : ''}<span class="truncate">${escapeHtml(gameName(gameId))}</span></p>`;
 }
 
 function standardRoundGameId(t, key) {
@@ -2902,11 +2904,10 @@ function renderManage() {
 
     let body;
     if (team) {
-      const initials = escapeHtml((team.name || '?').slice(0, 2).toUpperCase());
       body = `
         <div class="flex items-center gap-3">
           <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/5">
-            ${safeUrl(team.logo_url) ? `<img src="${safeUrl(team.logo_url)}" alt="" onerror="this.remove()" class="h-full w-full object-contain p-1">` : `<span class="text-[10px] font-black text-gray-500">${initials}</span>`}
+            <img src="${safeUrl(team.logo_url) || './Logos/no-logo.jpeg'}" alt="" onerror="this.onerror=null;this.src='./Logos/no-logo.jpeg'" class="h-full w-full object-contain p-1">
           </div>
           <div class="min-w-0">
             <p class="truncate text-sm font-black text-white">${escapeHtml(team.name)} ${team.tag ? `<span class="text-gray-500">[${escapeHtml(team.tag)}]</span>` : ''}</p>
@@ -3655,13 +3656,12 @@ function closeAdminTeams() {
 
 function adminTeamCard(team, teamMax) {
   const members = team.nvg_tournament_team_members || [];
-  const initials = escapeHtml((team.name || '?').slice(0, 2).toUpperCase());
   const logo = safeUrl(team.logo_url);
   return `
     <article class="space-y-2 rounded-xl border border-[#1f293d] bg-[#07090e] p-3">
       <div class="flex items-start gap-3">
         <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/5">
-          ${logo ? `<img src="${logo}" alt="" onerror="this.remove()" class="h-full w-full object-contain p-1">` : `<span class="text-[10px] font-black text-gray-500">${initials}</span>`}
+          <img src="${logo || './Logos/no-logo.jpeg'}" alt="" onerror="this.onerror=null;this.src='./Logos/no-logo.jpeg'" class="h-full w-full object-contain p-1">
         </div>
         <div class="grid min-w-0 flex-1 gap-2 sm:grid-cols-[1fr_120px]">
           <input id="adm-team-name-${team.id}" value="${escapeHtml(team.name)}" maxlength="60" aria-label="Nom de l’équipe" class="${MANAGE_INPUT_CLASS}">
