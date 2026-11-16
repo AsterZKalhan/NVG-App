@@ -157,7 +157,8 @@ function applyGameTeamSize() {
     if (hint) hint.textContent = '';
     return;
   }
-  const size = gameTeamSize(gameId);
+  // Jeu 1v1 en victoires (ex. Hearthstone) : une équipe de 5 joue 5 duels.
+  const size = gameById(gameId)?.scoring_mode === 'wins' && gameTeamSize(gameId) === 1 ? 5 : gameTeamSize(gameId);
   const select = $('tourTeamSize');
   if (size && select) select.value = String(size);
   if (hint) {
@@ -2180,18 +2181,54 @@ function adminStandardMatchCard(m, labelText = '') {
   if (exempt) {
     return `<div class="rounded-lg border border-[#1f293d] bg-[#07090e] p-2.5 text-[10px] text-gray-500">${labelText ? `${escapeHtml(labelText)} · ` : ''}${m.team_a || m.team_b ? `${escapeHtml(teamLabelById(m.team_a || m.team_b))} · exempt` : 'En attente des qualifiés'}</div>`;
   }
+  const t = tournamentById(m.tournament_id);
+  const mode = standardScoringMode(t);
+  const max = mode === 'bo3' ? 2 : mode === 'wins' ? standardDuelCount(t) : null;
+  const maxAttr = max ? `max="${max}"` : '';
   return `
     <div class="rounded-lg border border-[#1f293d] bg-[#121722] px-2.5 py-2">
       ${labelText ? `<p class="mb-1 text-[9px] font-black uppercase tracking-wider text-gray-500">${escapeHtml(labelText)}</p>` : ''}
       <div class="flex flex-wrap items-center gap-2">
         <span class="min-w-0 flex-1 truncate text-[10px] font-bold text-gray-200">${escapeHtml(teamLabelById(m.team_a))}</span>
-        <input id="std-m-${m.id}-a" type="number" min="0" value="${finished ? formatPoints(m.points_a) : ''}" aria-label="Score équipe A" class="w-14 rounded border border-[#1f293d] bg-[#07090e] px-1.5 py-1 text-center text-[11px] text-white">
+        <input id="std-m-${m.id}-a" type="number" min="0" ${maxAttr} value="${finished ? formatPoints(m.points_a) : ''}" aria-label="Score équipe A" class="w-14 rounded border border-[#1f293d] bg-[#07090e] px-1.5 py-1 text-center text-[11px] text-white">
         <span class="text-gray-500">–</span>
-        <input id="std-m-${m.id}-b" type="number" min="0" value="${finished ? formatPoints(m.points_b) : ''}" aria-label="Score équipe B" class="w-14 rounded border border-[#1f293d] bg-[#07090e] px-1.5 py-1 text-center text-[11px] text-white">
+        <input id="std-m-${m.id}-b" type="number" min="0" ${maxAttr} value="${finished ? formatPoints(m.points_b) : ''}" aria-label="Score équipe B" class="w-14 rounded border border-[#1f293d] bg-[#07090e] px-1.5 py-1 text-center text-[11px] text-white">
         <span class="min-w-0 flex-1 truncate text-right text-[10px] font-bold text-gray-200">${escapeHtml(teamLabelById(m.team_b))}</span>
         <button onclick="saveStandardMatchResult('${m.id}')" class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-300 transition hover:bg-amber-500/20">Enregistrer</button>
       </div>
     </div>`;
+}
+
+// Mode de score d'un tournoi standard = mode du jeu choisi (confrontation par défaut).
+function standardScoringMode(t) {
+  return gameById(t?.game_id)?.scoring_mode || 'versus';
+}
+
+// Nombre de duels 1v1 d'un tournoi « victoires » : la taille d'équipe du tournoi.
+function standardDuelCount(t) {
+  return Number(t?.team_min) || 5;
+}
+
+function standardScoreHint(t) {
+  const mode = standardScoringMode(t);
+  if (mode === 'cumulative') return 'Total de points de chaque équipe : le plus haut gagne.';
+  if (mode === 'wins') return `Duels 1v1 gagnés sur ${standardDuelCount(t)} : l’équipe qui en gagne le plus remporte le match.`;
+  if (mode === 'bo3') return 'Série BO3 entre binômes : 2–0 ou 2–1.';
+  return 'Score de chaque équipe.';
+}
+
+// Renvoie un message d'erreur si le score ne correspond pas au mode du jeu.
+function standardScoreRule(t, a, b) {
+  const mode = standardScoringMode(t);
+  if (mode === 'wins') {
+    const duels = standardDuelCount(t);
+    if (a + b > duels) return `Indique au plus ${duels} duels gagnés au total.`;
+    if (a + b === 0) return 'Indique au moins un duel gagné.';
+  }
+  if (mode === 'bo3' && !(Math.max(a, b) === 2 && Math.min(a, b) <= 1)) {
+    return 'Une série BO3 se termine 2–0 ou 2–1.';
+  }
+  return null;
 }
 
 // Envoie le vainqueur vers le match suivant et le perdant vers le repêchage.
@@ -2223,6 +2260,8 @@ async function saveStandardMatchResult(matchId) {
     return;
   }
   const t = tournamentById(match.tournament_id);
+  const rule = standardScoreRule(t, a, b);
+  if (rule) { notify(rule, true); return; }
   const elimination = match.phase !== 'pool';
   if (elimination && a === b) { notify('Pas d’égalité en élimination directe.', true); return; }
   if (!match.team_a || !match.team_b) { notify('Les deux équipes ne sont pas encore connues.', true); return; }
@@ -2253,7 +2292,7 @@ function renderStandardMatchPanel(t) {
   const teams = adminTeamsFor(t.id);
   const format = standardFormat(t);
   const generated = STANDARD_GENERATED_FORMATS.includes(format);
-  $('adminMatchSubtitle').textContent = `${t.name} · ${STANDARD_FORMAT_LABELS[format] || format} · ${teams.length} équipe(s) confirmée(s)`;
+  $('adminMatchSubtitle').textContent = `${t.name} · ${STANDARD_FORMAT_LABELS[format] || format} · ${teams.length} équipe(s) confirmée(s) · ${standardScoreHint(t)}`;
   $('adminMatchTools').innerHTML = `
     ${generated ? `<button onclick="generateStandardMatches('${t.id}')" class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-[10px] font-bold text-amber-300 transition hover:bg-amber-500/20">🏗️ ${format === 'swiss' ? 'Générer la ronde 1' : 'Générer les matchs'}</button>` : ''}
     ${format === 'swiss' && matches.length ? `<button onclick="generateSwissRound('${t.id}')" class="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold text-emerald-300 transition hover:bg-emerald-500/20">➕ Ronde suivante</button>` : ''}
