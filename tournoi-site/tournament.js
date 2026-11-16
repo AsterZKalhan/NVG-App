@@ -740,6 +740,7 @@ function openTournamentDetails(id, options = {}) {
 
       ${bo9FormatBlock(t)}
       ${bo9CompetitionBlock(t)}
+      ${isStandard(t) ? standardCompetitionBlock(t) : ''}
 
       <div>
         <h3 class="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">${trophyIcon('h-4 w-4 text-amber-400')} Récompenses</h3>
@@ -1628,6 +1629,7 @@ function renderAdminMatchPanel() {
   const panel = $('adminMatchPanel');
   if (!panel) return;
   const t = tournamentById(viewingMatchTournamentId);
+  if (t && isStandard(t)) { renderStandardMatchPanel(t); return; }
   const cfg = bo9Config(t);
   if (!t || !cfg) { panel.classList.add('hidden'); return; }
   const matches = tournamentMatches.filter((m) => m.tournament_id === t.id);
@@ -1689,9 +1691,340 @@ function bo9BracketAdmin(matches, cfg) {
     </div>` : ''}`;
 }
 
+// ---------------------------------------------------------------------------
+// Formats standard (jeu unique) : élimination directe, poules / championnat
+// en round robin. Les autres formats (double élimination, poules + élimination,
+// suisse) ne sont pas encore générés.
+// ---------------------------------------------------------------------------
+
+const STANDARD_GENERATED_FORMATS = ['single_elim', 'round_robin', 'league'];
+
+function isStandard(t) {
+  return t?.format_config?.type === 'standard';
+}
+
+function standardFormat(t) {
+  return t?.format_config?.format || 'single_elim';
+}
+
+async function generateStandardMatches(tournamentId) {
+  const t = tournamentById(tournamentId);
+  if (!t || !isStandard(t)) return;
+  const format = standardFormat(t);
+  if (!STANDARD_GENERATED_FORMATS.includes(format)) {
+    notify(`Le format « ${STANDARD_FORMAT_LABELS[format] || format} » n’est pas encore généré.`, true);
+    return;
+  }
+  const teams = adminTeamsFor(tournamentId);
+  if (teams.length < 2) { notify('Il faut au moins 2 équipes confirmées.', true); return; }
+  if (!window.confirm(`Générer les matchs (${STANDARD_FORMAT_LABELS[format]}) pour ${teams.length} équipes ?\n\nLes matchs existants seront effacés.`)) return;
+  const { error: delError } = await supabaseClient.from('nvg_tournament_matches').delete().eq('tournament_id', tournamentId);
+  if (delError) { notify('Erreur : ' + delError.message, true); return; }
+  const error = format === 'single_elim'
+    ? await insertStandardBracket(tournamentId, teams)
+    : await insertStandardRoundRobin(tournamentId, teams, format === 'league');
+  if (error) { notify('Erreur : ' + error.message, true); return; }
+  notify('Matchs générés.');
+  await loadMatchesOnly();
+  renderAdminMatchPanel();
+}
+
+async function insertStandardRoundRobin(tournamentId, teams, doubleLeg) {
+  const rounds = roundRobinRounds(teams);
+  const rows = [];
+  const legs = doubleLeg ? [false, true] : [false];
+  legs.forEach((reverse, leg) => {
+    rounds.forEach((round, ri) => {
+      round.forEach((pair, pi) => {
+        if (!pair[0] || !pair[1]) return;
+        const [a, b] = reverse ? [pair[1], pair[0]] : pair;
+        rows.push({
+          tournament_id: tournamentId,
+          phase: 'pool',
+          round: leg * rounds.length + ri + 1,
+          position: pi + 1,
+          group_name: 'A',
+          label: doubleLeg && leg ? 'Retour' : 'Aller',
+          team_a: a.id,
+          team_b: b.id,
+          status: 'scheduled'
+        });
+      });
+    });
+  });
+  const { error } = await supabaseClient.from('nvg_tournament_matches').insert(rows);
+  return error;
+}
+
+// Élimination directe avec exemptions : la taille du tableau est la puissance
+// de 2 supérieure ou égale au nombre d'équipes. Un match avec une exemption est
+// enregistré terminé et son vainqueur monte directement au tour suivant.
+async function insertStandardBracket(tournamentId, teams) {
+  const shuffled = [...teams];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  let size = 2;
+  while (size < shuffled.length) size *= 2;
+  const seedOf = (seed) => shuffled[seed - 1] || null;
+  const order = bracketSeedOrder(size);
+  const firstRound = [];
+  for (let i = 0; i < size; i += 2) firstRound.push([seedOf(order[i]), seedOf(order[i + 1])]);
+  const totalRounds = Math.log2(size);
+  let previous = [];
+  for (let round = 1; round <= totalRounds; round += 1) {
+    const count = size / (2 ** round);
+    const rows = [];
+    for (let pos = 1; pos <= count; pos += 1) {
+      const pair = round === 1 ? firstRound[pos - 1] : [null, null];
+      const bye = round === 1 && (!pair[0] || !pair[1]);
+      const winner = bye ? (pair[0] || pair[1]) : null;
+      rows.push({
+        tournament_id: tournamentId,
+        phase: 'bracket',
+        round,
+        position: pos,
+        label: bracketRoundLabel(round, totalRounds),
+        status: bye ? 'finished' : 'scheduled',
+        team_a: pair[0]?.id || null,
+        team_b: pair[1]?.id || null,
+        winner_team: winner?.id || null
+      });
+    }
+    const { data, error } = await supabaseClient.from('nvg_tournament_matches').insert(rows).select('id,position,winner_team');
+    if (error) return error;
+    for (const prev of previous) {
+      const target = data.find((x) => x.position === Math.floor((prev.position - 1) / 2) + 1);
+      if (!target) continue;
+      const column = prev.position % 2 === 1 ? 'team_a' : 'team_b';
+      const update = { next_match_id: target.id, next_slot: prev.position % 2 === 1 ? 'a' : 'b' };
+      const { error: linkError } = await supabaseClient.from('nvg_tournament_matches').update(update).eq('id', prev.id);
+      if (linkError) return linkError;
+      if (prev.winner_team) {
+        const { error: byeError } = await supabaseClient.from('nvg_tournament_matches')
+          .update({ [column]: prev.winner_team }).eq('id', target.id);
+        if (byeError) return byeError;
+      }
+    }
+    previous = data;
+  }
+  return null;
+}
+
+// Classement d'une phase en round robin : victoire 3, nul 1, défaite 0.
+function standardStandings(matches) {
+  const rows = new Map();
+  const ensure = (id) => {
+    if (!id) return null;
+    if (!rows.has(id)) rows.set(id, { id, played: 0, wins: 0, draws: 0, losses: 0, points: 0, scored: 0, conceded: 0 });
+    return rows.get(id);
+  };
+  const poolMatches = matches.filter((m) => m.phase === 'pool');
+  poolMatches.forEach((m) => { ensure(m.team_a); ensure(m.team_b); });
+  poolMatches.filter((m) => m.status === 'finished').forEach((m) => {
+    const a = ensure(m.team_a);
+    const b = ensure(m.team_b);
+    if (!a || !b) return;
+    const pa = Number(m.points_a) || 0;
+    const pb = Number(m.points_b) || 0;
+    a.played += 1; b.played += 1;
+    a.scored += pa; a.conceded += pb;
+    b.scored += pb; b.conceded += pa;
+    if (pa > pb) { a.wins += 1; a.points += 3; b.losses += 1; }
+    else if (pb > pa) { b.wins += 1; b.points += 3; a.losses += 1; }
+    else { a.draws += 1; b.draws += 1; a.points += 1; b.points += 1; }
+  });
+  return [...rows.values()].sort((x, y) => y.points - x.points
+    || (y.scored - y.conceded) - (x.scored - x.conceded)
+    || y.scored - x.scored);
+}
+
+function standardStandingsTable(matches) {
+  const rows = standardStandings(matches);
+  if (!rows.length) return '';
+  return `
+    <div class="overflow-hidden rounded-xl border border-[#1f293d] bg-[#07090e]">
+      <table class="w-full text-[10px]">
+        <thead class="bg-white/5 text-gray-400">
+          <tr>
+            <th class="px-2 py-1 text-left font-black">Équipe</th>
+            <th class="px-1 py-1 text-center font-black">J</th>
+            <th class="px-1 py-1 text-center font-black">V</th>
+            <th class="px-1 py-1 text-center font-black">N</th>
+            <th class="px-1 py-1 text-center font-black">D</th>
+            <th class="px-2 py-1 text-center font-black">Pts</th>
+            <th class="px-2 py-1 text-right font-black">Diff.</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((r) => `<tr class="border-t border-[#1f293d]">
+            <td class="truncate px-2 py-1 font-bold text-gray-200">${escapeHtml(teamLabelById(r.id))}</td>
+            <td class="px-1 py-1 text-center text-gray-400">${r.played}</td>
+            <td class="px-1 py-1 text-center text-gray-400">${r.wins}</td>
+            <td class="px-1 py-1 text-center text-gray-400">${r.draws}</td>
+            <td class="px-1 py-1 text-center text-gray-400">${r.losses}</td>
+            <td class="px-2 py-1 text-center font-black text-white">${r.points}</td>
+            <td class="px-2 py-1 text-right ${r.scored - r.conceded >= 0 ? 'text-emerald-400' : 'text-red-400'}">${r.scored - r.conceded > 0 ? '+' : ''}${formatPoints(r.scored - r.conceded)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function standardMatchScore(m) {
+  if (m.status !== 'finished') return '—';
+  return `${formatPoints(m.points_a)} — ${formatPoints(m.points_b)}`;
+}
+
+function standardPublicMatchCard(m, labelText = '') {
+  const finished = m.status === 'finished';
+  const exempt = !m.team_a || !m.team_b;
+  const winnerA = finished && m.winner_team && m.winner_team === m.team_a;
+  const winnerB = finished && m.winner_team && m.winner_team === m.team_b;
+  return `
+    <div class="rounded-lg border border-[#1f293d] bg-[#07090e] p-2.5">
+      ${labelText ? `<p class="text-[9px] font-black uppercase tracking-wider text-gray-500">${escapeHtml(labelText)}</p>` : ''}
+      <div class="mt-0.5 flex items-center justify-between gap-2">
+        <div class="min-w-0 space-y-0.5">
+          <p class="truncate text-[11px] font-bold ${winnerA ? 'text-emerald-300' : 'text-gray-200'}">${escapeHtml(teamLabelById(m.team_a))}</p>
+          <p class="truncate text-[11px] font-bold ${winnerB ? 'text-emerald-300' : 'text-gray-200'}">${escapeHtml(teamLabelById(m.team_b))}</p>
+        </div>
+        <p class="shrink-0 text-sm font-black ${finished ? 'text-white' : 'text-gray-500'}">${exempt && !m.team_a && !m.team_b ? '' : standardMatchScore(m)}</p>
+      </div>
+      ${exempt && (m.team_a || m.team_b) ? '<p class="mt-1 text-[9px] text-gray-500">Exempt</p>' : ''}
+    </div>`;
+}
+
+function standardCompetitionBlock(t) {
+  const matches = tournamentMatches.filter((m) => m.tournament_id === t.id);
+  if (!matches.length) return '';
+  const format = standardFormat(t);
+  const pools = matches.filter((m) => m.phase === 'pool');
+  const bracket = matches.filter((m) => m.phase === 'bracket');
+  const rounds = [...new Set(bracket.map((m) => m.round))].sort((a, b) => a - b);
+  const totalRounds = rounds.length ? Math.max(...rounds) : 0;
+  return `
+    <div class="space-y-4">
+      ${pools.length ? `<div>
+        <h3 class="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">🏟️ Classement</h3>
+        ${standardStandingsTable(matches)}
+        <div class="mt-2 grid gap-2 sm:grid-cols-2">
+          ${pools.sort((a, b) => a.round - b.round || a.position - b.position).map((m) => standardPublicMatchCard(m, `${m.label || 'Match'} · Journée ${m.round}`)).join('')}
+        </div>
+      </div>` : ''}
+      ${bracket.length ? `<div>
+        <h3 class="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">🏆 ${escapeHtml(STANDARD_FORMAT_LABELS[format] || 'Tableau')}</h3>
+        <div class="space-y-3">
+          ${rounds.map((round) => `<div>
+            <p class="mb-1.5 text-[10px] font-black uppercase tracking-wider text-gray-400">${escapeHtml(bracketRoundLabel(round, totalRounds))}</p>
+            <div class="grid gap-2 sm:grid-cols-2">
+              ${bracket.filter((m) => m.round === round).sort((a, b) => a.position - b.position).map((m) => standardPublicMatchCard(m)).join('')}
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>` : ''}
+    </div>`;
+}
+
+function adminStandardMatchCard(m, labelText = '') {
+  const finished = m.status === 'finished';
+  const exempt = !m.team_a || !m.team_b;
+  if (exempt) {
+    return `<div class="rounded-lg border border-[#1f293d] bg-[#07090e] p-2.5 text-[10px] text-gray-500">${labelText ? `${escapeHtml(labelText)} · ` : ''}${m.team_a || m.team_b ? `${escapeHtml(teamLabelById(m.team_a || m.team_b))} · exempt` : 'En attente des qualifiés'}</div>`;
+  }
+  return `
+    <div class="rounded-lg border border-[#1f293d] bg-[#121722] px-2.5 py-2">
+      ${labelText ? `<p class="mb-1 text-[9px] font-black uppercase tracking-wider text-gray-500">${escapeHtml(labelText)}</p>` : ''}
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="min-w-0 flex-1 truncate text-[10px] font-bold text-gray-200">${escapeHtml(teamLabelById(m.team_a))}</span>
+        <input id="std-m-${m.id}-a" type="number" min="0" value="${finished ? formatPoints(m.points_a) : ''}" aria-label="Score équipe A" class="w-14 rounded border border-[#1f293d] bg-[#07090e] px-1.5 py-1 text-center text-[11px] text-white">
+        <span class="text-gray-500">–</span>
+        <input id="std-m-${m.id}-b" type="number" min="0" value="${finished ? formatPoints(m.points_b) : ''}" aria-label="Score équipe B" class="w-14 rounded border border-[#1f293d] bg-[#07090e] px-1.5 py-1 text-center text-[11px] text-white">
+        <span class="min-w-0 flex-1 truncate text-right text-[10px] font-bold text-gray-200">${escapeHtml(teamLabelById(m.team_b))}</span>
+        <button onclick="saveStandardMatchResult('${m.id}')" class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-300 transition hover:bg-amber-500/20">Enregistrer</button>
+      </div>
+    </div>`;
+}
+
+async function saveStandardMatchResult(matchId) {
+  const match = tournamentMatches.find((m) => m.id === matchId);
+  if (!match) return;
+  const aEl = $(`std-m-${matchId}-a`);
+  const bEl = $(`std-m-${matchId}-b`);
+  if (!aEl || !bEl) return;
+  if (aEl.value === '' || bEl.value === '') { notify('Indique le score des deux équipes.', true); return; }
+  const a = Number(aEl.value);
+  const b = Number(bEl.value);
+  if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0) {
+    notify('Les scores doivent être des entiers positifs.', true);
+    return;
+  }
+  const t = tournamentById(match.tournament_id);
+  const elimination = standardFormat(t) === 'single_elim' && match.phase === 'bracket';
+  if (elimination && a === b) { notify('Pas d’égalité en élimination directe.', true); return; }
+  if (!match.team_a || !match.team_b) { notify('Les deux équipes ne sont pas encore connues.', true); return; }
+  const next = match.next_match_id ? tournamentMatches.find((m) => m.id === match.next_match_id) : null;
+  if (match.status === 'finished' && next && next.status === 'finished') {
+    notify('Le match suivant est déjà joué : le résultat ne peut plus être modifié.', true);
+    return;
+  }
+  const winner = a > b ? match.team_a : b > a ? match.team_b : null;
+  const loser = a > b ? match.team_b : a < b ? match.team_a : null;
+  const patch = {
+    points_a: a,
+    points_b: b,
+    winner_team: winner,
+    status: 'finished',
+    updated_at: new Date().toISOString()
+  };
+  const { error } = await supabaseClient.from('nvg_tournament_matches').update(patch).eq('id', matchId);
+  if (error) { notify('Erreur : ' + error.message, true); return; }
+  if (elimination) await advanceBo9Match({ ...match, ...patch }, loser);
+  notify('Score enregistré.');
+  await loadMatchesOnly();
+  renderAdminMatchPanel();
+}
+
+function renderStandardMatchPanel(t) {
+  const matches = tournamentMatches.filter((m) => m.tournament_id === t.id);
+  const teams = adminTeamsFor(t.id);
+  const format = standardFormat(t);
+  const generated = STANDARD_GENERATED_FORMATS.includes(format);
+  $('adminMatchSubtitle').textContent = `${t.name} · ${STANDARD_FORMAT_LABELS[format] || format} · ${teams.length} équipe(s) confirmée(s)`;
+  $('adminMatchTools').innerHTML = `
+    ${generated ? `<button onclick="generateStandardMatches('${t.id}')" class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-[10px] font-bold text-amber-300 transition hover:bg-amber-500/20">🏗️ Générer les matchs</button>` : ''}
+    ${matches.length ? `<button onclick="deleteBo9Matches('${t.id}')" class="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-[10px] font-bold text-red-300 transition hover:bg-red-500/20">🗑️ Effacer les matchs</button>` : ''}
+    ${!generated ? '<span class="text-[10px] text-gray-500">Ce format n’est pas encore généré.</span>' : ''}
+  `;
+  if (!matches.length) {
+    $('adminMatchBody').innerHTML = `<p class="rounded-xl border border-[#1f293d] bg-[#07090e] p-3 text-xs text-gray-400">Aucun match. Génère les matchs dès que les équipes sont confirmées.</p>`;
+  } else {
+    const pools = matches.filter((m) => m.phase === 'pool').sort((a, b) => a.round - b.round || a.position - b.position);
+    const bracket = matches.filter((m) => m.phase === 'bracket');
+    const rounds = [...new Set(bracket.map((m) => m.round))].sort((a, b) => a - b);
+    const totalRounds = rounds.length ? Math.max(...rounds) : 0;
+    $('adminMatchBody').innerHTML = `
+      ${pools.length ? `<div class="space-y-2">
+        <h3 class="text-xs font-black uppercase tracking-wider text-white">🏟️ Matchs</h3>
+        ${standardStandingsTable(matches)}
+        <div class="space-y-1.5">${pools.map((m) => adminStandardMatchCard(m, `${m.label || 'Match'} · Journée ${m.round}`)).join('')}</div>
+      </div>` : ''}
+      ${bracket.length ? `<div class="space-y-2">
+        <h3 class="text-xs font-black uppercase tracking-wider text-white">🏆 Tableau</h3>
+        ${rounds.map((round) => `<div>
+          <p class="mb-1 text-[10px] font-black uppercase tracking-wider text-gray-400">${escapeHtml(bracketRoundLabel(round, totalRounds))}</p>
+          <div class="grid gap-1.5 sm:grid-cols-2">${bracket.filter((m) => m.round === round).sort((a, b) => a.position - b.position).map((m) => adminStandardMatchCard(m)).join('')}</div>
+        </div>`).join('')}
+      </div>` : ''}`;
+  }
+  $('adminMatchPanel').classList.remove('hidden');
+  $('adminMatchPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 async function showAdminMatchPanel(tournamentId) {
   const t = tournamentById(tournamentId);
-  if (!t || !isBo9(t)) { notify('Ce tournoi n’utilise pas le format BO9.', true); return; }
+  if (!t || !(isBo9(t) || isStandard(t))) { notify('Ce tournoi n’a pas de matchs à gérer.', true); return; }
   viewingMatchTournamentId = tournamentId;
   await loadMatchesOnly();
   renderAdminMatchPanel();
@@ -2390,7 +2723,7 @@ function renderAdminTournaments() {
             <p class="text-[10px] text-gray-500">${escapeHtml(tournamentGamesLabel(t))} · ${t.published ? 'publié' : 'masqué'}${t.toornament_id ? ' · Toornament lié' : ''} · ${escapeHtml(feeLabel(t))}</p>
           </div>
           <div class="flex flex-wrap items-center gap-1.5">
-            ${isBo9(t) ? `<button onclick="showAdminMatchPanel('${t.id}')" class="rounded-lg border border-sky-500/40 bg-sky-500/10 px-2 py-1 text-[10px] font-bold text-sky-300 transition hover:bg-sky-500/20">⚔️ Gérer</button>` : ''}
+            ${isBo9(t) || isStandard(t) ? `<button onclick="showAdminMatchPanel('${t.id}')" class="rounded-lg border border-sky-500/40 bg-sky-500/10 px-2 py-1 text-[10px] font-bold text-sky-300 transition hover:bg-sky-500/20">⚔️ Gérer</button>` : ''}
             <button onclick="showAdminRegs('${t.id}')" class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-300 transition hover:bg-amber-500/20">📋 Voir les inscriptions</button>
             <select onchange="setTournamentStatus('${t.id}', this.value)" class="bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-1 text-[10px] text-white">
               ${Object.entries(STATUS_LABELS).map(([k, v]) => `<option value="${k}" ${k === t.status ? 'selected' : ''}>${v}</option>`).join('')}
