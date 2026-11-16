@@ -571,10 +571,16 @@
               <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Clôture des inscriptions</span>
               <input id="tourClose" type="datetime-local" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
             </label>
-            <label class="sm:col-span-2 block">
-              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Bannière (URL, facultatif)</span>
-              <input id="tourBanner" placeholder="Vide = bannière du jeu" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-            </label>
+            <div class="sm:col-span-2 block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Bannière (URL ou image, facultatif)</span>
+              <div class="flex flex-wrap items-center gap-2">
+                <input id="tourBanner" placeholder="Vide = bannière du jeu" class="min-w-0 flex-1 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+                <label class="cursor-pointer rounded-lg border border-[#1f293d] bg-white/5 px-3 py-2.5 text-[10px] font-bold text-gray-300 transition hover:bg-white/10">
+                  📤 Téléverser
+                  <input id="tourBannerFile" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="uploadTournamentBanner('tourBanner', 'tourName', this)">
+                </label>
+              </div>
+            </div>
             <label class="sm:col-span-2 block">
               <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Lien Toornament</span>
               <input id="tourToornament" placeholder="https://www.toornament.com/…" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
@@ -657,10 +663,16 @@
             <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Clôture des inscriptions</span>
             <input id="editClose" type="datetime-local" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
           </label>
-          <label class="sm:col-span-2 block">
-            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Bannière (URL, facultatif)</span>
-            <input id="editBanner" placeholder="Vide = bannière du jeu" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
-          </label>
+          <div class="sm:col-span-2 block">
+            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Bannière (URL ou image, facultatif)</span>
+            <div class="flex flex-wrap items-center gap-2">
+              <input id="editBanner" placeholder="Vide = bannière du jeu" class="min-w-0 flex-1 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+              <label class="cursor-pointer rounded-lg border border-[#1f293d] bg-white/5 px-3 py-2.5 text-[10px] font-bold text-gray-300 transition hover:bg-white/10">
+                📤 Téléverser
+                <input id="editBannerFile" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="uploadTournamentBanner('editBanner', 'editName', this)">
+              </label>
+            </div>
+          </div>
           <label class="sm:col-span-2 block">
             <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Lien Toornament</span>
             <input id="editToornament" placeholder="https://www.toornament.com/…" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">

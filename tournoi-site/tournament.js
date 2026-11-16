@@ -3512,6 +3512,33 @@ async function uploadGameImage(kind, input) {
   }
 }
 
+// Bannière de tournoi : image téléversée dans le même bucket que les visuels de jeux,
+// dans le dossier `tournois/`. Le lien obtenu remplit le champ d'URL.
+async function uploadTournamentBanner(urlFieldId, nameFieldId, input) {
+  const file = input?.files?.[0];
+  if (!file) return;
+  try {
+    if (!currentUser || !isAdmin) throw new Error('connecte-toi avec un compte administrateur.');
+    if (file.size > 4 * 1024 * 1024) throw new Error('image trop lourde (4 Mo maximum).');
+    if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) throw new Error('format accepté : PNG, JPG ou WebP.');
+    const name = $(nameFieldId)?.value.trim() || 'tournoi';
+    const ext = /png/i.test(file.type) ? 'png' : /webp/i.test(file.type) ? 'webp' : 'jpg';
+    const path = `tournois/${slugify(name)}-banniere-${Date.now()}.${ext}`;
+    notify('Envoi de la bannière…');
+    const { error } = await supabaseClient.storage
+      .from(GAME_IMG_BUCKET)
+      .upload(path, file, { cacheControl: '3600', contentType: file.type });
+    if (error) throw error;
+    const { data } = supabaseClient.storage.from(GAME_IMG_BUCKET).getPublicUrl(path);
+    $(urlFieldId).value = data.publicUrl;
+    notify('Bannière envoyée.');
+  } catch (err) {
+    notify('Envoi impossible : ' + (err.message || err), true);
+  } finally {
+    if (input) input.value = '';
+  }
+}
+
 async function saveGame() {
   const name = $('gameName').value.trim();
   if (!name) { notify('Saisis un nom de jeu.', true); return; }
