@@ -74,7 +74,7 @@ Tables (préfixe `nvg_tournament_`) :
 
 | Table | Rôle |
 |---|---|
-| `nvg_tournament_games` | jeux proposés (nom, slug, **joueurs par équipe** `team_size`, **mode de score** `scoring_mode` `versus`/`cumulative`/`wins`, logo, bannière) |
+| `nvg_tournament_games` | jeux proposés (nom, slug, **joueurs par équipe** `team_size`, **mode de score** `scoring_mode` `versus`/`cumulative`/`wins`/`none`, **format 2v2** `pair_format` `two_bo1`/`bo3`, logo, bannière) |
 | `nvg_tournaments` | tournois : mode `solo`/`team`, format `online`/`lan`/`both`, taille d'équipe, places (`max_participants`), prix (1re/2e/3e place), dates, statut, publication, frais et consignes de paiement |
 | `nvg_tournament_teams` | équipes : nom, tag, capitaine, code d'invitation unique |
 | `nvg_tournament_team_members` | appartenance joueur ↔ équipe, rôle `captain`/`member` |
@@ -132,7 +132,9 @@ Chaque jeu décrit aussi son **mode de score** dans **Admin → 🎮 Jeux** :
 - **Victoires individuelles** : chaque joueur affronte son homologue en 1v1
   (A1–B1, A2–B2, A3–B3…), par exemple Hearthstone sur 5 joueurs. L'admin saisit
   le **nombre de duels gagnés par équipe** ; l'équipe qui en gagne le plus
-  remporte le jeu. En cas d'égalité, les points du jeu sont partagés.
+  remporte le jeu. En cas d'égalité, les points du jeu sont partagés ;
+- **Aucun** : le mode n'a pas été précisé. Le jeu se comporte comme une
+  confrontation classique (badge **Aucun** dans la liste des jeux).
 
 En **cumul**, le site ne saisit pas les classements individuels joueur par
 joueur : c'est le total d'équipe qui compte. Le reste du barème, le seuil de
@@ -156,6 +158,17 @@ sont partagés. Le vainqueur du jeu empoche la totalité des points du slot
 (3 points en Classique, 5 en All-In), sans partage. Le détail public affiche le
 score des binômes (`2 — 0` ou `1 — 2`, marqué **2v2 · finale** si nécessaire).
 Le mode est figé dans `format_config.games[].pair_mode` à la création du BO9.
+
+Le jeu peut être réglé sur **deux formats** (`nvg_tournament_games.pair_format`,
+recopié dans `format_config.games[].pair_format`) :
+
+- **`two_bo1`** (défaut) : les deux BO1 de binômes, puis un départage 2v2 en
+  BO1 si 1–1 ;
+- **`bo3`** (« BO3 2v2 ») : les deux BO1 de binômes, puis le départage 2v2 en
+  **BO3** (premier à 2 manches). L'admin choisit le score du départage
+  (`2–0`, `2–1`, `1–2` ou `0–2`) ; le vainqueur empoche le slot. Le détail
+  public affiche le score des binômes et, entre parenthèses, le score du
+  départage (marqué **2v2 · BO3**).
 
 ### Victoires individuelles (Hearthstone…)
 
@@ -361,7 +374,7 @@ menus :
 | Menu | Contenu |
 |---|---|
 | **👥 Joueurs** | recherche par pseudo, nom ou e-mail ; modification du pseudo, du prénom, du nom et de la date de naissance ; nombre d'inscriptions par joueur. Les rangs et rôles restent gérés dans l'application NVG. |
-| **🎮 Jeux** | création et modification d'un jeu (nom, **joueurs par équipe 1–6**, **mode de score confrontation/cumul/victoires**, logo et bannière téléversés ou URL externe). |
+| **🎮 Jeux** | création et modification d'un jeu (nom, **joueurs par équipe 1–6**, **mode de score confrontation/cumul/victoires/aucun**, **format 2v2 BO1 ou BO3**, logo et bannière téléversés ou URL externe). |
 | **➕ Nouveau tournoi** | formulaire complet de création (format du tournoi jeu unique ou BO9, jeu(x), format de jeu 1–6, type, statut, slots, frais, podium, dates, visuels, Toornament, paiement, description, publication). En BO9 : 9 jeux par catégorie, mode de points, poules et options de compétition. |
 | **📋 Gestion des tournois** | liste filtrable (tous / en cours et ouverts / brouillons / terminés et annulés) avec barre de remplissage, changement de statut, modification, suppression, accès aux inscriptions et bouton **⚔️ Gérer** pour les tournois BO9. |
 
