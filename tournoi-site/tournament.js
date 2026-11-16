@@ -2132,6 +2132,34 @@ function standardStandingsTable(matches) {
     </div>`;
 }
 
+// Filtres des matchs de poule : par poule et par journée.
+function standardPoolFilters(scopeId, matches) {
+  const groups = [...new Set(matches.map((m) => m.group_name).filter(Boolean))].sort();
+  const rounds = [...new Set(matches.map((m) => m.round))].sort((a, b) => a - b);
+  const select = 'rounded-lg border border-[#1f293d] bg-[#07090e] px-2 py-1.5 text-[10px] font-bold text-white';
+  return `<div class="flex flex-wrap items-center gap-2">
+    ${groups.length > 1 ? `<select data-filter="group" onchange="filterStandardPools('${scopeId}')" class="${select}" aria-label="Filtrer par poule">
+      <option value="all">Toutes les poules</option>
+      ${groups.map((g) => `<option value="${escapeHtml(g)}">Poule ${escapeHtml(g)}</option>`).join('')}
+    </select>` : ''}
+    <select data-filter="round" onchange="filterStandardPools('${scopeId}')" class="${select}" aria-label="Filtrer par journée">
+      <option value="all">Toutes les journées</option>
+      ${rounds.map((r) => `<option value="${r}">Journée ${r}</option>`).join('')}
+    </select>
+  </div>`;
+}
+
+function filterStandardPools(scopeId) {
+  const root = document.getElementById(scopeId);
+  if (!root) return;
+  const group = root.querySelector('[data-filter="group"]')?.value || 'all';
+  const round = root.querySelector('[data-filter="round"]')?.value || 'all';
+  root.querySelectorAll('[data-pool-item]').forEach((el) => {
+    const visible = (group === 'all' || el.dataset.group === group) && (round === 'all' || el.dataset.round === round);
+    el.style.display = visible ? '' : 'none';
+  });
+}
+
 // Un classement par poule s'il y a plusieurs poules, sinon un seul classement.
 function standardStandingsBlocks(matches) {
   const groups = [...new Set(matches.filter((m) => m.phase === 'pool').map((m) => m.group_name))].sort();
@@ -2206,8 +2234,11 @@ function standardCompetitionBlock(t) {
       ${pools.length ? `<div>
         <h3 class="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">🏟️ Classement</h3>
         ${standardStandingsBlocks(matches)}
-        <div class="mt-2 grid gap-2 sm:grid-cols-2">
-          ${pools.sort((a, b) => a.round - b.round || a.position - b.position).map((m) => standardPublicMatchCard(m, `${m.label || 'Match'} · Journée ${m.round}`)).join('')}
+        <div id="stdPoolsPublic" class="mt-2 space-y-2">
+          ${standardPoolFilters('stdPoolsPublic', pools)}
+          <div class="grid gap-2 sm:grid-cols-2">
+            ${pools.sort((a, b) => a.round - b.round || a.position - b.position).map((m) => `<div data-pool-item data-group="${escapeHtml(m.group_name || '')}" data-round="${m.round}">${standardPublicMatchCard(m, `${m.label || 'Match'} · Journée ${m.round}`)}</div>`).join('')}
+          </div>
         </div>
       </div>` : ''}
       ${bracket.length ? `<div class="space-y-3">
@@ -2531,7 +2562,10 @@ function renderStandardMatchPanel(t) {
       ${pools.length ? `<div class="space-y-2">
         <h3 class="text-xs font-black uppercase tracking-wider text-white">🏟️ Matchs</h3>
         ${standardStandingsBlocks(matches)}
-        <div class="space-y-1.5">${pools.map((m) => adminStandardMatchCard(m, `${m.label || 'Match'} · Journée ${m.round}`)).join('')}</div>
+        <div id="stdPoolsAdmin" class="space-y-2">
+          ${standardPoolFilters('stdPoolsAdmin', pools)}
+          <div class="space-y-1.5">${pools.map((m) => `<div data-pool-item data-group="${escapeHtml(m.group_name || '')}" data-round="${m.round}">${adminStandardMatchCard(m, `${m.label || 'Match'} · Journée ${m.round}`)}</div>`).join('')}</div>
+        </div>
       </div>` : ''}
       ${bracket.length ? `<div class="space-y-2">
         <h3 class="text-xs font-black uppercase tracking-wider text-white">🏆 Tableau</h3>
