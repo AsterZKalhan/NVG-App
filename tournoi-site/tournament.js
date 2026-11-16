@@ -3841,7 +3841,13 @@ function adminTeamCard(team, teamMax) {
           📤 Téléverser le logo
           <input type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="uploadTournamentImage('teamlogo', 'adm-team-logo-${team.id}', 'adm-team-name-${team.id}', this)">
         </label>
-        <span class="text-[10px] text-gray-500">Code : <strong class="text-amber-300">${escapeHtml(team.invite_code)}</strong> · ${members.length}/${teamMax} joueurs</span>
+        <span class="text-[10px] text-gray-500">${members.length}/${teamMax} joueurs</span>
+        <div class="flex w-full flex-wrap items-center gap-2">
+          <span class="text-[10px] font-bold text-gray-400">Code</span>
+          <strong class="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-300">${escapeHtml(team.invite_code)}</strong>
+          <input readonly value="${escapeHtml(inviteUrl(team.invite_code))}" aria-label="Lien d’invitation" class="${MANAGE_INPUT_CLASS} min-w-[180px] flex-1 text-[10px] text-gray-400">
+          <button onclick="copyText('${escapeHtml(inviteUrl(team.invite_code))}')" class="rounded-lg border border-[#1f293d] bg-white/5 px-2 py-1 text-[10px] font-bold text-gray-300 transition hover:bg-white/10">Copier le lien</button>
+        </div>
         ${team.logo_url ? `<button onclick="adminClearTeamLogo('${team.id}')" class="rounded-lg border border-[#1f293d] bg-white/5 px-2 py-1 text-[10px] font-bold text-gray-300 transition hover:bg-white/10">Retirer le logo</button>` : ''}
         <button onclick="adminDeleteTeam('${team.id}')" class="ml-auto rounded-lg border border-red-600/40 bg-red-600/20 px-2 py-1 text-[10px] font-bold text-red-400 transition hover:bg-red-600 hover:text-white">Supprimer l’équipe</button>
       </div>
