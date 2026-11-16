@@ -416,9 +416,9 @@
         <button onclick="showTab('shop')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap">
           👕 Boutique
         </button>
-        <a href="https://letournoides9mondes.nvg-tv.com/" target="_blank" rel="noopener" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap">
+        <button onclick="showTab('tournoi9')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap">
           🏆 Tournoi des 9 Mondes
-        </a>
+        </button>
         <button id="navBotBtn" onclick="showTab('bot')" class="nav-btn px-4 py-2.5 rounded-xl text-xs font-bold text-left hover:bg-white/5 transition flex items-center gap-2.5 whitespace-nowrap hidden">
           🤖 <span class="flex flex-col leading-tight"><span>Bot Discord</span><span class="italic text-[10px] font-normal opacity-70">(Staff &amp; Admin)</span></span>
         </button>
@@ -736,6 +736,12 @@
       </div>
     </section>
     <!-- ONGLET ADMINISTRATION -->
+    <section id="tournoi9" class="tab-content hidden space-y-6">
+      <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-4">
+        <h2 class="text-sm font-black text-white">🏆 Tournoi des 9 Mondes</h2>
+        <div id="t9Body" class="space-y-4"></div>
+      </div>
+    </section>
     <section id="shop" class="tab-content hidden space-y-6">
       <h2 class="text-xl font-black text-white uppercase">Boutique NVG</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -999,6 +1005,7 @@
   <script src="games.js"></script>
   <script src="streams.js"></script>
   <script src="videos.js"></script>
+  <script src="tournoi9.js"></script>
   <script src="contact.js"></script>
   <script src="notifications.js"></script>
   <script src="users.js"></script>

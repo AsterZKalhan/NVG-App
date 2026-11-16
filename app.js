@@ -249,6 +249,10 @@ function showTab(tabId) {
     loadVideos();
   }
 
+  if (tabId === 'tournoi9' && typeof loadTournoi9 === 'function') {
+    loadTournoi9();
+  }
+
   // Rafraîchit les destinations (Nieuwheim / événements à venir) à l'ouverture de l'onglet Jeux.
   if (tabId === 'games' && typeof refreshGamesTab === 'function') {
     refreshGamesTab();
