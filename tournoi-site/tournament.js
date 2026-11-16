@@ -1681,7 +1681,7 @@ function renderAdminMatchPanel() {
   if (!matches.length) {
     $('adminMatchBody').innerHTML = `<p class="rounded-xl border border-[#1f293d] bg-[#07090e] p-3 text-xs text-gray-400">Aucun match. Génère les poules dès que les ${needed} équipes sont confirmées. Les inscriptions en équipe se font depuis la fiche du tournoi.</p>`;
     panel.classList.remove('hidden');
-    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
     return;
   }
   $('adminMatchBody').innerHTML = `
@@ -1702,7 +1702,7 @@ function renderAdminMatchPanel() {
     </div>` : ''}
   `;
   panel.classList.remove('hidden');
-  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
 }
 
 function bo9BracketAdmin(matches, cfg) {
@@ -2670,7 +2670,7 @@ function renderStandardMatchPanel(t) {
       </div>` : ''}`;
   }
   $('adminMatchPanel').classList.remove('hidden');
-  $('adminMatchPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
   applyAdminView();
 }
 
@@ -3368,7 +3368,7 @@ async function loadAdmin() {
       .order('created_at', { ascending: false })
       .limit(500),
     supabaseClient.from('nvg_tournament_players')
-      .select('tournament_id,user_id,platform_id,joined_at,payment_status,payment_reference,paid_at,nvg_users(name)')
+      .select('tournament_id,user_id,platform_id,joined_at,payment_status,payment_reference,paid_at,nvg_users(name,first_name,last_name,email)')
       .order('joined_at', { ascending: false })
       .limit(2000)
   ]);
@@ -3717,6 +3717,7 @@ function selectAdminTab(name) {
   const t = tournamentById(adminSelectedTournamentId);
   if (!t) return;
   adminTab = adminTabsFor(t).some((tab) => tab.key === name) ? name : 'manage';
+  $('adminWorkspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   if (adminTab === 'players' || adminTab === 'teams') {
     viewingTeamsTournamentId = t.id;
     renderAdminTeams();
@@ -3823,8 +3824,9 @@ function closeAdminTeams() {
 function adminTeamCard(team, teamMax) {
   const members = team.nvg_tournament_team_members || [];
   const logo = safeUrl(team.logo_url);
+  const search = `${team.name || ''} ${team.tag || ''}`.toLowerCase();
   return `
-    <article class="space-y-2 rounded-xl border border-[#1f293d] bg-[#07090e] p-3">
+    <article data-team-item data-search="${escapeHtml(search)}" class="space-y-2 rounded-xl border border-[#1f293d] bg-[#07090e] p-3">
       <div class="flex items-start gap-3">
         <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/5">
           <img src="${logo || './Logos/no-logo.jpeg'}" alt="" onerror="this.onerror=null;this.src='./Logos/no-logo.jpeg'" class="h-full w-full object-contain p-1">
@@ -3875,9 +3877,29 @@ function adminEventPlayerRow(tournamentId, p, teamName) {
     status === 'refunded' ? `<button onclick="setPlayerPayment('${tournamentId}', '${p.user_id}', 'awaiting')" class="${btn} text-amber-400 hover:text-amber-300">↩️ Remettre en attente</button>` : '',
     `<button onclick="adminRemoveEventPlayer('${tournamentId}', '${p.user_id}')" class="${btn} text-red-400 hover:text-red-300">🗑️ Retirer</button>`
   ].join('');
-  return `<li class="flex flex-wrap items-center gap-2 rounded-lg border border-[#1f293d] bg-[#07090e] px-3 py-2 text-[11px]">
-    <span class="h-2.5 w-2.5 shrink-0 rounded-full ${light}" title="${escapeHtml(PLAYER_PAY_LABELS[status] || status)}"></span>
-    <span class="min-w-0 flex-1 truncate text-gray-200">${escapeHtml(p.nvg_users?.name || 'Joueur')} <span class="text-gray-500">· pseudo : ${escapeHtml(p.platform_id || '—')} · ${escapeHtml(PLAYER_PAY_LABELS[status] || status)}</span>${teamName ? ` <span class="text-[9px] font-bold text-sky-400">${escapeHtml(teamName)}</span>` : ' <span class="text-[9px] font-bold text-amber-300">sans équipe</span>'}</span>
+  const search = [p.nvg_users?.name, p.nvg_users?.first_name, p.nvg_users?.last_name, p.nvg_users?.email, p.platform_id, teamName]
+    .filter(Boolean).join(' ').toLowerCase();
+  const u = adminPlayers.find((x) => x.id === p.user_id) || {};
+  const birth = u.birth_date ? new Date(u.birth_date).toLocaleDateString('fr-FR') : '—';
+  const firstName = p.nvg_users?.first_name || u.first_name;
+  const lastName = p.nvg_users?.last_name || u.last_name;
+  const details = `<dl class="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 pl-5 text-[10px] sm:grid-cols-4">
+    <div><dt class="text-gray-500">Pseudo en jeu</dt><dd class="font-bold text-gray-200">${escapeHtml(p.platform_id || '—')}</dd></div>
+    <div><dt class="text-gray-500">Prénom</dt><dd class="font-bold text-gray-200">${escapeHtml(firstName || '—')}</dd></div>
+    <div><dt class="text-gray-500">Nom</dt><dd class="font-bold text-gray-200">${escapeHtml(lastName || '—')}</dd></div>
+    <div><dt class="text-gray-500">Naissance</dt><dd class="font-bold text-gray-200">${escapeHtml(birth)}</dd></div>
+    <div class="col-span-2"><dt class="text-gray-500">Identité complète</dt><dd class="font-bold text-gray-200">${escapeHtml([firstName, lastName].filter(Boolean).join(' ') || '—')}</dd></div>
+    <div class="col-span-2"><dt class="text-gray-500">Adresse e-mail</dt><dd class="font-bold text-gray-200">${escapeHtml(p.nvg_users?.email || u.email || '—')}</dd></div>
+    <div class="col-span-2"><dt class="text-gray-500">Inscrit le</dt><dd class="font-bold text-gray-200">${escapeHtml(p.joined_at ? formatDate(p.joined_at) : '—')}</dd></div>
+  </dl>`;
+  return `<li data-player-item data-search="${escapeHtml(search)}" class="flex flex-wrap items-center gap-2 rounded-lg border border-[#1f293d] bg-[#07090e] px-3 py-2 text-[11px]">
+    <details class="min-w-0 flex-1">
+      <summary class="flex cursor-pointer list-none items-center gap-2">
+        <span class="h-2.5 w-2.5 shrink-0 rounded-full ${light}" title="${escapeHtml(PLAYER_PAY_LABELS[status] || status)}"></span>
+        <span class="min-w-0 truncate text-gray-200">${escapeHtml(p.nvg_users?.name || 'Joueur')} <span class="text-gray-500">· pseudo : ${escapeHtml(p.platform_id || '—')} · ${escapeHtml(PLAYER_PAY_LABELS[status] || status)}</span>${teamName ? ` <span class="text-[9px] font-bold text-sky-400">${escapeHtml(teamName)}</span>` : ' <span class="text-[9px] font-bold text-amber-300">sans équipe</span>'}</span>
+      </summary>
+      ${details}
+    </details>
     <div class="flex flex-wrap items-center gap-2">${actions}</div>
   </li>`;
 }
@@ -3893,17 +3915,33 @@ function renderAdminTeams() {
   const teamOf = new Map();
   teams.forEach((x) => (x.nvg_tournament_team_members || []).forEach((m) => teamOf.set(m.user_id, x.name)));
   $('adminTeamsSubtitle').textContent = `${t.name} · ${players.length} joueur(s) dans l’évènement · ${teams.length} équipe(s) · ${teamMax} joueurs max par équipe`;
+  const prevPlayersQuery = $('adminPlayersSearch')?.value || '';
+  const prevTeamsQuery = $('adminTeamsSearch')?.value || '';
   $('adminTeamsBody').innerHTML = `
     <section class="space-y-2">
       <h3 class="text-[10px] font-black uppercase tracking-wider text-amber-300">Joueurs de l’évènement (${players.length})</h3>
+      <input id="adminPlayersSearch" value="${escapeHtml(prevPlayersQuery)}" oninput="filterAdminTeamsView()" placeholder="Rechercher un joueur (nom, prénom, pseudo, e-mail, équipe)…" class="${MANAGE_INPUT_CLASS}">
       ${players.length ? `<ul class="space-y-1.5">${players.map((p) => adminEventPlayerRow(t.id, p, teamOf.get(p.user_id) || null)).join('')}</ul>` : '<p class="text-xs text-gray-500">Aucun joueur n’a encore rejoint l’évènement.</p>'}
     </section>
     <section class="space-y-2">
       <h3 class="text-[10px] font-black uppercase tracking-wider text-amber-300">Équipes (${teams.length})</h3>
+      <input id="adminTeamsSearch" value="${escapeHtml(prevTeamsQuery)}" oninput="filterAdminTeamsView()" placeholder="Rechercher une équipe (nom, tag)…" class="${MANAGE_INPUT_CLASS}">
       ${teams.length ? teams.map((team) => adminTeamCard(team, teamMax)).join('') : '<p class="text-xs text-gray-500">Aucune équipe.</p>'}
     </section>`;
+  filterAdminTeamsView();
   panel.classList.remove('hidden');
-  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Filtre les joueurs et les équipes du panneau selon les champs de recherche.
+function filterAdminTeamsView() {
+  const playerQuery = ($('adminPlayersSearch')?.value || '').trim().toLowerCase();
+  const teamQuery = ($('adminTeamsSearch')?.value || '').trim().toLowerCase();
+  document.querySelectorAll('[data-player-item]').forEach((el) => {
+    el.style.display = !playerQuery || el.dataset.search.includes(playerQuery) ? '' : 'none';
+  });
+  document.querySelectorAll('[data-team-item]').forEach((el) => {
+    el.style.display = !teamQuery || el.dataset.search.includes(teamQuery) ? '' : 'none';
+  });
 }
 
 async function adminSaveTeam(teamId) {
@@ -3996,7 +4034,7 @@ function showAdminRegs(tournamentId) {
     ? regs.map((r) => adminRegistrationRow(r)).join('')
     : '<p class="text-xs text-gray-500">Aucune inscription pour ce tournoi.</p>';
   panel.classList.remove('hidden');
-  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
 }
 
 const PLAYER_PAY_LABELS = {
