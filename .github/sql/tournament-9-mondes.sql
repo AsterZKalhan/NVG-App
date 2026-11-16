@@ -12,8 +12,7 @@ create table if not exists public.nvg_tournament_games (
   name text not null,
   slug text not null unique,
   team_size integer check (team_size is null or team_size between 1 and 6),
-  scoring_mode text not null default 'versus' check (scoring_mode in ('versus', 'cumulative', 'wins', 'none')),
-  pair_format text not null default 'two_bo1' check (pair_format in ('two_bo1', 'bo3')),
+  scoring_mode text not null default 'versus' check (scoring_mode in ('versus', 'cumulative', 'wins', 'none', 'bo3')),
   logo_url text,
   banner_url text,
   created_at timestamptz not null default now()
@@ -27,12 +26,9 @@ alter table public.nvg_tournament_games add column if not exists banner_url text
 alter table public.nvg_tournament_games add column if not exists team_size integer;
 -- Mode de score : `versus` (confrontation), `cumulative` (total des points
 -- des joueurs, ex. Trackmania en time attack), `wins` (victoires individuelles
--- en 1v1, ex. Hearthstone) ou `none` (mode non précisé).
+-- en 1v1, ex. Hearthstone), `none` (mode non précisé) ou `bo3` (BO3 2v2 : deux
+-- BO1 de binômes puis départage en BO3 si 1–1).
 alter table public.nvg_tournament_games add column if not exists scoring_mode text not null default 'versus';
-
--- Format des jeux à 2 joueurs : `two_bo1` (deux BO1 de binômes + départage en
--- BO1 si 1–1) ou `bo3` (même chose mais le départage se joue en BO3).
-alter table public.nvg_tournament_games add column if not exists pair_format text not null default 'two_bo1';
 
 create table if not exists public.nvg_tournaments (
   id uuid primary key default gen_random_uuid(),

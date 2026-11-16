@@ -130,20 +130,15 @@ function gameScoringLabel(mode) {
   if (mode === 'cumulative') return 'cumul';
   if (mode === 'wins') return 'victoires';
   if (mode === 'none') return 'aucun';
+  if (mode === 'bo3') return 'BO3 2v2';
   return 'confrontation';
 }
 
-// Format du 2v2 : `two_bo1` (départage en BO1) ou `bo3` (départage en BO3).
-function gamePairFormat(id) {
-  return gameById(id)?.pair_format === 'bo3' ? 'bo3' : 'two_bo1';
-}
-
-function syncGamePairFormat() {
-  const wrap = $('gamePairFormatWrap');
-  if (!wrap) return;
-  const pairGame = Number($('gameTeamSize')?.value) === 2;
-  wrap.classList.toggle('hidden', !pairGame);
-  if (!pairGame && $('gamePairFormat')) $('gamePairFormat').value = 'two_bo1';
+// Un jeu « BO3 2v2 » se joue toujours à deux joueurs par équipe.
+function syncGameModeHints() {
+  if ($('gameScoringMode')?.value === 'bo3' && $('gameTeamSize')) {
+    if (Number($('gameTeamSize').value) !== 2) $('gameTeamSize').value = '2';
+  }
 }
 
 function gameOptionLabel(game) {
@@ -151,7 +146,6 @@ function gameOptionLabel(game) {
   const bits = [];
   if (size) bits.push(size === 1 ? 'solo' : `${size} joueurs`);
   bits.push(gameScoringLabel(game?.scoring_mode));
-  if (size === 2 && game?.pair_format === 'bo3') bits.push('BO3');
   return `${game.name} — ${bits.join(' · ')}`;
 }
 
@@ -225,10 +219,18 @@ function bo9SlotPairMode(slot) {
   return gameTeamSize(slot.game_id) === 2;
 }
 
-// Départage 2v2 : BO1 simple par défaut, BO3 (premier à 2 manches) si le jeu
-// a été réglé sur « BO3 2v2 ».
+// Départage 2v2 : BO1 simple par défaut, BO3 (premier à 2 manches) quand le jeu
+// est réglé sur le mode de score « BO3 2v2 ».
 function bo9SlotPairBo3(slot) {
-  return bo9SlotPairMode(slot) && slot.pair_format === 'bo3';
+  return bo9SlotPairMode(slot) && (slot.pair_format === 'bo3' || slot.scoring === 'bo3');
+}
+
+// Nombre de duels individuels d'un slot : c'est le nombre d'unités de la
+// catégorie (duel 1v1 = 5, escarmouche = 2, collectif = 1). Un jeu « victoires »
+// se joue sur ce nombre de 1v1, un jeu en cumul additionne ce nombre de joueurs
+// par équipe (ex. 5v5 Trackmania = 10 joueurs au total).
+function bo9DuelCount(slot) {
+  return Math.max(1, Number(slot?.units) || 1);
 }
 
 function bo9PairDeciderScore(game) {
@@ -825,9 +827,9 @@ function bo9FormatBlock(t) {
                 const wins = s.scoring === 'wins';
                 const pairMode = bo9SlotPairMode(s);
                 const pairBo3 = bo9SlotPairBo3(s);
-                const players = gameTeamSize(s.game_id) * 2;
+                const players = bo9DuelCount(s) * 2;
                 return `<li class="flex items-center justify-between gap-2 text-[10px]">
-                <span class="truncate text-gray-200">${escapeHtml(gameName(s.game_id))}${cumulative ? ` <span class="font-bold text-fuchsia-300" title="Cumul des points des joueurs">· cumul${players ? ` ${players} joueurs` : ''}</span>` : ''}${wins ? ` <span class="font-bold text-violet-300" title="Chaque joueur affronte son homologue en 1v1">· victoires${gameTeamSize(s.game_id) ? ` ${gameTeamSize(s.game_id)} 1v1` : ''}</span>` : ''}${pairMode ? ` <span class="font-bold text-emerald-300" title="${pairBo3 ? 'Deux BO1 de binômes, départage 2v2 en BO3 si 1–1' : 'Deux BO1 de binômes, finale 2v2 si 1–1'}">· ${pairBo3 ? '2v2 BO3' : '2v2'}</span>` : ''}</span>
+                <span class="truncate text-gray-200">${escapeHtml(gameName(s.game_id))}${cumulative ? ` <span class="font-bold text-fuchsia-300" title="Cumul des points des joueurs">· cumul${players ? ` ${players} joueurs` : ''}</span>` : ''}${wins ? ` <span class="font-bold text-violet-300" title="Chaque joueur affronte son homologue en 1v1">· victoires ${bo9DuelCount(s)} 1v1</span>` : ''}${pairMode ? ` <span class="font-bold text-emerald-300" title="${pairBo3 ? 'Deux BO1 de binômes, départage 2v2 en BO3 si 1–1' : 'Deux BO1 de binômes, finale 2v2 si 1–1'}">· ${pairBo3 ? '2v2 BO3' : '2v2'}</span>` : ''}</span>
                 <span class="shrink-0 text-gray-500">${formatPoints(Number(s.units) * Number(s.points_per_unit))} pts</span>
               </li>`;
               }).join('')}
@@ -1362,7 +1364,7 @@ async function saveBo9MatchResult(matchId) {
         notify(`Jeu « ${gameName(slot.game_id)} » : indique le nombre de victoires individuelles des deux équipes.`, true);
         return;
       }
-      const maxWins = gameTeamSize(slot.game_id) || 5;
+      const maxWins = bo9DuelCount(slot);
       const winsA = Number(aEl.value);
       const winsB = Number(bEl.value);
       if (!Number.isInteger(winsA) || !Number.isInteger(winsB) || winsA < 0 || winsB < 0 || winsA > maxWins || winsB > maxWins || winsA + winsB > maxWins) {
@@ -1480,7 +1482,7 @@ function adminBo9MatchCard(match, cfg, labelText = '') {
   const slotByNumber = new Map(cfg.games.map((g) => [Number(g.slot), g]));
   const played = new Map((Array.isArray(match.games) ? match.games : []).map((g) => [Number(g.slot), g]));
   // La carte capitaine ne double qu'un duel 1v1 joué en confrontation.
-  const duelSlots = cfg.games.filter((g) => g.category === 'duel' && g.scoring !== 'cumulative' && g.scoring !== 'wins').sort((a, b) => a.slot - b.slot);
+  const duelSlots = cfg.games.filter((g) => g.category === 'duel' && g.scoring !== 'cumulative' && g.scoring !== 'wins' && !bo9SlotPairMode(g)).sort((a, b) => a.slot - b.slot);
   const cards = match.captain_card || {};
   const finished = match.status === 'finished';
   return `
@@ -1578,7 +1580,7 @@ function adminBo9MatchCard(match, cfg, labelText = '') {
               </div>`;
             }
             const wins = slot.scoring === 'wins';
-            const maxWins = gameTeamSize(slot.game_id) || 5;
+            const maxWins = bo9DuelCount(slot);
             const valueA = wins ? (score.wins_a ?? '') : cumulative ? (score.points_raw_a ?? '') : (score.units_a ?? '');
             const valueB = wins ? (score.wins_b ?? '') : cumulative ? (score.points_raw_b ?? '') : (score.units_b ?? '');
             const inputMax = cumulative ? '' : wins ? `max="${maxWins}"` : `max="${slot.units}"`;
@@ -2191,12 +2193,12 @@ function renderAdminGames() {
               : `<span class="text-[9px] font-black text-gray-400">${escapeHtml((g.name || '?').slice(0, 2).toUpperCase())}</span>`}
           </span>
           <span class="truncate text-[11px] font-bold text-gray-200">${escapeHtml(g.name)}</span>
-          ${Number(g.team_size) ? `<span class="shrink-0 rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-bold text-sky-300" title="Joueurs par équipe">${Number(g.team_size)}v${Number(g.team_size)}</span>` : ''}
+          ${Number(g.team_size) && g.scoring_mode !== 'bo3' ? `<span class="shrink-0 rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-bold text-sky-300" title="Joueurs par équipe">${Number(g.team_size)}v${Number(g.team_size)}</span>` : ''}
           ${g.scoring_mode === 'cumulative' ? '<span class="shrink-0 rounded border border-fuchsia-500/30 bg-fuchsia-500/10 px-1.5 py-0.5 text-[9px] font-bold text-fuchsia-300" title="Total des points des joueurs">Cumul</span>' : ''}
           ${g.scoring_mode === 'wins' ? '<span class="shrink-0 rounded border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 text-[9px] font-bold text-violet-300" title="Victoires individuelles en 1v1">Victoires</span>' : ''}
           ${g.scoring_mode === 'none' ? '<span class="shrink-0 rounded border border-gray-500/40 bg-white/5 px-1.5 py-0.5 text-[9px] font-bold text-gray-400" title="Mode de score non précisé">Aucun</span>' : ''}
+          ${g.scoring_mode === 'bo3' ? '<span class="shrink-0 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold text-emerald-300" title="Deux BO1 de binômes + départage 2v2 en BO3">BO3 2v2</span>' : ''}
           ${!g.scoring_mode || g.scoring_mode === 'versus' ? '<span class="shrink-0 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold text-amber-300" title="Une équipe gagne le jeu">Confrontation</span>' : ''}
-          ${Number(g.team_size) === 2 && g.pair_format === 'bo3' ? '<span class="shrink-0 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold text-emerald-300" title="Deux BO1 de binômes + départage 2v2 en BO3">BO3</span>' : ''}
         </div>
         <div class="flex shrink-0 items-center gap-1">
           ${safeUrl(g.banner_url) ? '<span class="text-[9px] text-emerald-400" title="Bannière enregistrée">bannière</span>' : ''}
@@ -2309,16 +2311,17 @@ function bo9FormConfig() {
     const category = BO9_SLOT_CATEGORIES[index];
     const cumulative = gameById(gameId)?.scoring_mode === 'cumulative';
     const wins = gameById(gameId)?.scoring_mode === 'wins';
-    const pairMode = !cumulative && !wins && gameTeamSize(gameId) === 2;
+    const bo3 = gameById(gameId)?.scoring_mode === 'bo3';
+    const pairMode = !cumulative && !wins && (bo3 || gameTeamSize(gameId) === 2);
     return {
       slot: index + 1,
       category,
       game_id: gameId,
       units: BO9_UNITS[category],
       points_per_unit: points[category],
-      scoring: cumulative ? 'cumulative' : wins ? 'wins' : 'versus',
+      scoring: cumulative ? 'cumulative' : wins ? 'wins' : bo3 ? 'bo3' : 'versus',
       pair_mode: pairMode,
-      pair_format: pairMode ? gamePairFormat(gameId) : null
+      pair_format: pairMode && bo3 ? 'bo3' : null
     };
   });
   return {
@@ -2717,8 +2720,7 @@ function resetGameForm() {
   ['gameName', 'gameLogo', 'gameBanner'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
   if ($('gameTeamSize')) $('gameTeamSize').value = '';
   if ($('gameScoringMode')) $('gameScoringMode').value = 'none';
-  if ($('gamePairFormat')) $('gamePairFormat').value = 'two_bo1';
-  syncGamePairFormat();
+  syncGameModeHints();
   ['gameLogoFile', 'gameBannerFile'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
   const submit = $('gameSubmit');
   if (submit) submit.textContent = 'Créer le jeu';
@@ -2737,9 +2739,8 @@ function editGame(id) {
   editingGameId = id;
   $('gameName').value = g.name || '';
   if ($('gameTeamSize')) $('gameTeamSize').value = g.team_size ? String(g.team_size) : '';
-  if ($('gameScoringMode')) $('gameScoringMode').value = ['versus', 'cumulative', 'wins', 'none'].includes(g.scoring_mode) ? g.scoring_mode : 'versus';
-  if ($('gamePairFormat')) $('gamePairFormat').value = g.pair_format === 'bo3' ? 'bo3' : 'two_bo1';
-  syncGamePairFormat();
+  if ($('gameScoringMode')) $('gameScoringMode').value = ['versus', 'cumulative', 'wins', 'none', 'bo3'].includes(g.scoring_mode) ? g.scoring_mode : 'versus';
+  if ($('gameTeamSize') && g.scoring_mode === 'bo3') $('gameTeamSize').value = '2';
   $('gameLogo').value = g.logo_url || '';
   $('gameBanner').value = g.banner_url || '';
   const submit = $('gameSubmit');
@@ -2798,12 +2799,12 @@ async function saveGame() {
   const name = $('gameName').value.trim();
   if (!name) { notify('Saisis un nom de jeu.', true); return; }
   const scoringMode = $('gameScoringMode')?.value;
+  const bo3Mode = scoringMode === 'bo3';
   const payload = {
     name,
     slug: slugify(name),
-    team_size: Number($('gameTeamSize')?.value) || null,
-    scoring_mode: ['versus', 'cumulative', 'wins', 'none'].includes(scoringMode) ? scoringMode : 'none',
-    pair_format: Number($('gameTeamSize')?.value) === 2 && $('gamePairFormat')?.value === 'bo3' ? 'bo3' : 'two_bo1',
+    team_size: bo3Mode ? 2 : (Number($('gameTeamSize')?.value) || null),
+    scoring_mode: ['versus', 'cumulative', 'wins', 'none', 'bo3'].includes(scoringMode) ? scoringMode : 'none',
     logo_url: safeUrl($('gameLogo').value) || null,
     banner_url: safeUrl($('gameBanner').value) || null
   };

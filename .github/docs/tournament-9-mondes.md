@@ -74,7 +74,7 @@ Tables (préfixe `nvg_tournament_`) :
 
 | Table | Rôle |
 |---|---|
-| `nvg_tournament_games` | jeux proposés (nom, slug, **joueurs par équipe** `team_size`, **mode de score** `scoring_mode` `versus`/`cumulative`/`wins`/`none`, **format 2v2** `pair_format` `two_bo1`/`bo3`, logo, bannière) |
+| `nvg_tournament_games` | jeux proposés (nom, slug, **joueurs par équipe** `team_size`, **mode de score** `scoring_mode` `versus`/`cumulative`/`wins`/`none`/`bo3`, logo, bannière) |
 | `nvg_tournaments` | tournois : mode `solo`/`team`, format `online`/`lan`/`both`, taille d'équipe, places (`max_participants`), prix (1re/2e/3e place), dates, statut, publication, frais et consignes de paiement |
 | `nvg_tournament_teams` | équipes : nom, tag, capitaine, code d'invitation unique |
 | `nvg_tournament_team_members` | appartenance joueur ↔ équipe, rôle `captain`/`member` |
@@ -134,12 +134,19 @@ Chaque jeu décrit aussi son **mode de score** dans **Admin → 🎮 Jeux** :
   le **nombre de duels gagnés par équipe** ; l'équipe qui en gagne le plus
   remporte le jeu. En cas d'égalité, les points du jeu sont partagés ;
 - **Aucun** : le mode n'a pas été précisé. Le jeu se comporte comme une
-  confrontation classique (badge **Aucun** dans la liste des jeux).
+  confrontation classique (badge **Aucun** dans la liste des jeux) ;
+- **BO3 2v2** : jeu à 2 joueurs par équipe. Deux BO1 de binômes
+  (A1/A2 – B1/B2, A3/A4 – B3/B4) puis, si 1–1, un départage 2v2 en **BO3**
+  (premier à 2 manches). L'admin saisit le score du départage (`2–0`, `2–1`,
+  `1–2` ou `0–2`) ; le vainqueur empoche tout le slot. Le 5e joueur peut
+  remplacer un des deux joueurs.
 
 En **cumul**, le site ne saisit pas les classements individuels joueur par
 joueur : c'est le total d'équipe qui compte. Le reste du barème, le seuil de
 mercy et le bracket ne changent pas. Le détail public affiche les totaux bruts
-du jeu (ex. `320 — 280`, marqué **cumul**).
+du jeu (ex. `320 — 280`, marqué **cumul**). Un jeu 1v1 réglé sur **1 joueur par
+équipe** additionne les joueurs des deux équipes du slot (5 contre 5, soit
+10 joueurs au total pour un slot Duel).
 
 ### Jeux à 2 joueurs (2v2)
 
@@ -159,26 +166,29 @@ sont partagés. Le vainqueur du jeu empoche la totalité des points du slot
 score des binômes (`2 — 0` ou `1 — 2`, marqué **2v2 · finale** si nécessaire).
 Le mode est figé dans `format_config.games[].pair_mode` à la création du BO9.
 
-Le jeu peut être réglé sur **deux formats** (`nvg_tournament_games.pair_format`,
-recopié dans `format_config.games[].pair_format`) :
+Le jeu peut être réglé sur **deux modes** :
 
-- **`two_bo1`** (défaut) : les deux BO1 de binômes, puis un départage 2v2 en
+- **Confrontation** (défaut) : les deux BO1 de binômes, puis un départage 2v2 en
   BO1 si 1–1 ;
-- **`bo3`** (« BO3 2v2 ») : les deux BO1 de binômes, puis le départage 2v2 en
-  **BO3** (premier à 2 manches). L'admin choisit le score du départage
-  (`2–0`, `2–1`, `1–2` ou `0–2`) ; le vainqueur empoche le slot. Le détail
-  public affiche le score des binômes et, entre parenthèses, le score du
-  départage (marqué **2v2 · BO3**).
+- **BO3 2v2** (`scoring_mode = 'bo3'`) : les deux BO1 de binômes, puis le
+  départage 2v2 en **BO3** (premier à 2 manches). L'admin choisit le score du
+  départage (`2–0`, `2–1`, `1–2` ou `0–2`) ; le vainqueur empoche le slot. Le
+  détail public affiche le score des binômes et le score du départage (marqué
+  **2v2 · BO3**).
+
+Le mode est figé dans `format_config.games[].scoring` (`versus` ou `bo3`) et
+`format_config.games[].pair_format` (`bo3` pour un départage en BO3).
 
 ### Victoires individuelles (Hearthstone…)
 
-Pour un jeu réglé sur ce mode, le nombre de duels est le **nombre de joueurs
-par équipe** du jeu (ex. 5 pour un 5v5). Chaque joueur affronte son homologue :
-A1–B1, A2–B2, etc. L'admin saisit simplement le nombre de duels gagnés par
-chaque équipe (0 à N, la somme ne pouvant pas dépasser N) ; l'équipe qui en
-gagne le plus remporte le jeu et la totalité des points du slot. En cas
-d'égalité, les points sont partagés. Le détail public affiche le score des
-duels (`3 — 2`, marqué **victoires**).
+Pour un jeu réglé sur ce mode, le nombre de duels est le **nombre d'unités du
+slot** : 5 duels pour un slot Duel, 2 pour une Escarmouche, 1 pour un Collectif.
+Un jeu 1v1 (ex. Hearthstone) reste donc réglé sur **1 joueur par équipe** : le
+slot Duel se joue sur **5 duels** (A1–B1, A2–B2… A5–B5). L'admin saisit
+simplement le nombre de duels gagnés par chaque équipe (0 à 5, la somme ne
+pouvant pas dépasser 5) ; l'équipe qui en gagne le plus remporte le jeu et la
+totalité des points du slot. En cas d'égalité, les points sont partagés. Le
+détail public affiche le score des duels (`3 — 2`, marqué **victoires**).
 
 ### Options de compétition
 
@@ -374,7 +384,7 @@ menus :
 | Menu | Contenu |
 |---|---|
 | **👥 Joueurs** | recherche par pseudo, nom ou e-mail ; modification du pseudo, du prénom, du nom et de la date de naissance ; nombre d'inscriptions par joueur. Les rangs et rôles restent gérés dans l'application NVG. |
-| **🎮 Jeux** | création et modification d'un jeu (nom, **joueurs par équipe 1–6**, **mode de score confrontation/cumul/victoires/aucun**, **format 2v2 BO1 ou BO3**, logo et bannière téléversés ou URL externe). |
+| **🎮 Jeux** | création et modification d'un jeu (nom, **joueurs par équipe 1–6**, **mode de score confrontation/cumul/victoires/aucun/BO3 2v2**, logo et bannière téléversés ou URL externe). |
 | **➕ Nouveau tournoi** | formulaire complet de création (format du tournoi jeu unique ou BO9, jeu(x), format de jeu 1–6, type, statut, slots, frais, podium, dates, visuels, Toornament, paiement, description, publication). En BO9 : 9 jeux par catégorie, mode de points, poules et options de compétition. |
 | **📋 Gestion des tournois** | liste filtrable (tous / en cours et ouverts / brouillons / terminés et annulés) avec barre de remplissage, changement de statut, modification, suppression, accès aux inscriptions et bouton **⚔️ Gérer** pour les tournois BO9. |
 
