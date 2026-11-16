@@ -3409,15 +3409,22 @@ function renderAdminPlayers() {
   });
   box.innerHTML = list.length
     ? list.map((p) => {
-      const fullName = [p.first_name, p.last_name].filter(Boolean).join(' ') || '—';
       const birth = adminAgeHtml(p.birth_date);
       const count = playerRegCount(p.id);
       return `
         <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#1f293d] bg-[#07090e] px-3 py-2">
-          <div class="min-w-0">
-            <p class="text-xs font-bold text-white truncate">${escapeHtml(p.name || 'Joueur')}${p.verified ? ' <span class="text-emerald-400" title="Compte vérifié">✓</span>' : ''}</p>
-            <p class="text-[10px] text-gray-500 truncate">${escapeHtml(p.email || '')} · ${escapeHtml(fullName)} · ${birth}</p>
-          </div>
+          <details class="min-w-0 flex-1">
+            <summary class="cursor-pointer list-none">
+              <p class="text-xs font-bold text-white truncate">${escapeHtml(p.name || 'Joueur')}${p.verified ? ' <span class="text-emerald-400" title="Compte vérifié">✓</span>' : ''}</p>
+              <p class="text-[10px] text-gray-500 truncate">${escapeHtml(p.email || '')}</p>
+            </summary>
+            <dl class="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] sm:grid-cols-3">
+              <div><dt class="text-gray-500">Prénom</dt><dd class="font-bold text-gray-200">${escapeHtml(p.first_name || '—')}</dd></div>
+              <div><dt class="text-gray-500">Nom</dt><dd class="font-bold text-gray-200">${escapeHtml(p.last_name || '—')}</dd></div>
+              <div><dt class="text-gray-500">Âge</dt><dd>${birth}</dd></div>
+              <div class="col-span-2"><dt class="text-gray-500">Adresse e-mail</dt><dd class="font-bold text-gray-200">${escapeHtml(p.email || '—')}</dd></div>
+            </dl>
+          </details>
           <div class="flex shrink-0 items-center gap-2">
             <span class="text-[10px] text-gray-400">${count} inscription(s)</span>
             <button onclick="editPlayer('${p.id}')" class="rounded-lg border border-[#1f293d] bg-white/5 px-2 py-1 text-[10px] font-bold text-gray-300 transition hover:bg-white/10">✏️ Modifier</button>
