@@ -3575,7 +3575,7 @@ function tagAdminSections(root, rules) {
 // N'affiche que les éléments liés à l'onglet actif (data-admin-view).
 function applyAdminView() {
   tagAdminSections($('adminTeamsBody'), [[/Joueurs/, 'players'], [/Équipes/, 'teams']]);
-  tagAdminSections($('adminMatchBody'), [[/Poule|Matchs|Jeu de chaque tour/, 'pool'], [/finale|Tableau/, 'bracket']]);
+  tagAdminSections($('adminMatchBody'), [[/Jeu de chaque tour/, 'pool bracket'], [/Poule|Matchs/, 'pool'], [/finale|Tableau/, 'bracket']]);
   document.querySelectorAll('[data-admin-view]').forEach((el) => {
     el.style.display = el.dataset.adminView.split(' ').includes(adminTab) ? '' : 'none';
   });
