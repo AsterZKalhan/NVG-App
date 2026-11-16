@@ -2297,6 +2297,28 @@ function toggleTournamentFormat() {
   }
 }
 
+// Construit les 9 slots d'un BO9 à partir des jeux choisis (null = slot vide).
+function bo9GameSlots(gameIds, mode) {
+  const points = BO9_POINTS[mode];
+  return gameIds.map((gameId, index) => {
+    const category = BO9_SLOT_CATEGORIES[index];
+    const cumulative = gameById(gameId)?.scoring_mode === 'cumulative';
+    const wins = gameById(gameId)?.scoring_mode === 'wins';
+    const bo3 = gameById(gameId)?.scoring_mode === 'bo3';
+    const pairMode = !cumulative && !wins && (bo3 || gameTeamSize(gameId) === 2);
+    return {
+      slot: index + 1,
+      category,
+      game_id: gameId || null,
+      units: BO9_UNITS[category],
+      points_per_unit: points[category],
+      scoring: cumulative ? 'cumulative' : wins ? 'wins' : bo3 ? 'bo3' : 'versus',
+      pair_mode: pairMode,
+      pair_format: pairMode && bo3 ? 'bo3' : null
+    };
+  });
+}
+
 function bo9FormConfig() {
   const mode = $('tourBo9Points').value === 'allin' ? 'allin' : 'classic';
   const gameIds = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => $(`bo9Game${n}`)?.value || '');
@@ -2317,28 +2339,10 @@ function bo9FormConfig() {
     notify('Le bracket doit accueillir 2, 4, 8 ou 16 qualifiés.', true);
     return null;
   }
-  const points = BO9_POINTS[mode];
-  const gamesConfig = gameIds.map((gameId, index) => {
-    const category = BO9_SLOT_CATEGORIES[index];
-    const cumulative = gameById(gameId)?.scoring_mode === 'cumulative';
-    const wins = gameById(gameId)?.scoring_mode === 'wins';
-    const bo3 = gameById(gameId)?.scoring_mode === 'bo3';
-    const pairMode = !cumulative && !wins && (bo3 || gameTeamSize(gameId) === 2);
-    return {
-      slot: index + 1,
-      category,
-      game_id: gameId,
-      units: BO9_UNITS[category],
-      points_per_unit: points[category],
-      scoring: cumulative ? 'cumulative' : wins ? 'wins' : bo3 ? 'bo3' : 'versus',
-      pair_mode: pairMode,
-      pair_format: pairMode && bo3 ? 'bo3' : null
-    };
-  });
   return {
     type: 'bo9',
     points_mode: mode,
-    games: gamesConfig,
+    games: bo9GameSlots(gameIds, mode),
     complete: filled.length === 9,
     pool_count: poolCount,
     pool_size: poolSize,
@@ -2568,6 +2572,7 @@ function editTournament(id) {
   $('editPaymentUrl').value = t.payment_url || '';
   $('editPaymentInstructions').value = t.payment_instructions || '';
   $('editPublished').checked = !!t.published;
+  fillEditBo9Games(t);
   const panel = $('adminEdit');
   panel.classList.remove('hidden');
   panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -2576,6 +2581,30 @@ function editTournament(id) {
 function closeEdit() {
   $('adminEdit').classList.add('hidden');
   editingTournamentId = null;
+}
+
+function bo9TournamentLocked(tournamentId) {
+  return tournamentMatches.some((m) => m.tournament_id === tournamentId);
+}
+
+// Remplit les 9 sélecteurs de jeux d'un BO9 dans le panneau d'édition.
+function fillEditBo9Games(t) {
+  const cfg = bo9Config(t);
+  const wrap = $('editBo9Wrap');
+  if (!wrap) return;
+  wrap.classList.toggle('hidden', !cfg);
+  if (!cfg) return;
+  const locked = bo9TournamentLocked(t.id);
+  document.querySelectorAll('.edit-bo9-game').forEach((select, index) => {
+    select.innerHTML = `<option value="">Jeu ${index + 1}…</option>`
+      + games.map((g) => `<option value="${g.id}">${escapeHtml(gameOptionLabel(g))}</option>`).join('');
+    select.value = cfg.games[index]?.game_id || '';
+    select.disabled = locked;
+  });
+  const filled = cfg.games.filter((g) => g.game_id).length;
+  $('editBo9Status').textContent = locked
+    ? 'Des matchs existent : les jeux ne peuvent plus être modifiés.'
+    : (filled === 9 ? 'Les 9 jeux sont choisis.' : `${filled}/9 jeux choisis : le tournoi reste en brouillon tant que ce n’est pas complet.`);
 }
 
 async function saveTournament() {
@@ -2588,7 +2617,31 @@ async function saveTournament() {
   const size = cfg ? 5 : (parseInt($('editTeamSize').value, 10) || 1);
   const bannerUrl = safeUrl($('editBanner').value);
   const toornamentUrl = safeUrl($('editToornament').value);
+  let formatPatch = {};
+  let complete = true;
+  if (cfg) {
+    const gameIds = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => $(`editBo9Game${n}`)?.value || '');
+    const filled = gameIds.filter(Boolean);
+    if (new Set(filled).size !== filled.length) {
+      notify('Les jeux du BO9 doivent être différents.', true);
+      return;
+    }
+    const current = cfg.games.map((g) => g.game_id || '');
+    const changed = gameIds.some((id, i) => id !== current[i]);
+    if (changed && bo9TournamentLocked(editingTournamentId)) {
+      notify('Des matchs existent : les jeux ne peuvent plus être modifiés.', true);
+      return;
+    }
+    complete = filled.length === 9;
+    if (changed) {
+      formatPatch = { format_config: { ...cfg, games: bo9GameSlots(gameIds, cfg.points_mode), complete } };
+    }
+  }
+  if (cfg && !complete && $('editPublished').checked) {
+    notify('Tournoi laissé en brouillon : choisis les 9 jeux avant de le publier.');
+  }
   const patch = {
+    ...formatPatch,
     name,
     mode: cfg ? 'team' : (size === 1 ? 'solo' : 'team'),
     team_min: size,
@@ -2609,7 +2662,7 @@ async function saveTournament() {
     toornament_id: toornamentIdFromUrl(toornamentUrl),
     payment_url: safeUrl($('editPaymentUrl').value) || null,
     payment_instructions: $('editPaymentInstructions').value.trim() || null,
-    published: $('editPublished').checked
+    published: cfg && !complete ? false : $('editPublished').checked
   };
   try {
     const { error } = await supabaseClient.from('nvg_tournaments').update(patch).eq('id', editingTournamentId);
