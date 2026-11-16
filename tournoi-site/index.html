@@ -624,7 +624,7 @@
 
       <!-- GESTION DES TOURNOIS -->
       <div id="adminPane-manage" class="admin-pane space-y-4">
-      <div id="adminEdit" class="hidden bg-[#121722] border border-amber-500/40 rounded-2xl p-5 space-y-3">
+      <div id="adminEdit" data-admin-view="manage" class="hidden bg-[#121722] border border-amber-500/40 rounded-2xl p-5 space-y-3">
         <div class="flex items-center justify-between gap-3">
           <h2 class="text-sm font-black text-white">✏️ Modifier le tournoi</h2>
           <button onclick="closeEdit()" class="px-2 py-1 text-gray-400 hover:text-white text-sm">✕</button>
@@ -742,7 +742,7 @@
       </div>
 
       <!-- INSCRIPTIONS D'UN TOURNOI -->
-      <div id="adminRegs" class="hidden bg-[#121722] border border-amber-500/40 rounded-2xl p-5 space-y-3">
+      <div id="adminRegs" data-admin-view="regs" class="hidden bg-[#121722] border border-amber-500/40 rounded-2xl p-5 space-y-3">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <h2 class="text-sm font-black text-white">📋 Inscriptions</h2>
@@ -767,7 +767,7 @@
       </div>
 
       <!-- GESTION D'UN TOURNOI BO9 (POULES, BRACKET, RÉSULTATS) -->
-      <div id="adminTeamsPanel" class="hidden bg-[#121722] border border-violet-500/40 rounded-2xl p-5 space-y-4">
+      <div id="adminTeamsPanel" data-admin-view="players teams" class="hidden bg-[#121722] border border-violet-500/40 rounded-2xl p-5 space-y-4">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <h2 class="text-sm font-black text-white">👥 Équipes et joueurs</h2>
@@ -777,7 +777,7 @@
         </div>
         <div id="adminTeamsBody" class="space-y-5"></div>
       </div>
-      <div id="adminMatchPanel" class="hidden bg-[#121722] border border-amber-500/40 rounded-2xl p-5 space-y-4">
+      <div id="adminMatchPanel" data-admin-view="pool bracket" class="hidden bg-[#121722] border border-amber-500/40 rounded-2xl p-5 space-y-4">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <h2 class="text-sm font-black text-white">⚔️ Gérer la compétition</h2>
@@ -801,7 +801,10 @@
         </div>
         <div class="grid grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
           <nav id="adminTournamentNav" class="space-y-1.5 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1"></nav>
-          <div id="adminTournaments" class="min-w-0 space-y-3"></div>
+          <div id="adminWorkspace" class="min-w-0 space-y-3">
+            <div id="adminTabs" class="flex flex-wrap gap-1.5"></div>
+            <div id="adminTournaments" data-admin-view="manage" class="space-y-3"></div>
+          </div>
         </div>
       </div>
       </div>

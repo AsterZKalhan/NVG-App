@@ -2538,6 +2538,7 @@ function renderStandardMatchPanel(t) {
   }
   $('adminMatchPanel').classList.remove('hidden');
   $('adminMatchPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  applyAdminView();
 }
 
 async function showAdminMatchPanel(tournamentId) {
@@ -3210,6 +3211,7 @@ async function loadAdmin() {
   renderAdminPlayers();
   if (viewingMatchTournamentId) renderAdminMatchPanel();
   if (viewingTeamsTournamentId) renderAdminTeams();
+  applyAdminView();
   if (viewingTournamentId) showAdminRegs(viewingTournamentId);
 }
 
@@ -3491,9 +3493,88 @@ function adminTournamentStats(t) {
 }
 
 let adminSelectedTournamentId = null;
+let adminTab = 'manage';
+
+const ADMIN_TABS = [
+  { key: 'manage', label: '⚙️ Gestion tournoi' },
+  { key: 'players', label: '👤 Joueurs', teamOnly: true },
+  { key: 'teams', label: '🛡️ Équipes', teamOnly: true },
+  { key: 'regs', label: '📋 Inscriptions' },
+  { key: 'pool', label: '🏟️ Poules', matchOnly: true },
+  { key: 'bracket', label: '🏆 Bracket', matchOnly: true }
+];
+
+function adminTabsFor(t) {
+  return ADMIN_TABS.filter((tab) => (!tab.teamOnly || t.mode === 'team')
+    && (!tab.matchOnly || isBo9(t) || isStandard(t)));
+}
+
+// Déplace les panneaux de gestion dans la colonne de droite, sous les onglets.
+function ensureAdminWorkspace() {
+  const workspace = $('adminWorkspace');
+  if (!workspace) return;
+  ['adminEdit', 'adminRegs', 'adminTeamsPanel', 'adminMatchPanel'].forEach((id) => {
+    const el = $(id);
+    if (el && el.parentElement !== workspace) workspace.appendChild(el);
+  });
+}
+
+function renderAdminTabs() {
+  const box = $('adminTabs');
+  const t = tournamentById(adminSelectedTournamentId);
+  if (!box) return;
+  if (!t) { box.innerHTML = ''; return; }
+  box.innerHTML = adminTabsFor(t).map((tab) => `<button onclick="selectAdminTab('${tab.key}')" class="rounded-lg border px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition ${tab.key === adminTab ? 'border-amber-500/60 bg-amber-500/15 text-amber-300' : 'border-[#1f293d] bg-white/5 text-gray-400 hover:text-white'}">${tab.label}</button>`).join('');
+}
+
+// Repère les blocs d'un panneau d'après leur titre (h3) et leur donne une vue.
+function tagAdminSections(root, rules) {
+  if (!root) return;
+  root.querySelectorAll('h3').forEach((h) => {
+    const rule = rules.find(([pattern]) => pattern.test(h.textContent));
+    const block = h.closest('section, div.space-y-2');
+    if (rule && block) block.dataset.adminView = rule[1];
+  });
+}
+
+// N'affiche que les éléments liés à l'onglet actif (data-admin-view).
+function applyAdminView() {
+  tagAdminSections($('adminTeamsBody'), [[/Joueurs/, 'players'], [/Équipes/, 'teams']]);
+  tagAdminSections($('adminMatchBody'), [[/Poule|Matchs|Jeu de chaque tour/, 'pool'], [/finale|Tableau/, 'bracket']]);
+  document.querySelectorAll('[data-admin-view]').forEach((el) => {
+    el.style.display = el.dataset.adminView.split(' ').includes(adminTab) ? '' : 'none';
+  });
+}
+
+function selectAdminTab(name) {
+  const t = tournamentById(adminSelectedTournamentId);
+  if (!t) return;
+  adminTab = adminTabsFor(t).some((tab) => tab.key === name) ? name : 'manage';
+  if (adminTab === 'players' || adminTab === 'teams') {
+    viewingTeamsTournamentId = t.id;
+    renderAdminTeams();
+  } else if (adminTab === 'pool' || adminTab === 'bracket') {
+    viewingMatchTournamentId = t.id;
+    renderAdminMatchPanel();
+  } else if (adminTab === 'regs') {
+    viewingTournamentId = t.id;
+    showAdminRegs(t.id);
+  }
+  renderAdminTabs();
+  applyAdminView();
+}
+
+// Ouvre un onglet pour un tournoi (boutons de la fiche).
+function openAdminTab(name, tournamentId) {
+  adminSelectedTournamentId = tournamentId;
+  adminTab = name;
+  renderAdminTournaments();
+  selectAdminTab(name);
+}
 
 function selectAdminTournament(tournamentId) {
   adminSelectedTournamentId = tournamentId;
+  adminTab = 'manage';
   renderAdminTournaments();
 }
 
@@ -3509,6 +3590,8 @@ function renderAdminTournaments() {
   });
   const nav = $('adminTournamentNav');
   if (!rows.some((t) => t.id === adminSelectedTournamentId)) adminSelectedTournamentId = rows[0]?.id || null;
+  const current = tournamentById(adminSelectedTournamentId);
+  if (!current || !adminTabsFor(current).some((tab) => tab.key === adminTab)) adminTab = 'manage';
   if (nav) {
     nav.innerHTML = rows.length
       ? rows.map((t) => `<button onclick="selectAdminTournament('${t.id}')" class="w-full rounded-lg border px-3 py-2 text-left transition ${t.id === adminSelectedTournamentId ? 'border-amber-500/60 bg-amber-500/10' : 'border-[#1f293d] bg-[#07090e] hover:bg-white/5'}">
@@ -3528,9 +3611,9 @@ function renderAdminTournaments() {
             <p class="text-[10px] text-gray-500">${escapeHtml(tournamentGamesLabel(t))} · ${t.published ? 'publié' : 'masqué'}${t.toornament_id ? ' · Toornament lié' : ''} · ${escapeHtml(feeLabel(t))}</p>
           </div>
           <div class="flex flex-wrap items-center gap-1.5">
-            ${isBo9(t) || isStandard(t) ? `<button onclick="showAdminMatchPanel('${t.id}')" class="rounded-lg border border-sky-500/40 bg-sky-500/10 px-2 py-1 text-[10px] font-bold text-sky-300 transition hover:bg-sky-500/20">⚔️ Gérer</button>` : ''}
-            ${t.mode === 'team' ? `<button onclick="showAdminTeams('${t.id}')" class="rounded-lg border border-violet-500/40 bg-violet-500/10 px-2 py-1 text-[10px] font-bold text-violet-300 transition hover:bg-violet-500/20">👥 Équipes</button>` : ''}
-            <button onclick="showAdminRegs('${t.id}')" class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-300 transition hover:bg-amber-500/20">📋 Voir les inscriptions</button>
+            ${isBo9(t) || isStandard(t) ? `<button onclick="openAdminTab('pool', '${t.id}')" class="rounded-lg border border-sky-500/40 bg-sky-500/10 px-2 py-1 text-[10px] font-bold text-sky-300 transition hover:bg-sky-500/20">⚔️ Gérer</button>` : ''}
+            ${t.mode === 'team' ? `<button onclick="openAdminTab('teams', '${t.id}')" class="rounded-lg border border-violet-500/40 bg-violet-500/10 px-2 py-1 text-[10px] font-bold text-violet-300 transition hover:bg-violet-500/20">👥 Équipes</button>` : ''}
+            <button onclick="openAdminTab('regs', '${t.id}')" class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-300 transition hover:bg-amber-500/20">📋 Voir les inscriptions</button>
             <select onchange="setTournamentStatus('${t.id}', this.value)" class="bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-1 text-[10px] text-white">
               ${Object.entries(STATUS_LABELS).map(([k, v]) => `<option value="${k}" ${k === t.status ? 'selected' : ''}>${v}</option>`).join('')}
             </select>
@@ -3553,6 +3636,9 @@ function renderAdminTournaments() {
       </div>`;
     }).join('')
     : '<p class="text-xs text-gray-500">Aucun tournoi pour ce filtre.</p>';
+  ensureAdminWorkspace();
+  renderAdminTabs();
+  applyAdminView();
 }
 
 // --- Admin : équipes et joueurs d'un tournoi en équipe ---
