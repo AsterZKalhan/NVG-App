@@ -3184,7 +3184,7 @@ async function loadAdmin() {
   setGamePreviews();
   const [regsRes, playersRes] = await Promise.all([
     supabaseClient.from('nvg_tournament_registrations')
-      .select('id,tournament_id,status,platform_id,payment_status,payment_reference,paid_at,created_at,user_id,team_id,nvg_tournament_teams(name,tag),nvg_users(name,first_name,last_name,birth_date)')
+      .select('id,tournament_id,status,platform_id,payment_status,payment_reference,paid_at,created_at,user_id,team_id,nvg_tournament_teams(name,tag,logo_url),nvg_users(name,first_name,last_name,birth_date)')
       .order('created_at', { ascending: false })
       .limit(500),
     supabaseClient.from('nvg_users')
@@ -3708,9 +3708,12 @@ function adminRegistrationRow(r) {
   return `
     <div class="rounded-xl border border-[#1f293d] bg-[#07090e] p-3 space-y-2">
       <div class="flex flex-wrap items-start justify-between gap-2">
-        <div class="min-w-0">
-          <p class="text-xs font-black text-white truncate">${team ? `🛡️ ${escapeHtml(team.name)}${team.tag ? ` [${escapeHtml(team.tag)}]` : ''}` : `👤 ${escapeHtml(pseudo)}`}</p>
-          <p class="text-[10px] text-gray-400">Pseudo site : <span class="text-gray-200">${escapeHtml(pseudo)}</span>${team ? ` · capitaine : ${escapeHtml(pseudo)}` : ''}</p>
+        <div class="flex min-w-0 items-start gap-2.5">
+          ${team ? `<img src="${safeUrl(team.logo_url) || './Logos/no-logo.jpeg'}" alt="" onerror="this.onerror=null;this.src='./Logos/no-logo.jpeg'" class="h-9 w-9 shrink-0 rounded-lg border border-white/10 bg-white/5 object-cover">` : ''}
+          <div class="min-w-0">
+            <p class="text-xs font-black text-white truncate">${team ? `🛡️ ${escapeHtml(team.name)}${team.tag ? ` [${escapeHtml(team.tag)}]` : ''}` : `👤 ${escapeHtml(pseudo)}`}</p>
+            <p class="text-[10px] text-gray-400">Pseudo site : <span class="text-gray-200">${escapeHtml(pseudo)}</span>${team ? ` · capitaine : ${escapeHtml(pseudo)}` : ''}</p>
+          </div>
         </div>
         <div class="flex flex-wrap items-center gap-1.5">
           <span class="rounded-full border px-2 py-1 text-[9px] font-black uppercase ${r.status === 'confirmed' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : r.status === 'cancelled' ? 'text-gray-500 border-[#1f293d] bg-white/5' : 'text-amber-400 border-amber-500/30 bg-amber-500/10'}">${escapeHtml(REG_LABELS[r.status] || r.status)}</span>
