@@ -3573,6 +3573,7 @@ function adminTeamCard(team, teamMax) {
           <input type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="uploadTournamentImage('teamlogo', 'adm-team-logo-${team.id}', 'adm-team-name-${team.id}', this)">
         </label>
         <span class="text-[10px] text-gray-500">Code : <strong class="text-amber-300">${escapeHtml(team.invite_code)}</strong> · ${members.length}/${teamMax} joueurs</span>
+        ${team.logo_url ? `<button onclick="adminClearTeamLogo('${team.id}')" class="rounded-lg border border-[#1f293d] bg-white/5 px-2 py-1 text-[10px] font-bold text-gray-300 transition hover:bg-white/10">Retirer le logo</button>` : ''}
         <button onclick="adminDeleteTeam('${team.id}')" class="ml-auto rounded-lg border border-red-600/40 bg-red-600/20 px-2 py-1 text-[10px] font-bold text-red-400 transition hover:bg-red-600 hover:text-white">Supprimer l’équipe</button>
       </div>
       <ul class="space-y-1 text-[11px] text-gray-300">
@@ -3661,6 +3662,13 @@ async function adminRemoveEventPlayer(tournamentId, userId) {
   } catch (err) {
     notify('Erreur : ' + err.message, true);
   }
+}
+
+// Retire le logo : l'équipe revient à l'image par défaut.
+async function adminClearTeamLogo(teamId) {
+  const input = $(`adm-team-logo-${teamId}`);
+  if (input) input.value = '';
+  await adminSaveTeam(teamId);
 }
 
 async function adminDeleteTeam(teamId) {
