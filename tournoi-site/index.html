@@ -441,6 +441,13 @@
                   <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Nombre de rondes</span>
                   <input id="tourStdRounds" type="number" min="1" max="10" placeholder="Auto" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
                 </div>
+                <div id="tourStdTreeWrap" class="hidden">
+                  <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Arbre</span>
+                  <select id="tourStdTree" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
+                    <option value="single">Simple élimination + petite finale</option>
+                    <option value="double">Double élimination</option>
+                  </select>
+                </div>
               </div>
             </label>
             <label id="tourGameWrap" class="block">
@@ -760,6 +767,16 @@
       </div>
 
       <!-- GESTION D'UN TOURNOI BO9 (POULES, BRACKET, RÉSULTATS) -->
+      <div id="adminTeamsPanel" class="hidden bg-[#121722] border border-violet-500/40 rounded-2xl p-5 space-y-4">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h2 class="text-sm font-black text-white">👥 Équipes et joueurs</h2>
+            <p id="adminTeamsSubtitle" class="text-[11px] text-gray-400"></p>
+          </div>
+          <button onclick="closeAdminTeams()" class="px-2 py-1 text-gray-400 hover:text-white text-sm" aria-label="Fermer">✕</button>
+        </div>
+        <div id="adminTeamsBody" class="space-y-5"></div>
+      </div>
       <div id="adminMatchPanel" class="hidden bg-[#121722] border border-amber-500/40 rounded-2xl p-5 space-y-4">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
