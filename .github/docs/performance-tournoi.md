@@ -34,9 +34,12 @@ et 2 000 participations. Il est déclenché à chaque action admin.
 
 - **Fait** : logo principal converti en WebP 600 px (1,8 Mo → 29 Ko) ; image par défaut
   `no-logo.jpeg` ramenée à 256 px (2,7 Mo → 12 Ko). Références mises à jour.
-- **Reste** : CSS précompilé (nécessite un build Tailwind, donc Node : à faire dans
-  l'étape de déploiement), versions épinglées, minification, réduction des données
-  chargées, rendu ciblé.
+- **Fait** : CSS précompilé. Le compilateur Tailwind du CDN est retiré ; le workflow
+  `deploy-tournament.yml` compile `tournoi-site/tailwind.css` (Tailwind 3.4.17, configuration
+  dans `tournoi-site/tailwind.config.js`) avant l'envoi. Si la compilation échoue, rien n'est
+  déployé. En local, sans Node, le site s'affiche sans style : le CSS n'existe qu'après
+  compilation.
+- **Reste** : versions épinglées, minification, réduction des données chargées, rendu ciblé.
 
 ## Pistes, par gain attendu
 

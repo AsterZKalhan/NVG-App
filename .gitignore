@@ -17,3 +17,6 @@ backups/
 *.sql.gz
 *.tar.gz
 *.tar.gz.gpg
+
+# CSS Tailwind compilé au déploiement (voir deploy-tournament.yml)
+tournoi-site/tailwind.css
