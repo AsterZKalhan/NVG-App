@@ -344,8 +344,9 @@ function tournamentBannerUrl(t) {
   return safeUrl(t.banner_url) || gameBanner(t.game_id) || gameBanner(bo9FirstGameId(t));
 }
 
+// Le logo propre à l'événement remplace celui du jeu.
 function tournamentLogoUrl(t) {
-  return gameLogo(t.game_id) || gameLogo(bo9FirstGameId(t));
+  return safeUrl(t.logo_url) || gameLogo(t.game_id) || gameLogo(bo9FirstGameId(t));
 }
 
 
@@ -3219,6 +3220,7 @@ function editTournament(id) {
   $('editClose').value = toLocalInput(t.registration_closes_at);
   $('editDesc').value = t.description || '';
   $('editBanner').value = t.banner_url || '';
+  $('editLogo').value = t.logo_url || '';
   $('editToornament').value = t.toornament_url || '';
   $('editPaymentUrl').value = t.payment_url || '';
   $('editPaymentInstructions').value = t.payment_instructions || '';
@@ -3310,6 +3312,7 @@ async function saveTournament() {
     registration_closes_at: $('editClose').value ? new Date($('editClose').value).toISOString() : null,
     description: $('editDesc').value.trim() || null,
     banner_url: bannerUrl || null,
+    logo_url: safeUrl($('editLogo').value) || null,
     toornament_url: toornamentUrl || null,
     toornament_id: toornamentIdFromUrl(toornamentUrl),
     payment_url: safeUrl($('editPaymentUrl').value) || null,
@@ -3512,9 +3515,9 @@ async function uploadGameImage(kind, input) {
   }
 }
 
-// Bannière de tournoi : image téléversée dans le même bucket que les visuels de jeux,
-// dans le dossier `tournois/`. Le lien obtenu remplit le champ d'URL.
-async function uploadTournamentBanner(urlFieldId, nameFieldId, input) {
+// Bannière ou logo de tournoi : image téléversée dans le même bucket que les
+// visuels de jeux, dans le dossier `tournois/`. Le lien obtenu remplit le champ d'URL.
+async function uploadTournamentImage(kind, urlFieldId, nameFieldId, input) {
   const file = input?.files?.[0];
   if (!file) return;
   try {
@@ -3523,7 +3526,7 @@ async function uploadTournamentBanner(urlFieldId, nameFieldId, input) {
     if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) throw new Error('format accepté : PNG, JPG ou WebP.');
     const name = $(nameFieldId)?.value.trim() || 'tournoi';
     const ext = /png/i.test(file.type) ? 'png' : /webp/i.test(file.type) ? 'webp' : 'jpg';
-    const path = `tournois/${slugify(name)}-banniere-${Date.now()}.${ext}`;
+    const path = `tournois/${slugify(name)}-${kind === 'logo' ? 'logo' : 'banniere'}-${Date.now()}.${ext}`;
     notify('Envoi de la bannière…');
     const { error } = await supabaseClient.storage
       .from(GAME_IMG_BUCKET)
@@ -3531,7 +3534,7 @@ async function uploadTournamentBanner(urlFieldId, nameFieldId, input) {
     if (error) throw error;
     const { data } = supabaseClient.storage.from(GAME_IMG_BUCKET).getPublicUrl(path);
     $(urlFieldId).value = data.publicUrl;
-    notify('Bannière envoyée.');
+    notify(kind === 'logo' ? 'Logo envoyé.' : 'Bannière envoyée.');
   } catch (err) {
     notify('Envoi impossible : ' + (err.message || err), true);
   } finally {
@@ -3657,6 +3660,7 @@ async function createTournament() {
       status: $('tourStatus').value,
       published,
       banner_url: bannerUrl || null,
+      logo_url: safeUrl($('tourLogo')?.value) || null,
       toornament_url: toornamentUrl || null,
       toornament_id: toornamentIdFromUrl(toornamentUrl),
       payment_url: safeUrl($('tourPaymentUrl').value) || null,

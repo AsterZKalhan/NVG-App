@@ -577,7 +577,17 @@
                 <input id="tourBanner" placeholder="Vide = bannière du jeu" class="min-w-0 flex-1 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
                 <label class="cursor-pointer rounded-lg border border-[#1f293d] bg-white/5 px-3 py-2.5 text-[10px] font-bold text-gray-300 transition hover:bg-white/10">
                   📤 Téléverser
-                  <input id="tourBannerFile" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="uploadTournamentBanner('tourBanner', 'tourName', this)">
+                  <input id="tourBannerFile" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="uploadTournamentImage('banner', 'tourBanner', 'tourName', this)">
+                </label>
+              </div>
+            </div>
+            <div class="sm:col-span-2 block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Logo de l'événement (URL ou image, facultatif)</span>
+              <div class="flex flex-wrap items-center gap-2">
+                <input id="tourLogo" placeholder="Vide = logo du jeu" class="min-w-0 flex-1 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+                <label class="cursor-pointer rounded-lg border border-[#1f293d] bg-white/5 px-3 py-2.5 text-[10px] font-bold text-gray-300 transition hover:bg-white/10">
+                  📤 Téléverser
+                  <input id="tourLogoFile" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="uploadTournamentImage('logo', 'tourLogo', 'tourName', this)">
                 </label>
               </div>
             </div>
@@ -669,7 +679,17 @@
               <input id="editBanner" placeholder="Vide = bannière du jeu" class="min-w-0 flex-1 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
               <label class="cursor-pointer rounded-lg border border-[#1f293d] bg-white/5 px-3 py-2.5 text-[10px] font-bold text-gray-300 transition hover:bg-white/10">
                 📤 Téléverser
-                <input id="editBannerFile" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="uploadTournamentBanner('editBanner', 'editName', this)">
+                <input id="editBannerFile" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="uploadTournamentImage('banner', 'editBanner', 'editName', this)">
+              </label>
+            </div>
+          </div>
+          <div class="sm:col-span-2 block">
+            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Logo de l'événement (URL ou image, facultatif)</span>
+            <div class="flex flex-wrap items-center gap-2">
+              <input id="editLogo" placeholder="Vide = logo du jeu" class="min-w-0 flex-1 bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+              <label class="cursor-pointer rounded-lg border border-[#1f293d] bg-white/5 px-3 py-2.5 text-[10px] font-bold text-gray-300 transition hover:bg-white/10">
+                📤 Téléverser
+                <input id="editLogoFile" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="uploadTournamentImage('logo', 'editLogo', 'editName', this)">
               </label>
             </div>
           </div>
