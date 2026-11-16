@@ -3906,7 +3906,7 @@ function adminEventPlayerRow(tournamentId, p, teamName) {
     <div><dt class="text-gray-500">Pseudo en jeu</dt><dd class="font-bold text-gray-200">${escapeHtml(p.platform_id || '—')}</dd></div>
     <div><dt class="text-gray-500">Prénom</dt><dd class="font-bold text-gray-200">${escapeHtml(firstName || '—')}</dd></div>
     <div><dt class="text-gray-500">Nom</dt><dd class="font-bold text-gray-200">${escapeHtml(lastName || '—')}</dd></div>
-    <div><dt class="text-gray-500">Naissance</dt><dd class="font-bold text-gray-200">${birth}</dd></div>
+    <div><dt class="text-gray-500">Âge</dt><dd class="font-bold text-gray-200">${birth}</dd></div>
     <div class="col-span-2"><dt class="text-gray-500">Identité complète</dt><dd class="font-bold text-gray-200">${escapeHtml([firstName, lastName].filter(Boolean).join(' ') || '—')}</dd></div>
     <div class="col-span-2"><dt class="text-gray-500">Adresse e-mail</dt><dd class="font-bold text-gray-200">${escapeHtml(p.nvg_users?.email || u.email || '—')}</dd></div>
     <div class="col-span-2"><dt class="text-gray-500">Inscrit le</dt><dd class="font-bold text-gray-200">${escapeHtml(p.joined_at ? formatDate(p.joined_at) : '—')}</dd></div>
@@ -4099,7 +4099,7 @@ function adminTeamPlayersBlock(r) {
         <div><dt class="text-gray-500">Pseudo en jeu</dt><dd class="font-bold text-gray-200">${escapeHtml(player?.platform_id || '—')}</dd></div>
         <div><dt class="text-gray-500">Prénom</dt><dd class="font-bold text-gray-200">${escapeHtml(u.first_name || '—')}</dd></div>
         <div><dt class="text-gray-500">Nom</dt><dd class="font-bold text-gray-200">${escapeHtml(u.last_name || '—')}</dd></div>
-        <div><dt class="text-gray-500">Naissance</dt><dd class="font-bold text-gray-200">${birth}</dd></div>
+        <div><dt class="text-gray-500">Âge</dt><dd class="font-bold text-gray-200">${birth}</dd></div>
         <div class="col-span-2"><dt class="text-gray-500">Identité complète</dt><dd class="font-bold text-gray-200">${escapeHtml([u.first_name, u.last_name].filter(Boolean).join(' ') || '—')}</dd></div>
         <div class="col-span-2"><dt class="text-gray-500">Inscrit le</dt><dd class="font-bold text-gray-200">${escapeHtml(player?.joined_at ? formatDate(player.joined_at) : '—')}</dd></div>
       </dl>`;
@@ -4156,7 +4156,7 @@ function adminRegistrationRow(r) {
         <div><dt class="text-gray-500">Pseudo en jeu</dt><dd class="font-bold text-gray-200">${escapeHtml(r.platform_id || '—')}</dd></div>
         <div><dt class="text-gray-500">Prénom</dt><dd class="font-bold text-gray-200">${escapeHtml(user.first_name || '—')}</dd></div>
         <div><dt class="text-gray-500">Nom</dt><dd class="font-bold text-gray-200">${escapeHtml(user.last_name || '—')}</dd></div>
-        <div><dt class="text-gray-500">Naissance</dt><dd class="font-bold text-gray-200">${birth}</dd></div>
+        <div><dt class="text-gray-500">Âge</dt><dd class="font-bold text-gray-200">${birth}</dd></div>
         <div class="col-span-2"><dt class="text-gray-500">Identité complète</dt><dd class="font-bold text-gray-200">${escapeHtml(fullName)}</dd></div>
         <div class="col-span-2"><dt class="text-gray-500">Inscrit le</dt><dd class="font-bold text-gray-200">${escapeHtml(formatDate(r.created_at))}</dd></div>
       </dl>`}
