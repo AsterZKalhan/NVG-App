@@ -13,7 +13,7 @@ prix à gagner et back-office NVG.
 | Dossier distant | `/tournoides9mondes` (sans suppression) |
 | Workflow | `.github/workflows/deploy-tournament.yml` (« Deploy tournoi SFTP ») |
 | Script | `.github/scripts/deploy_tournament_sftp.py` |
-| Logo | `tournoi-site/Logos/logo-9mondes.png` (1200×896, fond transparent) |
+| Logo | `tournoi-site/Logos/logo-9mondes.webp` (600 px de large, fond transparent ; source PNG 1200×896 d'origine) |
 | Favicon | `tournoi-site/Logos/favicon.png` (192×192, propre au tournoi) |
 | SQL de référence | `.github/sql/tournament-9-mondes.sql` |
 

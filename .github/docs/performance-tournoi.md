@@ -30,6 +30,14 @@ tournoi, et ils sont tous chargés même si on ne regarde qu'un tournoi.
 `loadAdmin()` ajoute jusqu'à 500 inscriptions, 1 000 comptes, 500 équipes avec leurs membres
 et 2 000 participations. Il est déclenché à chaque action admin.
 
+## État d'avancement
+
+- **Fait** : logo principal converti en WebP 600 px (1,8 Mo → 29 Ko) ; image par défaut
+  `no-logo.jpeg` ramenée à 256 px (2,7 Mo → 12 Ko). Références mises à jour.
+- **Reste** : CSS précompilé (nécessite un build Tailwind, donc Node : à faire dans
+  l'étape de déploiement), versions épinglées, minification, réduction des données
+  chargées, rendu ciblé.
+
 ## Pistes, par gain attendu
 
 1. **Remplacer le compilateur Tailwind du CDN par un CSS précompilé** (build à la publication,
