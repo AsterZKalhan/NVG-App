@@ -2239,7 +2239,7 @@ function standardBracketHtml(matches, cardFn) {
     ${group.rounds.map((round) => `<div>
       <div class="mb-1.5">
         <p class="text-[10px] font-black uppercase tracking-wider text-gray-400">${escapeHtml(round.label)}</p>
-        ${round.matches[0] ? standardRoundGameTag(round.matches[0], true) : ''}
+        ${round.matches[0] ? standardRoundGameTag(round.matches[0]) : ''}
       </div>
       <div class="grid gap-2 sm:grid-cols-2">${round.matches.map((m) => cardFn(m)).join('')}</div>
     </div>`).join('')}
@@ -2311,7 +2311,30 @@ function standardBracketPublicHtml(matches) {
       </div>`;
     }
     return standardBracketHtml(list, (m) => standardPublicMatchCard(m, '', false));
-  }).join('');
+  }).join('') + standardPodiumHtml(matches);
+}
+
+// Podium : les 3 premiers, issus de la finale (1er, 2e) et de la petite finale (3e).
+function standardPodiumHtml(matches) {
+  const finals = matches.filter((m) => m.phase === 'grand');
+  const lastRound = Math.max(0, ...matches.filter((m) => m.phase === 'bracket' || m.phase === 'winners').map((m) => m.round));
+  const final = finals[0] || matches.find((m) => (m.phase === 'bracket' || m.phase === 'winners') && m.round === lastRound);
+  const third = matches.find((m) => m.phase === 'third');
+  const winner = (m) => (m && m.status === 'finished' && m.winner_team ? m.winner_team : null);
+  const loser = (m) => {
+    const w = winner(m);
+    if (!w || !m.team_a || !m.team_b) return null;
+    return w === m.team_a ? m.team_b : m.team_a;
+  };
+  const rows = [['1er', winner(final)], ['2e', loser(final)], ['3e', winner(third)]];
+  if (!rows.some(([, id]) => id)) return '';
+  return `<div class="space-y-1.5">
+    <h4 class="text-[10px] font-black uppercase tracking-wider text-amber-300">Classement final</h4>
+    ${rows.map(([place, id]) => `<div class="flex items-center justify-between gap-2 rounded-lg border border-[#1f293d] bg-[#07090e] px-2.5 py-1.5">
+      <span class="text-[10px] font-black text-amber-300">${place}</span>
+      <span class="truncate text-[11px] font-bold ${id ? 'text-gray-200' : 'text-gray-500'}">${id ? escapeHtml(teamLabelById(id)) : 'À déterminer'}</span>
+    </div>`).join('')}
+  </div>`;
 }
 
 function standardCompetitionBlock(t) {
@@ -2465,7 +2488,13 @@ function standardRoundKeyLabel(key) {
 function standardRoundGameTag(m, centered = false) {
   if (!m) return '';
   const t = tournamentById(m.tournament_id);
-  if (!t || isStandardBo3(m, t)) return '';
+  if (!t) return '';
+  if (isStandardBo3(m, t)) {
+    const lines = [1, 2, 3]
+      .filter((n) => standardRoundGameId(t, `F${n}`))
+      .map((n) => `<p class="truncate">Jeu ${n} · ${escapeHtml(gameName(standardRoundGameId(t, `F${n}`)))}</p>`);
+    return lines.length ? `<div class="mt-0.5 ${centered ? 'text-center' : ''} text-[9px] font-bold text-violet-300">${lines.join('')}</div>` : '';
+  }
   const gameId = standardRoundGameId(t, standardRoundKey(m, t));
   if (!gameId) return '';
   const logo = gameLogo(gameId);
