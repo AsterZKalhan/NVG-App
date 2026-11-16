@@ -3490,6 +3490,13 @@ function adminTournamentStats(t) {
   return { max, registered, paid, awaiting, refunded, percent, free: max > 0 ? Math.max(0, max - registered) : null };
 }
 
+let adminSelectedTournamentId = null;
+
+function selectAdminTournament(tournamentId) {
+  adminSelectedTournamentId = tournamentId;
+  renderAdminTournaments();
+}
+
 function renderAdminTournaments() {
   const box = $('adminTournaments');
   if (!box) return;
@@ -3500,8 +3507,18 @@ function renderAdminTournaments() {
     if (filter === 'finished') return ['finished', 'cancelled'].includes(t.status);
     return true;
   });
+  const nav = $('adminTournamentNav');
+  if (!rows.some((t) => t.id === adminSelectedTournamentId)) adminSelectedTournamentId = rows[0]?.id || null;
+  if (nav) {
+    nav.innerHTML = rows.length
+      ? rows.map((t) => `<button onclick="selectAdminTournament('${t.id}')" class="w-full rounded-lg border px-3 py-2 text-left transition ${t.id === adminSelectedTournamentId ? 'border-amber-500/60 bg-amber-500/10' : 'border-[#1f293d] bg-[#07090e] hover:bg-white/5'}">
+          <span class="block truncate text-[11px] font-bold text-white">${escapeHtml(t.name)}</span>
+          <span class="block truncate text-[9px] text-gray-500">${escapeHtml(STATUS_LABELS[t.status] || t.status)} · ${t.published ? 'publié' : 'masqué'} · ${escapeHtml(tournamentGamesLabel(t))}</span>
+        </button>`).join('')
+      : '<p class="text-xs text-gray-500">Aucun tournoi.</p>';
+  }
   box.innerHTML = rows.length
-    ? rows.map((t) => {
+    ? rows.filter((t) => t.id === adminSelectedTournamentId).map((t) => {
       const s = adminTournamentStats(t);
       return `
       <div class="rounded-xl border border-[#1f293d] bg-[#07090e] px-3 py-3 space-y-2">
