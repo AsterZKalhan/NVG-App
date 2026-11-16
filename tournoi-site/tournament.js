@@ -3858,6 +3858,7 @@ function adminTeamCard(team, teamMax) {
             ? '<span class="text-[9px] text-gray-500">capitaine</span>'
             : `<button onclick="adminRemoveTeamMember('${team.id}', '${m.user_id}')" class="text-[10px] font-bold text-red-400 hover:text-red-300">Retirer</button>`}
         </li>`).join('')}
+        ${Array.from({ length: Math.max(0, teamMax - members.length) }, () => '<li class="flex items-center justify-between gap-2 text-gray-600"><span>— slot libre</span></li>').join('')}
       </ul>
     </article>`;
 }
@@ -4024,9 +4025,24 @@ function adminTeamPlayersBlock(r) {
         status === 'refunded' ? `<button onclick="setPlayerPayment('${r.tournament_id}', '${m.user_id}', 'awaiting')" class="${btn} text-amber-400 hover:text-amber-300">↩️ Remettre en attente</button>` : '',
         m.role === 'captain' ? '' : `<button onclick="adminRemoveEventPlayer('${r.tournament_id}', '${m.user_id}')" class="${btn} text-red-400 hover:text-red-300">🗑️ Retirer</button>`
       ].join('');
-      return `<div class="flex flex-wrap items-center gap-2 text-[11px]">
-        <span class="h-2.5 w-2.5 shrink-0 rounded-full ${light}" title="${escapeHtml(PLAYER_PAY_LABELS[status] || status)}"></span>
-        <span class="min-w-0 flex-1 truncate text-gray-200">${m.role === 'captain' ? '👑 ' : ''}${escapeHtml(m.nvg_users?.name || 'Joueur')} <span class="text-gray-500">· ${escapeHtml(PLAYER_PAY_LABELS[status] || status)}</span></span>
+      const u = adminPlayers.find((x) => x.id === m.user_id) || {};
+      const birth = u.birth_date ? new Date(u.birth_date).toLocaleDateString('fr-FR') : '—';
+      const details = `<dl class="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 pl-5 text-[10px] sm:grid-cols-4">
+        <div><dt class="text-gray-500">Pseudo en jeu</dt><dd class="font-bold text-gray-200">${escapeHtml(player?.platform_id || '—')}</dd></div>
+        <div><dt class="text-gray-500">Prénom</dt><dd class="font-bold text-gray-200">${escapeHtml(u.first_name || '—')}</dd></div>
+        <div><dt class="text-gray-500">Nom</dt><dd class="font-bold text-gray-200">${escapeHtml(u.last_name || '—')}</dd></div>
+        <div><dt class="text-gray-500">Naissance</dt><dd class="font-bold text-gray-200">${escapeHtml(birth)}</dd></div>
+        <div class="col-span-2"><dt class="text-gray-500">Identité complète</dt><dd class="font-bold text-gray-200">${escapeHtml([u.first_name, u.last_name].filter(Boolean).join(' ') || '—')}</dd></div>
+        <div class="col-span-2"><dt class="text-gray-500">Inscrit le</dt><dd class="font-bold text-gray-200">${escapeHtml(player?.joined_at ? formatDate(player.joined_at) : '—')}</dd></div>
+      </dl>`;
+      return `<div class="flex flex-wrap items-center gap-2 rounded-lg border border-[#1f293d] bg-[#0b0f17] px-2 py-1.5 text-[11px]">
+        <details class="min-w-0 flex-1">
+          <summary class="flex cursor-pointer list-none items-center gap-2">
+            <span class="h-2.5 w-2.5 shrink-0 rounded-full ${light}" title="${escapeHtml(PLAYER_PAY_LABELS[status] || status)}"></span>
+            <span class="min-w-0 truncate text-gray-200">${m.role === 'captain' ? '👑 ' : ''}${escapeHtml(m.nvg_users?.name || 'Joueur')} <span class="text-gray-500">· ${escapeHtml(PLAYER_PAY_LABELS[status] || status)}</span></span>
+          </summary>
+          ${details}
+        </details>
         <div class="flex flex-wrap items-center gap-2">${actions}</div>
       </div>`;
     }).join('')}
@@ -4068,14 +4084,14 @@ function adminRegistrationRow(r) {
           ${paymentBadge(payment)}
         </div>
       </div>
-      <dl class="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] sm:grid-cols-4">
+      ${team ? '' : `<dl class="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] sm:grid-cols-4">
         <div><dt class="text-gray-500">Pseudo en jeu</dt><dd class="font-bold text-gray-200">${escapeHtml(r.platform_id || '—')}</dd></div>
         <div><dt class="text-gray-500">Prénom</dt><dd class="font-bold text-gray-200">${escapeHtml(user.first_name || '—')}</dd></div>
         <div><dt class="text-gray-500">Nom</dt><dd class="font-bold text-gray-200">${escapeHtml(user.last_name || '—')}</dd></div>
         <div><dt class="text-gray-500">Naissance</dt><dd class="font-bold text-gray-200">${escapeHtml(birth)}</dd></div>
         <div class="col-span-2"><dt class="text-gray-500">Identité complète</dt><dd class="font-bold text-gray-200">${escapeHtml(fullName)}</dd></div>
         <div class="col-span-2"><dt class="text-gray-500">Inscrit le</dt><dd class="font-bold text-gray-200">${escapeHtml(formatDate(r.created_at))}</dd></div>
-      </dl>
+      </dl>`}
       ${adminTeamPlayersBlock(r)}
       <div class="flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-2">
         <button onclick="setRegistrationStatus('${r.id}','confirmed')" class="text-[10px] font-bold text-emerald-400 hover:text-emerald-300">Confirmer</button>
