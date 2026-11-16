@@ -79,11 +79,110 @@ Tables (préfixe `nvg_tournament_`) :
 | `nvg_tournament_teams` | équipes : nom, tag, capitaine, code d'invitation unique |
 | `nvg_tournament_team_members` | appartenance joueur ↔ équipe, rôle `captain`/`member` |
 | `nvg_tournament_registrations` | inscriptions solo ou équipe, statut d'inscription `pending`/`confirmed`/`waitlist`/`cancelled`, statut de paiement séparé |
+| `nvg_tournament_matches` | matchs du format BO9 : phase (`pool`/`bracket`/`third`), tour, position, poule, équipes, scores par jeu, ordre pick & ban, cartes capitaines, points, vainqueur, mercy et lien vers le match suivant |
 
 Format d'équipe : le back-office propose un seul menu **Format de jeu**
 (1 à 6 joueurs). Pour `N ≥ 2`, le site enregistre `mode = 'team'` et
 `team_min = team_max = N` ; pour `N = 1`, `mode = 'solo'` et
 `team_min = team_max = 1`. La taille exacte est donc vérifiée à l'inscription.
+
+## Format BO9 — Décathlon Esport
+
+Le formulaire **➕ Nouveau tournoi** commence par un menu **Format du tournoi** :
+
+- **Jeu unique** : fonctionnement historique (un jeu, 1 à 6 joueurs, tableau
+  à élimination géré par l'organisateur ou Toornament) ;
+- **BO9 — Décathlon Esport (9 jeux)** : tournoi multi-jeux, équipes de
+  **5 joueurs**, phase de poules puis bracket.
+
+### Les 9 jeux et le barème
+
+Les 9 jeux sont choisis à la création, répartis en trois catégories de trois
+jeux. Chaque catégorie vaut 9 points en mode **Classique** (27 au total) ou
+15 points en mode **All-In** (45 au total) :
+
+| Catégorie | Format | Unités par jeu | Classique | All-In |
+|---|---|---|---|---|
+| 🛡️ Collectif | 5v5 | 1 unité | 3 pts / unité | 5 pts / unité |
+| 🎯 Escarmouche | 2v2 / 3v3 | 2 unités | 1,5 pt / unité | 2,5 pts / unité |
+| ⚔️ Duel | 1v1 | 5 unités | 0,6 pt / unité | 1 pt / unité |
+
+La **majorité des points** gagne la rencontre : 14 points sur 27 en Classique,
+23 sur 45 en All-In. Les 9 jeux doivent être **distincts** ; le formulaire
+refuse un doublon ou un jeu manquant.
+
+### Options de compétition
+
+- **Poules** : 2 ou 4 poules, 3 à 5 équipes par poule, 1 ou 2 qualifiés par
+  poule. Par défaut : 4 poules de 4 (16 équipes, 80 joueurs), 2 qualifiés.
+  Les places (`max_participants`) sont dérivées automatiquement
+  (`poules × équipes par poule`).
+- **Pick & ban de l'ordre des jeux** : l'ordre des 9 jeux est propre à chaque
+  rencontre, tirable au hasard et réordonnable dans le panneau admin.
+- **Mercy rule** : la rencontre s'arrête dès qu'une équipe atteint le seuil de
+  majorité (14 ou 23 points), sans jouer les jeux restants.
+- **Carte capitaine** : chaque équipe désigne secrètement un de ses duels 1v1 ;
+  les points de ce duel sont doublés, une fois par rencontre.
+- **Petite finale** : match pour la 3e place entre les perdants des
+  demi-finales (désactivable).
+
+### Déroulement
+
+1. Les équipes s'inscrivent comme pour un tournoi en équipe (5 joueurs,
+   capitaine, code d'invitation).
+2. **🏗️ Générer les poules** : répartit les équipes confirmées en poules et
+   crée tous les matchs en round-robin (chaque équipe rencontre les autres).
+3. Chaque match de poule se joue en **BO1 par jeu** (sprint) ; l'admin saisit
+   les unités gagnées par équipe et par jeu. Les points sont calculés
+   automatiquement (barème et carte capitaine inclus).
+4. Classement de poule : **3 points** par victoire, **1** par égalité, **0** par
+   défaite ; départage au **goal average** (points marqués − points encaissés),
+   puis aux points marqués, puis à l'ordre alphabétique.
+5. Une fois tous les matchs de poule terminés, **🏁 Générer le bracket**
+   qualifie les mieux classés et construit un tableau à 2, 4, 8 ou 16 équipes,
+   avec têtes de série croisées entre poules, avancement automatique des
+   vainqueurs et petite finale.
+6. La fiche publique affiche le format, les classements, les rencontres de
+   poule (repliées) et le bracket avec le détail des jeux.
+
+Le tournoi BO9 reste compatible avec les tournois « jeu unique » existants :
+`format_config` est nul pour ces derniers.
+
+### Structure `format_config`
+
+```json
+{
+  "type": "bo9",
+  "points_mode": "classic",
+  "games": [
+    { "slot": 1, "category": "collectif", "game_id": "…", "units": 1, "points_per_unit": 3 }
+  ],
+  "pool_count": 4,
+  "pool_size": 4,
+  "qualifiers_per_pool": 2,
+  "pick_ban": true,
+  "mercy": true,
+  "captain_card": true,
+  "third_place": true
+}
+```
+
+Migration : `.github/sql/tournament-bo9.sql` (`format_config`,
+`nvg_tournament_matches`, index, RLS et grants).
+
+### Panneau admin « ⚔️ Gérer »
+
+Dans **📋 Gestion des tournois**, chaque tournoi BO9 affiche un bouton
+**⚔️ Gérer** qui ouvre le panneau de compétition :
+
+- générer les poules (16 équipes confirmées requises pour 4 × 4) ;
+- générer le bracket quand toutes les poules sont terminées ;
+- effacer tous les matchs pour repartir de zéro ;
+- suivre les classements et l'avancement de chaque poule ;
+- ouvrir chaque match pour saisir les unités par jeu, choisir l'ordre pick &
+  ban (🔀 tirage, ▲/▼) et désigner la carte capitaine de chaque équipe ;
+- enregistrer un résultat : le vainqueur est propagé au match suivant, les
+  perdants des demi-finales alimentent la petite finale.
 
 Champs de paiement :
 
@@ -204,8 +303,8 @@ menus :
 |---|---|
 | **👥 Joueurs** | recherche par pseudo, nom ou e-mail ; modification du pseudo, du prénom, du nom et de la date de naissance ; nombre d'inscriptions par joueur. Les rangs et rôles restent gérés dans l'application NVG. |
 | **🎮 Jeux** | création et modification d'un jeu (nom, logo et bannière téléversés ou URL externe). |
-| **➕ Nouveau tournoi** | formulaire complet de création (jeu, format de jeu 1–6, type, statut, slots, frais, podium, dates, visuels, Toornament, paiement, description, publication). |
-| **📋 Gestion des tournois** | liste filtrable (tous / en cours et ouverts / brouillons / terminés et annulés) avec barre de remplissage, changement de statut, modification, suppression et accès aux inscriptions. |
+| **➕ Nouveau tournoi** | formulaire complet de création (format du tournoi jeu unique ou BO9, jeu(x), format de jeu 1–6, type, statut, slots, frais, podium, dates, visuels, Toornament, paiement, description, publication). En BO9 : 9 jeux par catégorie, mode de points, poules et options de compétition. |
+| **📋 Gestion des tournois** | liste filtrable (tous / en cours et ouverts / brouillons / terminés et annulés) avec barre de remplissage, changement de statut, modification, suppression, accès aux inscriptions et bouton **⚔️ Gérer** pour les tournois BO9. |
 
 Chaque menu est adressable par lien : `?tab=admin&admin=players`,
 `?admin=games`, `?admin=create`, `?admin=manage` (l'historique du navigateur

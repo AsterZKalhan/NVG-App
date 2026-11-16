@@ -374,11 +374,18 @@
               <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Nom du tournoi</span>
               <input id="tourName" placeholder="Ex. Nova Series 2026 — Qualifier #2" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
             </label>
-            <label class="block">
+            <label class="block sm:col-span-2">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Format du tournoi</span>
+              <select id="tourFormatType" onchange="toggleTournamentFormat()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+                <option value="single">Jeu unique</option>
+                <option value="bo9">BO9 — Décathlon Esport (9 jeux)</option>
+              </select>
+            </label>
+            <label id="tourGameWrap" class="block">
               <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Jeu</span>
               <select id="tourGame" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white"></select>
             </label>
-            <label class="block">
+            <label id="tourTeamSizeWrap" class="block">
               <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Format de jeu</span>
               <select id="tourTeamSize" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
                 <option value="1">Solo (1 joueur)</option>
@@ -389,6 +396,76 @@
                 <option value="6">Équipe de 6 joueurs</option>
               </select>
             </label>
+            <div id="tourBo9Wrap" class="hidden sm:col-span-2 space-y-4">
+              <div class="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-[11px] leading-relaxed text-amber-100/80">
+                <p class="text-[10px] font-black uppercase tracking-wider text-amber-300">Décathlon Esport — BO9</p>
+                <p class="mt-1">9 jeux en trois catégories : <strong class="text-white">collectif 5v5</strong>, <strong class="text-white">escarmouche 2v2/3v3</strong> et <strong class="text-white">duel 1v1</strong>. La majorité des points gagne la rencontre. Équipes de 5 joueurs, poules puis bracket.</p>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label class="block">
+                  <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Mode de points</span>
+                  <select id="tourBo9Points" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+                    <option value="classic">Classique — 27 points (3 / 1,5 / 0,6)</option>
+                    <option value="allin">All-In — 45 points (5 / 2,5 / 1)</option>
+                  </select>
+                </label>
+                <label class="block">
+                  <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Poules</span>
+                  <select id="tourBo9Pools" onchange="syncBo9Slots()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+                    <option value="2">2 poules</option>
+                    <option value="4" selected>4 poules</option>
+                  </select>
+                </label>
+                <label class="block">
+                  <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Équipes par poule</span>
+                  <select id="tourBo9PoolSize" onchange="syncBo9Slots()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+                    <option value="3">3 équipes</option>
+                    <option value="4" selected>4 équipes</option>
+                    <option value="5">5 équipes</option>
+                  </select>
+                </label>
+                <label class="block">
+                  <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Qualifiés par poule</span>
+                  <select id="tourBo9Qualifiers" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+                    <option value="1">1 équipe</option>
+                    <option value="2" selected>2 équipes</option>
+                  </select>
+                </label>
+              </div>
+              <div class="space-y-3">
+                <div>
+                  <p class="mb-1.5 text-[10px] font-black uppercase tracking-wider text-amber-400">🛡️ Collectif — 5v5</p>
+                  <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <select id="bo9Game1" class="bo9-game bg-[#07090e] border border-[#1f293d] rounded-xl px-2 py-2 text-[11px] text-white"></select>
+                    <select id="bo9Game2" class="bo9-game bg-[#07090e] border border-[#1f293d] rounded-xl px-2 py-2 text-[11px] text-white"></select>
+                    <select id="bo9Game3" class="bo9-game bg-[#07090e] border border-[#1f293d] rounded-xl px-2 py-2 text-[11px] text-white"></select>
+                  </div>
+                </div>
+                <div>
+                  <p class="mb-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-400">🎯 Escarmouche — 2v2 / 3v3</p>
+                  <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <select id="bo9Game4" class="bo9-game bg-[#07090e] border border-[#1f293d] rounded-xl px-2 py-2 text-[11px] text-white"></select>
+                    <select id="bo9Game5" class="bo9-game bg-[#07090e] border border-[#1f293d] rounded-xl px-2 py-2 text-[11px] text-white"></select>
+                    <select id="bo9Game6" class="bo9-game bg-[#07090e] border border-[#1f293d] rounded-xl px-2 py-2 text-[11px] text-white"></select>
+                  </div>
+                </div>
+                <div>
+                  <p class="mb-1.5 text-[10px] font-black uppercase tracking-wider text-sky-400">⚔️ Duel — 1v1</p>
+                  <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <select id="bo9Game7" class="bo9-game bg-[#07090e] border border-[#1f293d] rounded-xl px-2 py-2 text-[11px] text-white"></select>
+                    <select id="bo9Game8" class="bo9-game bg-[#07090e] border border-[#1f293d] rounded-xl px-2 py-2 text-[11px] text-white"></select>
+                    <select id="bo9Game9" class="bo9-game bg-[#07090e] border border-[#1f293d] rounded-xl px-2 py-2 text-[11px] text-white"></select>
+                  </div>
+                </div>
+                <p id="bo9GamesStatus" class="text-[10px] text-gray-500">Sélectionne 9 jeux différents (un jeu par ligne).</p>
+              </div>
+              <div class="flex flex-wrap gap-4 text-[11px] text-gray-300">
+                <label class="flex items-center gap-2"><input id="tourBo9PickBan" type="checkbox" class="accent-red-600" checked> Pick &amp; ban de l'ordre des jeux</label>
+                <label class="flex items-center gap-2"><input id="tourBo9Mercy" type="checkbox" class="accent-red-600" checked> Mercy rule</label>
+                <label class="flex items-center gap-2"><input id="tourBo9Captain" type="checkbox" class="accent-red-600" checked> Carte capitaine</label>
+                <label class="flex items-center gap-2"><input id="tourBo9Third" type="checkbox" class="accent-red-600" checked> Petite finale</label>
+              </div>
+            </div>
             <label class="block">
               <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Type de tournoi</span>
               <select id="tourFormat" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
@@ -570,6 +647,19 @@
           </div>
         </div>
         <div id="adminRegsList" class="space-y-2"></div>
+      </div>
+
+      <!-- GESTION D'UN TOURNOI BO9 (POULES, BRACKET, RÉSULTATS) -->
+      <div id="adminMatchPanel" class="hidden bg-[#121722] border border-amber-500/40 rounded-2xl p-5 space-y-4">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h2 class="text-sm font-black text-white">⚔️ Gérer la compétition</h2>
+            <p id="adminMatchSubtitle" class="text-[11px] text-gray-400"></p>
+          </div>
+          <button onclick="closeAdminMatchPanel()" class="px-2 py-1 text-gray-400 hover:text-white text-sm">✕</button>
+        </div>
+        <div id="adminMatchTools" class="flex flex-wrap items-center gap-2"></div>
+        <div id="adminMatchBody" class="space-y-4"></div>
       </div>
 
       <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">

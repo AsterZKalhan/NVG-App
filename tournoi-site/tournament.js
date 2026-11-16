@@ -17,6 +17,8 @@ let isAdmin = false;
 let games = [];
 let tournaments = [];
 let publicRegs = [];
+let publicTeams = [];
+let tournamentMatches = [];
 let myTeams = [];
 let myRegistrations = [];
 let adminRegs = [];
@@ -27,6 +29,7 @@ let pendingJoinCode = null;
 let editingTournamentId = null;
 let editingGameId = null;
 let viewingTournamentId = null;
+let viewingMatchTournamentId = null;
 
 const STATUS_LABELS = {
   draft: 'Brouillon',
@@ -115,6 +118,113 @@ function gameBanner(id) {
 function gameById(id) {
   return games.find((g) => g.id === id) || null;
 }
+
+// ---------------------------------------------------------------------------
+// Format BO9 « Décathlon Esport »
+// ---------------------------------------------------------------------------
+// 9 jeux en trois catégories. Chaque catégorie vaut 9 points (ou 15 en All-In) :
+//   collectif 5v5    : 1 unité × 3 pts   (All-In × 5)
+//   escarmouche 2v2  : 2 unités × 1,5 pt (All-In × 2,5)
+//   duel 1v1         : 5 unités × 0,6 pt (All-In × 1)
+// Total : 27 points en classique, 45 en All-In. La majorité gagne.
+
+const BO9_CATEGORIES = [
+  { key: 'collectif', label: 'Collectif 5v5', short: 'Collectif', icon: '🛡️', tone: 'text-amber-400' },
+  { key: 'escarmouche', label: 'Escarmouche 2v2 / 3v3', short: 'Escarmouche', icon: '🎯', tone: 'text-emerald-400' },
+  { key: 'duel', label: 'Duel 1v1', short: 'Duel', icon: '⚔️', tone: 'text-sky-400' }
+];
+
+const BO9_UNITS = { collectif: 1, escarmouche: 2, duel: 5 };
+const BO9_POINTS = {
+  classic: { collectif: 3, escarmouche: 1.5, duel: 0.6 },
+  allin: { collectif: 5, escarmouche: 2.5, duel: 1 }
+};
+
+function bo9Config(t) {
+  const cfg = t?.format_config;
+  return cfg && cfg.type === 'bo9' && Array.isArray(cfg.games) && cfg.games.length === 9 ? cfg : null;
+}
+
+function isBo9(t) {
+  return Boolean(bo9Config(t));
+}
+
+function round2(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
+}
+
+function formatPoints(value) {
+  return round2(value).toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+}
+
+function bo9Slot(cfg, slotNumber) {
+  return (cfg?.games || []).find((g) => Number(g.slot) === Number(slotNumber)) || null;
+}
+
+function bo9TotalPoints(cfg) {
+  return round2((cfg?.games || []).reduce((sum, g) => sum + Number(g.units) * Number(g.points_per_unit), 0));
+}
+
+function bo9MercyThreshold(cfg) {
+  return Math.floor(bo9TotalPoints(cfg) / 2) + 1;
+}
+
+function bo9CategoryTotal(cfg, category) {
+  return round2((cfg?.games || [])
+    .filter((g) => g.category === category)
+    .reduce((sum, g) => sum + Number(g.units) * Number(g.points_per_unit), 0));
+}
+
+function bo9PointsModeLabel(cfg) {
+  return cfg?.points_mode === 'allin' ? 'All-In' : 'Classique';
+}
+
+function bo9GameLabel(cfg, slotNumber) {
+  const slot = bo9Slot(cfg, slotNumber);
+  return slot ? gameName(slot.game_id) : 'Jeu';
+}
+
+// Points d'un match : unités gagnées par jeu × barème, carte capitaine doublée.
+function bo9MatchTotals(match, cfg) {
+  const cards = match?.captain_card || {};
+  let a = 0;
+  let b = 0;
+  (Array.isArray(match?.games) ? match.games : []).forEach((g) => {
+    const slot = bo9Slot(cfg, g.slot);
+    if (!slot) return;
+    const max = Number(slot.units) || 0;
+    const unitsA = Math.max(0, Math.min(max, Number(g.units_a) || 0));
+    const unitsB = Math.max(0, Math.min(max, Number(g.units_b) || 0));
+    const per = Number(slot.points_per_unit) || 0;
+    let pointsA = unitsA * per;
+    let pointsB = unitsB * per;
+    if (Number(cards.a) === Number(g.slot)) pointsA *= 2;
+    if (Number(cards.b) === Number(g.slot)) pointsB *= 2;
+    a += pointsA;
+    b += pointsB;
+  });
+  return { a: round2(a), b: round2(b) };
+}
+
+// Libellé d'un tournoi : jeu unique ou « 9 jeux · Décathlon Esport ».
+function tournamentGamesLabel(t) {
+  const cfg = bo9Config(t);
+  if (cfg) return `9 jeux · Décathlon Esport`;
+  return gameName(t.game_id);
+}
+
+function bo9FirstGameId(t) {
+  return bo9Config(t)?.games?.[0]?.game_id || null;
+}
+
+function tournamentBannerUrl(t) {
+  return safeUrl(t.banner_url) || gameBanner(t.game_id) || gameBanner(bo9FirstGameId(t));
+}
+
+function tournamentLogoUrl(t) {
+  return gameLogo(t.game_id) || gameLogo(bo9FirstGameId(t));
+}
+
 
 function safeUrl(value) {
   const raw = String(value ?? '').trim();
@@ -275,14 +385,18 @@ function applyRoute() {
 // --- Données publiques ---
 
 async function loadPublic() {
-  const [g, t, regs] = await Promise.all([
+  const [g, t, regs, teams, matches] = await Promise.all([
     supabaseClient.from('nvg_tournament_games').select('*').order('name'),
     supabaseClient.from('nvg_tournaments').select('*').order('starts_at', { ascending: true, nullsFirst: false }),
-    supabaseClient.from('nvg_tournament_registrations_public').select('tournament_id,status')
+    supabaseClient.from('nvg_tournament_registrations_public').select('tournament_id,status'),
+    supabaseClient.from('nvg_tournament_teams_public').select('id,tournament_id,name,tag,member_count'),
+    supabaseClient.from('nvg_tournament_matches').select('*').order('created_at', { ascending: true })
   ]);
   games = g.data || [];
   tournaments = t.data || [];
   publicRegs = regs.data || [];
+  publicTeams = teams.data || [];
+  tournamentMatches = matches.data || [];
   renderTournaments();
   renderHomeTournaments();
   renderCalendar();
@@ -303,7 +417,7 @@ function renderCalendar() {
     <div class="flex flex-wrap items-center justify-between gap-2 border border-[#1f293d] rounded-xl px-4 py-2.5 bg-[#07090e]">
       <div class="min-w-0">
         <p class="text-xs font-bold text-white truncate">${escapeHtml(t.name)}</p>
-        <p class="text-[10px] text-gray-400">${escapeHtml(gameName(t.game_id))} · ${escapeHtml(FORMAT_LABELS[t.format] || t.format)}</p>
+        <p class="text-[10px] text-gray-400">${escapeHtml(tournamentGamesLabel(t))} · ${escapeHtml(FORMAT_LABELS[t.format] || t.format)}</p>
       </div>
       <div class="text-right shrink-0">
         <p class="text-[11px] font-bold ${t.status === 'open' ? 'text-emerald-400' : 'text-gray-300'}">${t.starts_at ? `🏁 ${escapeHtml(formatDate(t.starts_at))}` : '📅 Date à confirmer'}</p>
@@ -392,7 +506,7 @@ function payRegistration(registrationId) {
 }
 
 function tournamentBanner(t) {
-  const banner = safeUrl(t.banner_url) || gameBanner(t.game_id);
+  const banner = tournamentBannerUrl(t);
   const toornament = externalLink(t.toornament_url);
   return `
     <div class="relative h-32 sm:h-36 overflow-hidden bg-[#07090e]">
@@ -400,7 +514,7 @@ function tournamentBanner(t) {
       <div class="absolute inset-0 bg-gradient-to-br from-red-950/70 via-[#121722]/80 to-[#0b0f17]/90"></div>
       ${banner
         ? `<img src="${banner}" alt="" loading="lazy" onerror="this.remove()" class="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105">`
-        : `<p class="absolute inset-0 flex items-center justify-center px-8 text-center text-lg sm:text-xl font-black uppercase tracking-[0.22em] text-white/15">${escapeHtml(gameName(t.game_id))}</p>`}
+        : `<p class="absolute inset-0 flex items-center justify-center px-8 text-center text-lg sm:text-xl font-black uppercase tracking-[0.22em] text-white/15">${escapeHtml(tournamentGamesLabel(t))}</p>`}
       <div class="absolute inset-0 bg-gradient-to-t from-[#121722] via-[#121722]/30 to-transparent"></div>
       <span class="absolute left-3 top-3 rounded-md border px-2 py-1 text-[9px] font-black uppercase tracking-wider backdrop-blur ${STATUS_STYLES[t.status] || STATUS_STYLES.draft}">${escapeHtml(STATUS_LABELS[t.status] || t.status)}</span>
       ${toornament ? `<a href="${toornament}" target="_blank" rel="noopener" title="Page officielle du tournoi sur Toornament" class="absolute right-3 top-3 rounded-md border border-white/20 bg-black/60 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-white/90 backdrop-blur transition hover:border-amber-400/70 hover:text-amber-300">Toornament</a>` : ''}
@@ -457,8 +571,8 @@ function openTournamentDetails(id, options = {}) {
   const t = tournamentById(id);
   if (!t) return;
   if (options.push !== false) pushRoute(routeState().tab, { tournament: id });
-  const banner = safeUrl(t.banner_url) || gameBanner(t.game_id);
-  const logo = gameLogo(t.game_id);
+  const banner = tournamentBannerUrl(t);
+  const logo = tournamentLogoUrl(t);
   const initials = escapeHtml((gameById(t.game_id)?.name || t.name || '?').slice(0, 2).toUpperCase());
   const toornament = externalLink(t.toornament_url);
   const count = registeredCount(t.id);
@@ -474,7 +588,7 @@ function openTournamentDetails(id, options = {}) {
       <div class="absolute inset-0 bg-gradient-to-br from-red-950/70 via-[#121722]/80 to-[#0b0f17]/90"></div>
       ${banner
         ? `<img src="${banner}" alt="" onerror="this.remove()" class="absolute inset-0 h-full w-full object-cover">`
-        : `<p class="absolute inset-0 flex items-center justify-center px-8 text-center text-xl font-black uppercase tracking-[0.22em] text-white/15">${escapeHtml(gameName(t.game_id))}</p>`}
+        : `<p class="absolute inset-0 flex items-center justify-center px-8 text-center text-xl font-black uppercase tracking-[0.22em] text-white/15">${escapeHtml(tournamentGamesLabel(t))}</p>`}
       <div class="absolute inset-0 bg-gradient-to-t from-[#0b0f17] via-[#0b0f17]/40 to-transparent"></div>
       <button onclick="closeTournamentDetails()" class="absolute right-3 top-3 h-8 w-8 rounded-lg border border-white/20 bg-black/60 text-sm font-bold text-white/90 backdrop-blur transition hover:border-amber-400/70 hover:text-amber-300" aria-label="Fermer">✕</button>
       <span class="absolute left-3 top-3 rounded-md border px-2 py-1 text-[9px] font-black uppercase tracking-wider backdrop-blur ${STATUS_STYLES[t.status] || STATUS_STYLES.draft}">${escapeHtml(STATUS_LABELS[t.status] || t.status)}</span>
@@ -487,7 +601,7 @@ function openTournamentDetails(id, options = {}) {
             : `<span class="text-base font-black text-gray-400">${initials}</span>`}
         </div>
         <div class="min-w-0 flex-1">
-          <p class="truncate text-[10px] font-black uppercase tracking-[0.18em] text-amber-400/80">${escapeHtml(gameName(t.game_id))}</p>
+          <p class="truncate text-[10px] font-black uppercase tracking-[0.18em] text-amber-400/80">${escapeHtml(tournamentGamesLabel(t))}</p>
           <h2 class="mt-1 text-xl font-black leading-snug text-white">${escapeHtml(t.name)}</h2>
           <p class="mt-1 text-xs text-gray-400">${escapeHtml(dateRange(t))}</p>
         </div>
@@ -501,6 +615,9 @@ function openTournamentDetails(id, options = {}) {
       </div>
 
       ${t.description ? `<p class="whitespace-pre-line text-xs leading-relaxed text-gray-300">${escapeHtml(t.description)}</p>` : ''}
+
+      ${bo9FormatBlock(t)}
+      ${bo9CompetitionBlock(t)}
 
       <div>
         <h3 class="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">${trophyIcon('h-4 w-4 text-amber-400')} Récompenses</h3>
@@ -538,6 +655,737 @@ function openTournamentDetails(id, options = {}) {
   document.body.classList.add('overflow-hidden');
 }
 
+// --- Affichage public du format BO9 ---
+
+function teamNameById(id) {
+  if (!id) return 'À déterminer';
+  const pub = publicTeams.find((team) => team.id === id);
+  if (pub) return pub.name;
+  const mine = myTeams.find((team) => team.id === id);
+  if (mine) return mine.name;
+  const reg = adminRegs.find((r) => r.team_id === id);
+  if (reg?.nvg_tournament_teams) return reg.nvg_tournament_teams.name;
+  return 'Équipe';
+}
+
+function teamTagById(id) {
+  const pub = publicTeams.find((team) => team.id === id);
+  if (pub?.tag) return pub.tag;
+  const reg = adminRegs.find((r) => r.team_id === id);
+  return reg?.nvg_tournament_teams?.tag || '';
+}
+
+function teamLabelById(id) {
+  if (!id) return 'À déterminer';
+  const tag = teamTagById(id);
+  return tag ? `${teamNameById(id)} [${tag}]` : teamNameById(id);
+}
+
+function bo9FormatBlock(t) {
+  const cfg = bo9Config(t);
+  if (!cfg) return '';
+  const total = bo9TotalPoints(cfg);
+  const mercy = cfg.mercy !== false;
+  const captain = cfg.captain_card !== false;
+  const pickBan = cfg.pick_ban !== false;
+  return `
+    <div class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h3 class="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-300">⚔️ Format BO9 — Décathlon Esport</h3>
+        <span class="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-amber-300">${total} points · ${escapeHtml(bo9PointsModeLabel(cfg))}</span>
+      </div>
+      <div class="mt-3 grid gap-2 sm:grid-cols-3">
+        ${BO9_CATEGORIES.map((cat) => {
+          const slots = cfg.games.filter((g) => g.category === cat.key).sort((a, b) => a.slot - b.slot);
+          return `<div class="rounded-lg border border-[#1f293d] bg-[#07090e] p-2.5">
+            <p class="text-[10px] font-black uppercase tracking-wider ${cat.tone}">${cat.icon} ${cat.label}</p>
+            <ul class="mt-1.5 space-y-1">
+              ${slots.map((s) => `<li class="flex items-center justify-between gap-2 text-[10px]">
+                <span class="truncate text-gray-200">${escapeHtml(gameName(s.game_id))}</span>
+                <span class="shrink-0 text-gray-500">${formatPoints(Number(s.units) * Number(s.points_per_unit))} pts</span>
+              </li>`).join('')}
+            </ul>
+            <p class="mt-1.5 border-t border-[#1f293d] pt-1 text-right text-[9px] font-bold text-gray-400">${formatPoints(bo9CategoryTotal(cfg, cat.key))} pts</p>
+          </div>`;
+        }).join('')}
+      </div>
+      <p class="mt-2 text-[10px] leading-relaxed text-gray-400">
+        ${bo9MercyThreshold(cfg)} points pour gagner${mercy ? ' (mercy rule)' : ''} · ${pickBan ? 'pick & ban de l’ordre des jeux' : 'ordre des jeux fixe'}${captain ? ' · carte capitaine sur un duel 1v1' : ''}.
+      </p>
+    </div>`;
+}
+
+function bo9PublicMatchCard(match, cfg, labelText = '') {
+  const totals = bo9MatchTotals(match, cfg);
+  const finished = match.status === 'finished';
+  const winnerA = finished && match.winner_team && match.winner_team === match.team_a;
+  const winnerB = finished && match.winner_team && match.winner_team === match.team_b;
+  const played = (Array.isArray(match.games) ? match.games : []).filter(Boolean);
+  return `
+    <div class="rounded-lg border border-[#1f293d] bg-[#07090e] p-2.5">
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0 space-y-0.5">
+          ${labelText ? `<p class="text-[9px] font-black uppercase tracking-wider text-gray-500">${escapeHtml(labelText)}</p>` : ''}
+          <p class="truncate text-[11px] font-bold ${winnerA ? 'text-emerald-300' : 'text-gray-200'}">${escapeHtml(teamLabelById(match.team_a))}</p>
+          <p class="truncate text-[11px] font-bold ${winnerB ? 'text-emerald-300' : 'text-gray-200'}">${escapeHtml(teamLabelById(match.team_b))}</p>
+        </div>
+        <div class="shrink-0 text-right">
+          <p class="text-sm font-black ${finished ? 'text-white' : 'text-gray-500'}">${finished || played.length ? `${formatPoints(totals.a)} — ${formatPoints(totals.b)}` : '—'}</p>
+          <p class="text-[9px] font-bold ${finished ? (match.mercy ? 'text-amber-400' : 'text-emerald-400') : 'text-gray-500'}">${finished ? (match.mercy ? 'Mercy' : 'Terminé') : 'À venir'}</p>
+        </div>
+      </div>
+      ${played.length ? `<details class="mt-2 border-t border-[#1f293d] pt-1.5">
+        <summary class="cursor-pointer text-[9px] font-bold uppercase tracking-wider text-gray-500">Détail des jeux</summary>
+        <ul class="mt-1 space-y-0.5">
+          ${played.map((g) => {
+            const slot = bo9Slot(cfg, g.slot);
+            if (!slot) return '';
+            return `<li class="flex items-center justify-between gap-2 text-[10px]"><span class="truncate text-gray-400">${escapeHtml(gameName(slot.game_id))}</span><span class="shrink-0 font-bold text-gray-200">${formatPoints(Number(g.units_a) || 0)} — ${formatPoints(Number(g.units_b) || 0)}</span></li>`;
+          }).join('')}
+        </ul>
+      </details>` : ''}
+    </div>`;
+}
+
+function bo9PoolStandings(groupName, cfg, matches) {
+  const rows = new Map();
+  const ensure = (id) => {
+    if (!id) return null;
+    if (!rows.has(id)) rows.set(id, { id, played: 0, wins: 0, draws: 0, losses: 0, points: 0, scored: 0, conceded: 0 });
+    return rows.get(id);
+  };
+  matches
+    .filter((m) => m.phase === 'pool' && m.group_name === groupName)
+    .forEach((m) => {
+      ensure(m.team_a);
+      ensure(m.team_b);
+      if (m.status !== 'finished') return;
+      const a = ensure(m.team_a);
+      const b = ensure(m.team_b);
+      if (!a || !b) return;
+      a.played += 1;
+      b.played += 1;
+      a.scored += Number(m.points_a) || 0;
+      a.conceded += Number(m.points_b) || 0;
+      b.scored += Number(m.points_b) || 0;
+      b.conceded += Number(m.points_a) || 0;
+      if (m.winner_team && m.winner_team === m.team_a) {
+        a.wins += 1; b.losses += 1; a.points += 3;
+      } else if (m.winner_team && m.winner_team === m.team_b) {
+        b.wins += 1; a.losses += 1; b.points += 3;
+      } else {
+        a.draws += 1; b.draws += 1; a.points += 1; b.points += 1;
+      }
+    });
+  return [...rows.values()].sort((x, y) => (
+    (y.points - x.points)
+    || ((y.scored - y.conceded) - (x.scored - x.conceded))
+    || (y.scored - x.scored)
+    || teamNameById(x.id).localeCompare(teamNameById(y.id), 'fr')
+  ));
+}
+
+function bo9PoolTable(groupName, cfg, matches) {
+  const standings = bo9PoolStandings(groupName, cfg, matches);
+  return `
+    <div class="overflow-hidden rounded-xl border border-[#1f293d] bg-[#07090e]">
+      <p class="border-b border-[#1f293d] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-amber-300">Poule ${escapeHtml(groupName)}</p>
+      <table class="w-full text-[10px]">
+        <thead class="text-gray-500">
+          <tr>
+            <th class="px-2 py-1 text-left font-bold">#</th>
+            <th class="px-2 py-1 text-left font-bold">Équipe</th>
+            <th class="px-1 py-1 text-center font-bold">J</th>
+            <th class="px-1 py-1 text-center font-bold">V</th>
+            <th class="px-1 py-1 text-center font-bold">N</th>
+            <th class="px-1 py-1 text-center font-bold">D</th>
+            <th class="px-1 py-1 text-center font-bold">Pts</th>
+            <th class="px-2 py-1 text-right font-bold">Diff.</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${standings.map((r, i) => `<tr class="border-t border-[#1f293d]">
+            <td class="px-2 py-1 text-gray-500">${i + 1}</td>
+            <td class="max-w-[9rem] truncate px-2 py-1 font-bold text-gray-200">${escapeHtml(teamLabelById(r.id))}</td>
+            <td class="px-1 py-1 text-center text-gray-400">${r.played}</td>
+            <td class="px-1 py-1 text-center text-gray-400">${r.wins}</td>
+            <td class="px-1 py-1 text-center text-gray-400">${r.draws}</td>
+            <td class="px-1 py-1 text-center text-gray-400">${r.losses}</td>
+            <td class="px-1 py-1 text-center font-black text-white">${r.points}</td>
+            <td class="px-2 py-1 text-right ${r.scored - r.conceded >= 0 ? 'text-emerald-400' : 'text-red-400'}">${r.scored - r.conceded > 0 ? '+' : ''}${formatPoints(r.scored - r.conceded)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function bo9BracketView(matches, cfg) {
+  const bracket = matches.filter((m) => m.phase === 'bracket');
+  const third = matches.find((m) => m.phase === 'third');
+  const rounds = [...new Set(bracket.map((m) => m.round))].sort((a, b) => a - b);
+  const totalRounds = rounds.length ? Math.max(...rounds) : 0;
+  return `
+    <div class="space-y-3">
+      ${rounds.map((round) => `
+        <div>
+          <p class="mb-1.5 text-[10px] font-black uppercase tracking-wider text-gray-400">${escapeHtml(bracketRoundLabel(round, totalRounds))}</p>
+          <div class="grid gap-2 sm:grid-cols-2">
+            ${bracket.filter((m) => m.round === round).sort((a, b) => a.position - b.position).map((m) => bo9PublicMatchCard(m, cfg)).join('')}
+          </div>
+        </div>`).join('')}
+      ${third ? `<div>
+        <p class="mb-1.5 text-[10px] font-black uppercase tracking-wider text-gray-400">Petite finale</p>
+        <div class="grid gap-2 sm:grid-cols-2">${bo9PublicMatchCard(third, cfg)}</div>
+      </div>` : ''}
+    </div>`;
+}
+
+// Matchs de poule repliés : le classement reste visible, le détail des
+// rencontres s'ouvre à la demande pour ne pas alourdir la fiche.
+function bo9PoolMatchesBlock(groupName, cfg, matches) {
+  const list = matches
+    .filter((m) => m.phase === 'pool' && m.group_name === groupName)
+    .sort((a, b) => (a.round - b.round) || (a.position - b.position));
+  if (!list.length) return '';
+  const finished = list.filter((m) => m.status === 'finished').length;
+  return `
+    <details class="rounded-xl border border-[#1f293d] bg-[#07090e]">
+      <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2">
+        <span class="text-[10px] font-black uppercase tracking-wider text-gray-300">Rencontres — poule ${escapeHtml(groupName)}</span>
+        <span class="text-[9px] font-bold ${finished === list.length ? 'text-emerald-400' : 'text-gray-500'}">${finished} / ${list.length} terminés</span>
+      </summary>
+      <div class="space-y-1.5 border-t border-[#1f293d] p-2">
+        ${list.map((m) => bo9PublicMatchCard(m, cfg, `Journée ${m.round}`)).join('')}
+      </div>
+    </details>`;
+}
+
+function bo9CompetitionBlock(t) {
+  const cfg = bo9Config(t);
+  if (!cfg) return '';
+  const matches = tournamentMatches.filter((m) => m.tournament_id === t.id);
+  if (!matches.length) return '';
+  const poolMatches = matches.filter((m) => m.phase === 'pool');
+  const groups = [...new Set(poolMatches.map((m) => m.group_name).filter(Boolean))].sort();
+  return `
+    <div class="space-y-4">
+      ${groups.length ? `<div>
+        <h3 class="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">🏟️ Phase de poules</h3>
+        <div class="grid gap-2 sm:grid-cols-2">${groups.map((g) => bo9PoolTable(g, cfg, poolMatches)).join('')}</div>
+        <div class="mt-2 grid gap-2 sm:grid-cols-2">${groups.map((g) => bo9PoolMatchesBlock(g, cfg, poolMatches)).join('')}</div>
+      </div>` : ''}
+      ${matches.some((m) => m.phase !== 'pool') ? `<div>
+        <h3 class="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">🏆 Phase finale</h3>
+        ${bo9BracketView(matches, cfg)}
+      </div>` : ''}
+    </div>`;
+}
+
+// --- Moteur de compétition (admin) ---
+
+function bracketRoundLabel(round, totalRounds) {
+  const fromEnd = totalRounds - round;
+  return ['Finale', 'Demi-finale', 'Quart de finale', 'Huitième de finale'][fromEnd] || `Tour ${round}`;
+}
+
+function bracketSeedOrder(size) {
+  let order = [1];
+  while (order.length < size) {
+    const nextSize = order.length * 2;
+    const next = [];
+    order.forEach((seed) => { next.push(seed, nextSize + 1 - seed); });
+    order = next;
+  }
+  return order;
+}
+
+function roundRobinRounds(teams) {
+  const list = [...teams];
+  if (list.length % 2 === 1) list.push(null);
+  const size = list.length;
+  const rounds = [];
+  for (let r = 0; r < size - 1; r += 1) {
+    const pairs = [];
+    for (let i = 0; i < size / 2; i += 1) pairs.push([list[i], list[size - 1 - i]]);
+    rounds.push(pairs);
+    const fixed = list[0];
+    const rest = list.slice(1);
+    rest.unshift(rest.pop());
+    list.splice(0, list.length, fixed, ...rest);
+  }
+  return rounds;
+}
+
+function adminTeamsFor(tournamentId) {
+  const map = new Map();
+  adminRegs
+    .filter((r) => r.tournament_id === tournamentId && r.status === 'confirmed' && r.team_id)
+    .forEach((r) => {
+      if (!map.has(r.team_id)) {
+        map.set(r.team_id, {
+          id: r.team_id,
+          name: r.nvg_tournament_teams?.name || 'Équipe',
+          tag: r.nvg_tournament_teams?.tag || ''
+        });
+      }
+    });
+  return [...map.values()];
+}
+
+async function loadMatchesOnly() {
+  const { data, error } = await supabaseClient
+    .from('nvg_tournament_matches')
+    .select('*')
+    .order('created_at', { ascending: true });
+  if (!error) tournamentMatches = data || [];
+  return tournamentMatches;
+}
+
+async function generateBo9Pools(tournamentId) {
+  const t = tournamentById(tournamentId);
+  const cfg = bo9Config(t);
+  if (!cfg) return;
+  const poolCount = Number(cfg.pool_count) || 4;
+  const poolSize = Number(cfg.pool_size) || 4;
+  const teams = adminTeamsFor(tournamentId);
+  const needed = poolCount * poolSize;
+  if (teams.length !== needed) {
+    notify(`Il faut exactement ${needed} équipes confirmées pour ${poolCount} poules de ${poolSize}. Actuellement : ${teams.length}.`, true);
+    return;
+  }
+  if (!window.confirm(`Générer ${poolCount} poules de ${poolSize} équipes ?\n\nLes matchs et le bracket existants seront effacés.`)) return;
+  const { error: delError } = await supabaseClient.from('nvg_tournament_matches').delete().eq('tournament_id', tournamentId);
+  if (delError) { notify('Erreur : ' + delError.message, true); return; }
+  const shuffled = [...teams];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  const groups = ['A', 'B', 'C', 'D', 'E', 'F'];
+  const rows = [];
+  for (let p = 0; p < poolCount; p += 1) {
+    const groupTeams = shuffled.slice(p * poolSize, (p + 1) * poolSize);
+    const rounds = roundRobinRounds(groupTeams);
+    rounds.forEach((round, ri) => {
+      round.forEach((pair, pi) => {
+        if (!pair[0] || !pair[1]) return;
+        rows.push({
+          tournament_id: tournamentId,
+          phase: 'pool',
+          round: ri + 1,
+          position: pi + 1,
+          group_name: groups[p],
+          label: `Poule ${groups[p]}`,
+          team_a: pair[0].id,
+          team_b: pair[1].id,
+          status: 'scheduled'
+        });
+      });
+    });
+  }
+  const { error } = await supabaseClient.from('nvg_tournament_matches').insert(rows);
+  if (error) { notify('Erreur : ' + error.message, true); return; }
+  notify(`${rows.length} matchs de poule générés.`);
+  await loadMatchesOnly();
+  renderAdminMatchPanel();
+}
+
+async function generateBo9Bracket(tournamentId) {
+  const t = tournamentById(tournamentId);
+  const cfg = bo9Config(t);
+  if (!cfg) return;
+  const matches = tournamentMatches.filter((m) => m.tournament_id === tournamentId);
+  const poolMatches = matches.filter((m) => m.phase === 'pool');
+  if (!poolMatches.length) { notify('Génère d’abord les poules.', true); return; }
+  const unfinished = poolMatches.filter((m) => m.status !== 'finished');
+  if (unfinished.length) {
+    notify(`Il reste ${unfinished.length} match(s) de poule à terminer.`, true);
+    return;
+  }
+  const groups = [...new Set(poolMatches.map((m) => m.group_name).filter(Boolean))].sort();
+  const perPool = Number(cfg.qualifiers_per_pool) || 2;
+  const seeds = [];
+  for (let rank = 0; rank < perPool; rank += 1) {
+    groups.forEach((group) => {
+      const standing = bo9PoolStandings(group, cfg, poolMatches)[rank];
+      if (standing) seeds.push(standing.id);
+    });
+  }
+  const size = seeds.length;
+  if (![2, 4, 8, 16].includes(size)) {
+    notify(`Le bracket demande 2, 4, 8 ou 16 qualifiés (actuellement ${size}).`, true);
+    return;
+  }
+  if (!window.confirm(`Générer le bracket à ${size} équipes ?\n\nLe bracket existant sera effacé.`)) return;
+  const { error: delError } = await supabaseClient.from('nvg_tournament_matches')
+    .delete().eq('tournament_id', tournamentId).neq('phase', 'pool');
+  if (delError) { notify('Erreur : ' + delError.message, true); return; }
+
+  const order = bracketSeedOrder(size);
+  const firstRound = [];
+  for (let i = 0; i < size; i += 2) {
+    firstRound.push([seeds[order[i] - 1], seeds[order[i + 1] - 1]]);
+  }
+  const totalRounds = Math.log2(size);
+  let previous = [];
+  for (let round = 1; round <= totalRounds; round += 1) {
+    const count = size / (2 ** round);
+    const rows = [];
+    for (let pos = 1; pos <= count; pos += 1) {
+      const row = {
+        tournament_id: tournamentId,
+        phase: 'bracket',
+        round,
+        position: pos,
+        label: bracketRoundLabel(round, totalRounds),
+        status: 'scheduled',
+        team_a: round === 1 ? firstRound[pos - 1][0] : null,
+        team_b: round === 1 ? firstRound[pos - 1][1] : null
+      };
+      rows.push(row);
+    }
+    const { data, error } = await supabaseClient.from('nvg_tournament_matches').insert(rows).select('id,position');
+    if (error) { notify('Erreur : ' + error.message, true); return; }
+    if (previous.length) {
+      for (const prev of previous) {
+        const target = data.find((x) => x.position === Math.floor((prev.position - 1) / 2) + 1);
+        if (!target) continue;
+        await supabaseClient.from('nvg_tournament_matches')
+          .update({ next_match_id: target.id, next_slot: prev.position % 2 === 1 ? 'a' : 'b' })
+          .eq('id', prev.id);
+      }
+    }
+    previous = data;
+  }
+  if (cfg.third_place !== false && totalRounds >= 2) {
+    await supabaseClient.from('nvg_tournament_matches').insert({
+      tournament_id: tournamentId,
+      phase: 'third',
+      round: totalRounds,
+      position: 1,
+      label: 'Petite finale',
+      status: 'scheduled'
+    });
+  }
+  notify(`Bracket à ${size} équipes généré.`);
+  await loadMatchesOnly();
+  renderAdminMatchPanel();
+}
+
+async function deleteBo9Matches(tournamentId) {
+  if (!window.confirm('Effacer tous les matchs (poules et bracket) de ce tournoi ?')) return;
+  const { error } = await supabaseClient.from('nvg_tournament_matches').delete().eq('tournament_id', tournamentId);
+  if (error) { notify('Erreur : ' + error.message, true); return; }
+  notify('Matchs effacés.');
+  await loadMatchesOnly();
+  renderAdminMatchPanel();
+}
+
+async function advanceBo9Match(match, loserId) {
+  if (match.next_match_id && match.next_slot && match.winner_team) {
+    const column = match.next_slot === 'a' ? 'team_a' : 'team_b';
+    await supabaseClient.from('nvg_tournament_matches')
+      .update({ [column]: match.winner_team, updated_at: new Date().toISOString() })
+      .eq('id', match.next_match_id);
+  }
+  if (match.phase !== 'bracket') return;
+  const t = tournamentById(match.tournament_id);
+  const cfg = bo9Config(t);
+  if (!cfg || cfg.third_place === false) return;
+  const rounds = tournamentMatches
+    .filter((m) => m.tournament_id === match.tournament_id && m.phase === 'bracket')
+    .map((m) => Number(m.round) || 0);
+  const totalRounds = rounds.length ? Math.max(...rounds) : 0;
+  if (match.round !== totalRounds - 1) return;
+  const third = tournamentMatches.find((m) => m.tournament_id === match.tournament_id && m.phase === 'third');
+  if (!third || !loserId) return;
+  const column = match.position === 1 ? 'team_a' : 'team_b';
+  await supabaseClient.from('nvg_tournament_matches')
+    .update({ [column]: loserId, updated_at: new Date().toISOString() })
+    .eq('id', third.id);
+}
+
+function bo9MatchInputs(matchId, slotNumber, suffix) {
+  return $(`bo9-m-${matchId}-s${slotNumber}-${suffix}`);
+}
+
+function previewBo9Match(matchId) {
+  const match = tournamentMatches.find((m) => m.id === matchId);
+  if (!match) return;
+  const t = tournamentById(match.tournament_id);
+  const cfg = bo9Config(t);
+  if (!cfg) return;
+  const games = [];
+  cfg.games.forEach((slot) => {
+    const a = bo9MatchInputs(matchId, slot.slot, 'a');
+    const b = bo9MatchInputs(matchId, slot.slot, 'b');
+    if (!a || !b) return;
+    if (a.value === '' && b.value === '') return;
+    games.push({ slot: slot.slot, units_a: Number(a.value) || 0, units_b: Number(b.value) || 0 });
+  });
+  const capA = $(`bo9-m-${matchId}-cap-a`)?.value;
+  const capB = $(`bo9-m-${matchId}-cap-b`)?.value;
+  const totals = bo9MatchTotals({ games, captain_card: { a: capA ? Number(capA) : null, b: capB ? Number(capB) : null } }, cfg);
+  const threshold = bo9MercyThreshold(cfg);
+  const el = $(`bo9-m-${matchId}-preview`);
+  if (el) {
+    el.textContent = `${formatPoints(totals.a)} — ${formatPoints(totals.b)}${totals.a >= threshold || totals.b >= threshold ? ' · mercy atteinte' : ''}`;
+  }
+}
+
+async function saveBo9MatchResult(matchId) {
+  const match = tournamentMatches.find((m) => m.id === matchId);
+  if (!match) return;
+  const t = tournamentById(match.tournament_id);
+  const cfg = bo9Config(t);
+  if (!cfg) return;
+  const games = [];
+  let incomplete = false;
+  for (const slot of cfg.games) {
+    const aEl = bo9MatchInputs(matchId, slot.slot, 'a');
+    const bEl = bo9MatchInputs(matchId, slot.slot, 'b');
+    if (!aEl || !bEl) continue;
+    const touched = aEl.value !== '' || bEl.value !== '';
+    if (!touched) continue;
+    const unitsA = Number(aEl.value) || 0;
+    const unitsB = Number(bEl.value) || 0;
+    if (unitsA < 0 || unitsB < 0 || unitsA > slot.units || unitsB > slot.units || unitsA + unitsB !== Number(slot.units)) {
+      notify(`Jeu « ${gameName(slot.game_id)} » : indique ${slot.units} unité(s) au total (A + B).`, true);
+      return;
+    }
+    if (aEl.value === '' || bEl.value === '') incomplete = true;
+    games.push({ slot: slot.slot, units_a: unitsA, units_b: unitsB });
+  }
+  if (!games.length) { notify('Saisis au moins un jeu.', true); return; }
+  const capA = $(`bo9-m-${matchId}-cap-a`)?.value;
+  const capB = $(`bo9-m-${matchId}-cap-b`)?.value;
+  const captainCard = { a: capA ? Number(capA) : null, b: capB ? Number(capB) : null };
+  const totals = bo9MatchTotals({ games, captain_card: captainCard }, cfg);
+  const threshold = bo9MercyThreshold(cfg);
+  const mercyReached = cfg.mercy !== false && (totals.a >= threshold || totals.b >= threshold);
+  const complete = games.length === cfg.games.length;
+  const finished = mercyReached || complete;
+  let winner = null;
+  if (totals.a > totals.b) winner = match.team_a;
+  else if (totals.b > totals.a) winner = match.team_b;
+  if (finished && !winner && match.phase !== 'pool') {
+    notify('Égalité en phase finale : corrige les scores pour désigner un vainqueur.', true);
+    return;
+  }
+  const patch = {
+    games,
+    captain_card: captainCard,
+    points_a: totals.a,
+    points_b: totals.b,
+    winner_team: winner,
+    mercy: mercyReached,
+    status: finished ? 'finished' : 'live',
+    updated_at: new Date().toISOString()
+  };
+  const { error } = await supabaseClient.from('nvg_tournament_matches').update(patch).eq('id', matchId);
+  if (error) { notify('Erreur : ' + error.message, true); return; }
+  if (finished && winner) {
+    const loser = winner === match.team_a ? match.team_b : match.team_a;
+    await advanceBo9Match({ ...match, winner_team: winner }, loser);
+  }
+  notify(incomplete && finished ? 'Résultat enregistré (certains jeux sont vides).' : 'Résultat enregistré.');
+  await loadMatchesOnly();
+  renderAdminMatchPanel();
+}
+
+async function saveBo9PickOrder(matchId, order) {
+  const { error } = await supabaseClient.from('nvg_tournament_matches')
+    .update({ pick_order: order, updated_at: new Date().toISOString() })
+    .eq('id', matchId);
+  if (error) { notify('Erreur : ' + error.message, true); return; }
+  await loadMatchesOnly();
+  renderAdminMatchPanel();
+}
+
+function shuffleBo9Order(matchId) {
+  const match = tournamentMatches.find((m) => m.id === matchId);
+  const cfg = bo9Config(tournamentById(match?.tournament_id));
+  if (!match || !cfg) return;
+  const order = cfg.games.map((g) => g.slot);
+  for (let i = order.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  saveBo9PickOrder(matchId, order);
+}
+
+function moveBo9Game(matchId, slotNumber, direction) {
+  const match = tournamentMatches.find((m) => m.id === matchId);
+  const cfg = bo9Config(tournamentById(match?.tournament_id));
+  if (!match || !cfg) return;
+  const order = (Array.isArray(match.pick_order) && match.pick_order.length === cfg.games.length)
+    ? [...match.pick_order]
+    : cfg.games.map((g) => g.slot);
+  const index = order.findIndex((s) => Number(s) === Number(slotNumber));
+  const target = index + direction;
+  if (index < 0 || target < 0 || target >= order.length) return;
+  [order[index], order[target]] = [order[target], order[index]];
+  saveBo9PickOrder(matchId, order);
+}
+
+function adminBo9MatchCard(match, cfg, labelText = '') {
+  const totals = bo9MatchTotals(match, cfg);
+  const threshold = bo9MercyThreshold(cfg);
+  const order = (Array.isArray(match.pick_order) && match.pick_order.length === cfg.games.length)
+    ? match.pick_order
+    : cfg.games.map((g) => g.slot);
+  const slotByNumber = new Map(cfg.games.map((g) => [Number(g.slot), g]));
+  const played = new Map((Array.isArray(match.games) ? match.games : []).map((g) => [Number(g.slot), g]));
+  const duelSlots = cfg.games.filter((g) => g.category === 'duel').sort((a, b) => a.slot - b.slot);
+  const cards = match.captain_card || {};
+  const finished = match.status === 'finished';
+  return `
+    <details class="rounded-xl border border-[#1f293d] bg-[#07090e]">
+      <summary class="cursor-pointer list-none p-2.5">
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0">
+            ${labelText ? `<p class="text-[9px] font-black uppercase tracking-wider text-gray-500">${escapeHtml(labelText)}</p>` : ''}
+            <p class="truncate text-[11px] font-bold ${finished && match.winner_team === match.team_a ? 'text-emerald-300' : 'text-gray-200'}">${escapeHtml(teamLabelById(match.team_a))}</p>
+            <p class="truncate text-[11px] font-bold ${finished && match.winner_team === match.team_b ? 'text-emerald-300' : 'text-gray-200'}">${escapeHtml(teamLabelById(match.team_b))}</p>
+          </div>
+          <div class="shrink-0 text-right">
+            <p class="text-sm font-black ${finished ? 'text-white' : 'text-gray-400'}">${formatPoints(totals.a)} — ${formatPoints(totals.b)}</p>
+            <p class="text-[9px] font-bold ${finished ? (match.mercy ? 'text-amber-400' : 'text-emerald-400') : 'text-gray-500'}">${finished ? (match.mercy ? `Mercy (${threshold})` : 'Terminé') : `${formatPoints(threshold)} pts pour gagner`}</p>
+          </div>
+        </div>
+      </summary>
+      <div class="space-y-3 border-t border-[#1f293d] p-3">
+        ${cfg.pick_ban !== false ? `<div>
+          <div class="mb-1 flex flex-wrap items-center justify-between gap-2">
+            <p class="text-[9px] font-black uppercase tracking-wider text-gray-500">Ordre des jeux (pick &amp; ban)</p>
+            <button onclick="shuffleBo9Order('${match.id}')" class="rounded border border-[#1f293d] bg-white/5 px-2 py-1 text-[9px] font-bold text-gray-300 transition hover:bg-white/10">🔀 Tirer</button>
+          </div>
+          <div class="flex flex-wrap gap-1">
+            ${order.map((slotNumber, index) => {
+              const slot = slotByNumber.get(Number(slotNumber));
+              if (!slot) return '';
+              return `<span class="inline-flex items-center gap-1 rounded border border-[#1f293d] bg-[#121722] px-1.5 py-1 text-[9px] text-gray-300">
+                <span class="text-gray-500">${index + 1}.</span>${escapeHtml(gameName(slot.game_id))}
+                <button onclick="moveBo9Game('${match.id}', ${slotNumber}, -1)" title="Monter" class="text-gray-500 hover:text-white">▲</button>
+                <button onclick="moveBo9Game('${match.id}', ${slotNumber}, 1)" title="Descendre" class="text-gray-500 hover:text-white">▼</button>
+              </span>`;
+            }).join('')}
+          </div>
+        </div>` : ''}
+        <div class="space-y-1.5">
+          ${order.map((slotNumber, index) => {
+            const slot = slotByNumber.get(Number(slotNumber));
+            if (!slot) return '';
+            const score = played.get(Number(slotNumber)) || {};
+            return `<div class="grid grid-cols-1 gap-1.5 rounded-lg border border-[#1f293d] bg-[#121722] px-2 py-1.5 sm:grid-cols-[1fr_auto] sm:items-center">
+              <div class="min-w-0">
+                <p class="truncate text-[10px] font-bold text-gray-200">${index + 1}. ${escapeHtml(gameName(slot.game_id))}</p>
+                <p class="text-[9px] text-gray-500">${slot.category === 'collectif' ? 'Collectif' : slot.category === 'escarmouche' ? 'Escarmouche' : 'Duel'} · ${slot.units} unité(s) × ${formatPoints(slot.points_per_unit)} pt = ${formatPoints(Number(slot.units) * Number(slot.points_per_unit))} pts</p>
+              </div>
+              <div class="flex items-center gap-1">
+                <input id="bo9-m-${match.id}-s${slotNumber}-a" type="number" min="0" max="${slot.units}" value="${score.units_a ?? ''}" oninput="previewBo9Match('${match.id}')" aria-label="Unités équipe A" class="w-12 rounded border border-[#1f293d] bg-[#07090e] px-1.5 py-1 text-center text-[11px] text-white">
+                <span class="text-gray-500">–</span>
+                <input id="bo9-m-${match.id}-s${slotNumber}-b" type="number" min="0" max="${slot.units}" value="${score.units_b ?? ''}" oninput="previewBo9Match('${match.id}')" aria-label="Unités équipe B" class="w-12 rounded border border-[#1f293d] bg-[#07090e] px-1.5 py-1 text-center text-[11px] text-white">
+                <span class="ml-1 text-[9px] text-gray-500">/ ${slot.units}</span>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+        ${cfg.captain_card !== false && duelSlots.length ? `<div class="grid gap-2 sm:grid-cols-2">
+          ${[['a', match.team_a], ['b', match.team_b]].map(([side, teamId]) => `<label class="block">
+            <span class="mb-0.5 block text-[9px] font-black uppercase tracking-wider text-gray-500">Carte capitaine — ${escapeHtml(teamNameById(teamId))}</span>
+            <select id="bo9-m-${match.id}-cap-${side}" onchange="previewBo9Match('${match.id}')" class="w-full rounded-lg border border-[#1f293d] bg-[#07090e] px-2 py-1.5 text-[10px] text-white">
+              <option value="">Aucune</option>
+              ${duelSlots.map((slot) => `<option value="${slot.slot}" ${Number(cards[side]) === Number(slot.slot) ? 'selected' : ''}>${escapeHtml(gameName(slot.game_id))}</option>`).join('')}
+            </select>
+          </label>`).join('')}
+        </div>` : ''}
+        <div class="flex flex-wrap items-center justify-between gap-2 border-t border-[#1f293d] pt-2">
+          <span id="bo9-m-${match.id}-preview" class="text-[10px] font-bold text-amber-300">${formatPoints(totals.a)} — ${formatPoints(totals.b)}</span>
+          <button onclick="saveBo9MatchResult('${match.id}')" class="rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black text-black transition hover:bg-amber-400">💾 Enregistrer le résultat</button>
+        </div>
+      </div>
+    </details>`;
+}
+
+function renderAdminMatchPanel() {
+  const panel = $('adminMatchPanel');
+  if (!panel) return;
+  const t = tournamentById(viewingMatchTournamentId);
+  const cfg = bo9Config(t);
+  if (!t || !cfg) { panel.classList.add('hidden'); return; }
+  const matches = tournamentMatches.filter((m) => m.tournament_id === t.id);
+  const poolMatches = matches.filter((m) => m.phase === 'pool');
+  const groups = [...new Set(poolMatches.map((m) => m.group_name).filter(Boolean))].sort();
+  const teams = adminTeamsFor(t.id);
+  const needed = (Number(cfg.pool_count) || 4) * (Number(cfg.pool_size) || 4);
+  const poolDone = poolMatches.length > 0 && poolMatches.every((m) => m.status === 'finished');
+  $('adminMatchSubtitle').textContent = `${t.name} · ${cfg.pool_count} poules de ${cfg.pool_size} · ${bo9TotalPoints(cfg)} points (${bo9PointsModeLabel(cfg)}) · ${teams.length}/${needed} équipes confirmées`;
+  $('adminMatchTools').innerHTML = `
+    <button onclick="generateBo9Pools('${t.id}')" class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-[10px] font-bold text-amber-300 transition hover:bg-amber-500/20">🏗️ Générer les poules</button>
+    <button onclick="generateBo9Bracket('${t.id}')" class="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold text-emerald-300 transition hover:bg-emerald-500/20">🏁 Générer le bracket</button>
+    ${matches.length ? `<button onclick="deleteBo9Matches('${t.id}')" class="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-[10px] font-bold text-red-300 transition hover:bg-red-500/20">🗑️ Effacer les matchs</button>` : ''}
+    ${poolMatches.length ? `<span class="text-[10px] font-bold ${poolDone ? 'text-emerald-400' : 'text-gray-500'}">${poolMatches.filter((m) => m.status === 'finished').length} / ${poolMatches.length} matchs de poule terminés</span>` : ''}
+  `;
+  if (!matches.length) {
+    $('adminMatchBody').innerHTML = `<p class="rounded-xl border border-[#1f293d] bg-[#07090e] p-3 text-xs text-gray-400">Aucun match. Génère les poules dès que les ${needed} équipes sont confirmées. Les inscriptions en équipe se font depuis la fiche du tournoi.</p>`;
+    panel.classList.remove('hidden');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  $('adminMatchBody').innerHTML = `
+    ${groups.map((group) => `
+      <div class="space-y-2">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h3 class="text-xs font-black uppercase tracking-wider text-white">🏟️ Poule ${escapeHtml(group)}</h3>
+          <span class="text-[10px] text-gray-500">${poolMatches.filter((m) => m.group_name === group && m.status === 'finished').length} / ${poolMatches.filter((m) => m.group_name === group).length} terminés</span>
+        </div>
+        ${bo9PoolTable(group, cfg, poolMatches)}
+        <div class="space-y-1.5">
+          ${poolMatches.filter((m) => m.group_name === group).sort((a, b) => a.round - b.round || a.position - b.position).map((m) => adminBo9MatchCard(m, cfg, `Journée ${m.round}`)).join('')}
+        </div>
+      </div>`).join('')}
+    ${matches.some((m) => m.phase !== 'pool') ? `<div class="space-y-2">
+      <h3 class="text-xs font-black uppercase tracking-wider text-white">🏆 Phase finale</h3>
+      ${bo9BracketAdmin(matches, cfg)}
+    </div>` : ''}
+  `;
+  panel.classList.remove('hidden');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function bo9BracketAdmin(matches, cfg) {
+  const bracket = matches.filter((m) => m.phase === 'bracket');
+  const third = matches.find((m) => m.phase === 'third');
+  const rounds = [...new Set(bracket.map((m) => m.round))].sort((a, b) => a - b);
+  const totalRounds = rounds.length ? Math.max(...rounds) : 0;
+  return `
+    ${rounds.map((round) => `
+      <div>
+        <p class="mb-1 text-[10px] font-black uppercase tracking-wider text-gray-400">${escapeHtml(bracketRoundLabel(round, totalRounds))}</p>
+        <div class="grid gap-1.5 sm:grid-cols-2">
+          ${bracket.filter((m) => m.round === round).sort((a, b) => a.position - b.position).map((m) => adminBo9MatchCard(m, cfg)).join('')}
+        </div>
+      </div>`).join('')}
+    ${third ? `<div>
+      <p class="mb-1 text-[10px] font-black uppercase tracking-wider text-gray-400">Petite finale</p>
+      <div class="grid gap-1.5 sm:grid-cols-2">${adminBo9MatchCard(third, cfg)}</div>
+    </div>` : ''}`;
+}
+
+async function showAdminMatchPanel(tournamentId) {
+  const t = tournamentById(tournamentId);
+  if (!t || !isBo9(t)) { notify('Ce tournoi n’utilise pas le format BO9.', true); return; }
+  viewingMatchTournamentId = tournamentId;
+  await loadMatchesOnly();
+  renderAdminMatchPanel();
+}
+
+function closeAdminMatchPanel() {
+  viewingMatchTournamentId = null;
+  $('adminMatchPanel')?.classList.add('hidden');
+}
+
 function tournamentCard(t) {
   const count = registeredCount(t.id);
   const unit = t.mode === 'team' ? 'équipe(s)' : 'joueur(s)';
@@ -546,7 +1394,7 @@ function tournamentCard(t) {
   const already = isRegistered(t.id);
   const myTeam = t.mode === 'team' ? myTeams.find((team) => team.tournament_id === t.id) : null;
   const toornament = externalLink(t.toornament_url);
-  const logo = gameLogo(t.game_id);
+  const logo = tournamentLogoUrl(t);
   const initials = escapeHtml((gameById(t.game_id)?.name || t.name || '?').slice(0, 2).toUpperCase());
   const title = escapeHtml(t.name);
   const statusTone = {
@@ -568,7 +1416,7 @@ function tournamentCard(t) {
               : `<span class="text-sm font-black text-gray-400">${initials}</span>`}
           </div>
           <div class="min-w-0 flex-1">
-            <p class="truncate text-[10px] font-black uppercase tracking-[0.18em] text-amber-400/80">${escapeHtml(gameName(t.game_id))}</p>
+            <p class="truncate text-[10px] font-black uppercase tracking-[0.18em] text-amber-400/80">${escapeHtml(tournamentGamesLabel(t))}</p>
             <h2 class="mt-1 text-base font-black leading-snug text-white">${toornament ? `<a href="${toornament}" target="_blank" rel="noopener" class="transition hover:text-amber-300">${title}</a>` : title}</h2>
             <p class="mt-1 text-[11px] text-gray-400">${escapeHtml(dateRange(t))}</p>
           </div>
@@ -615,8 +1463,8 @@ function renderHomeTournaments() {
     return;
   }
   box.innerHTML = next.map((t) => {
-    const banner = safeUrl(t.banner_url);
-    const logo = gameLogo(t.game_id);
+    const banner = tournamentBannerUrl(t);
+    const logo = tournamentLogoUrl(t);
     const toornament = externalLink(t.toornament_url);
     return `
     <div class="flex items-center gap-3 overflow-hidden rounded-xl border border-[#1f293d] bg-[#07090e] transition hover:border-amber-500/40">
@@ -626,7 +1474,7 @@ function renderHomeTournaments() {
       </div>
       <div class="min-w-0 flex-1 py-2">
         <p class="truncate text-xs font-black text-white">${toornament ? `<a href="${toornament}" target="_blank" rel="noopener" class="hover:text-amber-300">${escapeHtml(t.name)}</a>` : escapeHtml(t.name)}</p>
-        <p class="text-[10px] text-gray-400">${escapeHtml(gameName(t.game_id))} · ${escapeHtml(modeLabel(t))} · ${escapeHtml(dateRange(t))}</p>
+        <p class="text-[10px] text-gray-400">${escapeHtml(tournamentGamesLabel(t))} · ${escapeHtml(modeLabel(t))} · ${escapeHtml(dateRange(t))}</p>
       </div>
       <button onclick="openTab('tournaments')" class="mr-3 shrink-0 px-3 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-[10px] font-bold rounded-lg border border-red-600/40 transition">Voir</button>
     </div>`;
@@ -945,6 +1793,7 @@ async function loadAdmin() {
   adminPlayers = playersRes.data || [];
   renderAdminTournaments();
   renderAdminPlayers();
+  if (viewingMatchTournamentId) renderAdminMatchPanel();
   if (viewingTournamentId) showAdminRegs(viewingTournamentId);
 }
 
@@ -1043,6 +1892,121 @@ function renderAdminGames() {
   if (select) {
     select.innerHTML = '<option value="">Jeu (facultatif)</option>' + games.map((g) => `<option value="${g.id}">${escapeHtml(g.name)}</option>`).join('');
   }
+  fillBo9GameSelects();
+}
+
+// --- Formulaire BO9 (création) ---
+
+const BO9_SLOT_CATEGORIES = [
+  'collectif', 'collectif', 'collectif',
+  'escarmouche', 'escarmouche', 'escarmouche',
+  'duel', 'duel', 'duel'
+];
+
+function fillBo9GameSelects() {
+  document.querySelectorAll('.bo9-game').forEach((select, index) => {
+    const current = select.value;
+    select.innerHTML = `<option value="">Jeu ${index + 1}…</option>`
+      + games.map((g) => `<option value="${g.id}">${escapeHtml(g.name)}</option>`).join('');
+    if (current && games.some((g) => g.id === current)) select.value = current;
+    select.onchange = updateBo9GamesStatus;
+  });
+  updateBo9GamesStatus();
+}
+
+function updateBo9GamesStatus() {
+  const status = $('bo9GamesStatus');
+  if (!status) return;
+  if (games.length < 9) {
+    status.textContent = `Seulement ${games.length} jeu(x) en base : crée d’abord 9 jeux dans l’onglet 🎮 Jeux.`;
+    status.className = 'text-[10px] text-amber-400';
+    return;
+  }
+  const values = [...document.querySelectorAll('.bo9-game')].map((s) => s.value).filter(Boolean);
+  const unique = new Set(values);
+  if (values.length === 9 && unique.size === 9) {
+    status.textContent = '✅ 9 jeux différents sélectionnés.';
+    status.className = 'text-[10px] text-emerald-400';
+  } else {
+    const duplicates = values.length !== unique.size;
+    status.textContent = `${unique.size} / 9 jeux sélectionnés${duplicates ? ' — un jeu est en double' : ''}.`;
+    status.className = duplicates ? 'text-[10px] text-red-400' : 'text-[10px] text-gray-500';
+  }
+}
+
+function syncBo9Slots() {
+  const format = $('tourFormatType');
+  if (!format || format.value !== 'bo9') return;
+  const pools = Number($('tourBo9Pools')?.value) || 4;
+  const size = Number($('tourBo9PoolSize')?.value) || 4;
+  const max = $('tourMax');
+  if (max) max.value = String(pools * size);
+  const qualifiers = $('tourBo9Qualifiers');
+  if (qualifiers) {
+    [...qualifiers.options].forEach((opt) => { opt.disabled = Number(opt.value) > size; });
+    if (Number(qualifiers.value) > size) qualifiers.value = String(size);
+  }
+}
+
+function toggleTournamentFormat() {
+  const bo9 = $('tourFormatType')?.value === 'bo9';
+  $('tourBo9Wrap')?.classList.toggle('hidden', !bo9);
+  $('tourGameWrap')?.classList.toggle('hidden', bo9);
+  $('tourTeamSizeWrap')?.classList.toggle('hidden', bo9);
+  if (bo9) {
+    const teamSize = $('tourTeamSize');
+    if (teamSize) teamSize.value = '5';
+    syncBo9Slots();
+    fillBo9GameSelects();
+  }
+}
+
+function bo9FormConfig() {
+  const mode = $('tourBo9Points').value === 'allin' ? 'allin' : 'classic';
+  const gameIds = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => $(`bo9Game${n}`)?.value || '');
+  if (gameIds.some((id) => !id)) {
+    notify('Sélectionne les 9 jeux du BO9.', true);
+    return null;
+  }
+  if (new Set(gameIds).size !== 9) {
+    notify('Les 9 jeux du BO9 doivent être différents.', true);
+    return null;
+  }
+  const poolCount = Number($('tourBo9Pools').value) || 4;
+  const poolSize = Number($('tourBo9PoolSize').value) || 4;
+  const qualifiers = Number($('tourBo9Qualifiers').value) || 2;
+  if (qualifiers > poolSize) {
+    notify('Il ne peut pas y avoir plus de qualifiés que d’équipes par poule.', true);
+    return null;
+  }
+  const bracketTeams = poolCount * qualifiers;
+  if (![2, 4, 8, 16].includes(bracketTeams)) {
+    notify('Le bracket doit accueillir 2, 4, 8 ou 16 qualifiés.', true);
+    return null;
+  }
+  const points = BO9_POINTS[mode];
+  const gamesConfig = gameIds.map((gameId, index) => {
+    const category = BO9_SLOT_CATEGORIES[index];
+    return {
+      slot: index + 1,
+      category,
+      game_id: gameId,
+      units: BO9_UNITS[category],
+      points_per_unit: points[category]
+    };
+  });
+  return {
+    type: 'bo9',
+    points_mode: mode,
+    games: gamesConfig,
+    pool_count: poolCount,
+    pool_size: poolSize,
+    qualifiers_per_pool: qualifiers,
+    pick_ban: Boolean($('tourBo9PickBan')?.checked),
+    mercy: Boolean($('tourBo9Mercy')?.checked),
+    captain_card: Boolean($('tourBo9Captain')?.checked),
+    third_place: Boolean($('tourBo9Third')?.checked)
+  };
 }
 
 function tournamentRegs(tournamentId) {
@@ -1078,9 +2042,10 @@ function renderAdminTournaments() {
         <div class="flex flex-wrap items-start justify-between gap-2">
           <div class="min-w-0">
             <p class="text-xs font-bold text-white truncate">${escapeHtml(t.name)}</p>
-            <p class="text-[10px] text-gray-500">${escapeHtml(gameName(t.game_id))} · ${t.published ? 'publié' : 'masqué'}${t.toornament_id ? ' · Toornament lié' : ''} · ${escapeHtml(feeLabel(t))}</p>
+            <p class="text-[10px] text-gray-500">${escapeHtml(tournamentGamesLabel(t))} · ${t.published ? 'publié' : 'masqué'}${t.toornament_id ? ' · Toornament lié' : ''} · ${escapeHtml(feeLabel(t))}</p>
           </div>
           <div class="flex flex-wrap items-center gap-1.5">
+            ${isBo9(t) ? `<button onclick="showAdminMatchPanel('${t.id}')" class="rounded-lg border border-sky-500/40 bg-sky-500/10 px-2 py-1 text-[10px] font-bold text-sky-300 transition hover:bg-sky-500/20">⚔️ Gérer</button>` : ''}
             <button onclick="showAdminRegs('${t.id}')" class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-300 transition hover:bg-amber-500/20">📋 Voir les inscriptions</button>
             <select onchange="setTournamentStatus('${t.id}', this.value)" class="bg-[#07090e] border border-[#1f293d] rounded-lg px-2 py-1 text-[10px] text-white">
               ${Object.entries(STATUS_LABELS).map(([k, v]) => `<option value="${k}" ${k === t.status ? 'selected' : ''}>${v}</option>`).join('')}
@@ -1118,7 +2083,7 @@ function showAdminRegs(tournamentId) {
   const panel = $('adminRegs');
   const regs = adminRegs.filter((r) => r.tournament_id === tournamentId);
   const s = adminTournamentStats(t);
-  $('adminRegsSubtitle').textContent = `${t.name} · ${gameName(t.game_id)} · ${feeLabel(t)}`;
+  $('adminRegsSubtitle').textContent = `${t.name} · ${tournamentGamesLabel(t)} · ${feeLabel(t)}`;
   $('adminRegsFill').textContent = s.max > 0 ? `${s.registered} / ${s.max} inscrit(s)` : `${s.registered} inscrit(s) · places illimitées`;
   $('adminRegsPercent').textContent = s.max > 0 ? `${s.percent} %` : '—';
   $('adminRegsBar').style.width = `${s.percent}%`;
@@ -1242,10 +2207,13 @@ function editTournament(id) {
   const t = tournamentById(id);
   if (!t) return;
   editingTournamentId = id;
+  const bo9 = isBo9(t);
   $('editName').value = t.name || '';
   $('editStatus').value = t.status || 'draft';
   const size = t.mode === 'solo' ? 1 : Math.min(6, Math.max(2, Number(t.team_min) || 2));
-  $('editTeamSize').value = String(size);
+  $('editTeamSize').value = String(bo9 ? 5 : size);
+  $('editTeamSize').disabled = bo9;
+  $('editTeamSize').title = bo9 ? 'Format BO9 : équipes de 5 joueurs' : '';
   $('editMax').value = t.max_participants || '';
   $('editFee').value = Number(t.entry_fee_cents) > 0 ? (Number(t.entry_fee_cents) / 100).toFixed(2) : '';
   $('editPrizeFirst').value = t.prize_first || t.prize || '';
@@ -1274,16 +2242,20 @@ async function saveTournament() {
   const name = $('editName').value.trim();
   if (!name) { notify('Le nom du tournoi est obligatoire.', true); return; }
   const maxRaw = $('editMax').value.trim();
-  const size = parseInt($('editTeamSize').value, 10) || 1;
+  const edited = tournamentById(editingTournamentId);
+  const cfg = bo9Config(edited);
+  const size = cfg ? 5 : (parseInt($('editTeamSize').value, 10) || 1);
   const bannerUrl = safeUrl($('editBanner').value);
   const toornamentUrl = safeUrl($('editToornament').value);
   const patch = {
     name,
-    mode: size === 1 ? 'solo' : 'team',
+    mode: cfg ? 'team' : (size === 1 ? 'solo' : 'team'),
     team_min: size,
     team_max: size,
     status: $('editStatus').value,
-    max_participants: maxRaw ? parseInt(maxRaw, 10) : null,
+    max_participants: cfg
+      ? (Number(cfg.pool_count) || 4) * (Number(cfg.pool_size) || 4)
+      : (maxRaw ? parseInt(maxRaw, 10) : null),
     entry_fee_cents: eurosToCents($('editFee').value),
     prize_first: $('editPrizeFirst').value.trim() || null,
     prize_second: $('editPrizeSecond').value.trim() || null,
@@ -1548,20 +2520,36 @@ async function saveGame() {
 async function createTournament() {
   const name = $('tourName').value.trim();
   if (!name) { notify('Saisis un nom de tournoi.', true); return; }
-  const size = parseInt($('tourTeamSize').value, 10) || 1;
+  const bo9 = $('tourFormatType')?.value === 'bo9';
+  let formatConfig = null;
+  let gameId = $('tourGame').value || null;
+  let mode = 'solo';
+  let teamSize = parseInt($('tourTeamSize').value, 10) || 1;
+  let maxParticipants = parseInt($('tourMax').value, 10) || null;
+  if (bo9) {
+    formatConfig = bo9FormConfig();
+    if (!formatConfig) return;
+    gameId = null;
+    mode = 'team';
+    teamSize = 5;
+    maxParticipants = Number(formatConfig.pool_count) * Number(formatConfig.pool_size);
+  } else {
+    mode = teamSize === 1 ? 'solo' : 'team';
+  }
   const bannerUrl = safeUrl($('tourBanner').value);
   const toornamentUrl = safeUrl($('tourToornament').value);
   try {
     const { data, error } = await supabaseClient.from('nvg_tournaments').insert({
       slug: `${slugify(name)}-${Math.random().toString(36).slice(2, 6)}`,
       name,
-      game_id: $('tourGame').value || null,
+      game_id: gameId,
       description: $('tourDesc').value.trim() || null,
-      mode: size === 1 ? 'solo' : 'team',
+      mode,
       format: $('tourFormat').value,
-      team_min: size,
-      team_max: size,
-      max_participants: parseInt($('tourMax').value, 10) || null,
+      format_config: formatConfig,
+      team_min: teamSize,
+      team_max: teamSize,
+      max_participants: maxParticipants,
       entry_fee_cents: eurosToCents($('tourFee').value),
       prize_first: $('tourPrizeFirst').value.trim() || null,
       prize_second: $('tourPrizeSecond').value.trim() || null,
@@ -1579,6 +2567,12 @@ async function createTournament() {
     if (error) throw new Error(error.message);
     ['tourName', 'tourBanner', 'tourToornament', 'tourPrizeFirst', 'tourPrizeSecond', 'tourPrizeThird',
       'tourFee', 'tourPaymentUrl', 'tourPaymentInstructions', 'tourMax'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
+    if (bo9) {
+      if ($('tourFormatType')) $('tourFormatType').value = 'single';
+      document.querySelectorAll('.bo9-game').forEach((select) => { select.value = ''; });
+      updateBo9GamesStatus();
+      toggleTournamentFormat();
+    }
     notify('Tournoi créé.');
     await loadPublic();
     renderAdminTournaments();
