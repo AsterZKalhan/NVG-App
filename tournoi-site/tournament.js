@@ -3806,10 +3806,10 @@ function adminRegistrationRow(r) {
         <button onclick="setRegistrationStatus('${r.id}','confirmed')" class="text-[10px] font-bold text-emerald-400 hover:text-emerald-300">Confirmer</button>
         <button onclick="setRegistrationStatus('${r.id}','waitlist')" class="text-[10px] font-bold text-amber-400 hover:text-amber-300">Liste d'attente</button>
         <button onclick="setRegistrationStatus('${r.id}','cancelled')" class="text-[10px] font-bold text-red-400 hover:text-red-300">Annuler</button>
-        ${payment === 'paid'
+        ${team ? '' : payment === 'paid'
           ? `<button onclick="setPaymentStatus('${r.id}','refunded')" class="ml-auto text-[10px] font-bold text-sky-400 hover:text-sky-300">💸 Rembourser</button>`
           : `<button onclick="setPaymentStatus('${r.id}','paid')" class="ml-auto text-[10px] font-bold text-emerald-400 hover:text-emerald-300">✅ Marquer payé</button>`}
-        ${payment === 'paid' || payment === 'refunded'
+        ${!team && (payment === 'paid' || payment === 'refunded')
           ? `<button onclick="setPaymentStatus('${r.id}','awaiting')" class="text-[10px] font-bold text-amber-400 hover:text-amber-300">↩️ Remettre en attente</button>`
           : ''}
         <button onclick="deleteRegistration('${r.id}')" class="ml-1 border-l border-[#1f293d] pl-2 text-[10px] font-bold text-red-400 hover:text-red-300">🗑️ Supprimer</button>
