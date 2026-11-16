@@ -2195,7 +2195,7 @@ function standardMatchScore(m) {
   return `${formatPoints(m.points_a)} — ${formatPoints(m.points_b)}`;
 }
 
-function standardPublicMatchCard(m, labelText = '') {
+function standardPublicMatchCard(m, labelText = '', showGame = true) {
   const finished = m.status === 'finished';
   const exempt = !m.team_a || !m.team_b;
   const winnerA = finished && m.winner_team && m.winner_team === m.team_a;
@@ -2203,7 +2203,7 @@ function standardPublicMatchCard(m, labelText = '') {
   return `
     <div class="rounded-lg border border-[#1f293d] bg-[#07090e] p-2.5">
       ${labelText ? `<p class="text-[9px] font-black uppercase tracking-wider text-gray-500">${escapeHtml(labelText)}</p>` : ''}
-      ${standardMatchGameLine(m)}
+      ${showGame ? standardRoundGameTag(m) : ''}
       <div class="mt-0.5 flex items-center justify-between gap-2">
         <div class="min-w-0 space-y-0.5">
           <p class="truncate text-[11px] font-bold ${winnerA ? 'text-emerald-300' : 'text-gray-200'}">${escapeHtml(teamLabelById(m.team_a))}</p>
@@ -2237,7 +2237,10 @@ function standardBracketHtml(matches, cardFn) {
   return standardBracketGroups(matches).map((group) => `<div class="space-y-2">
     <h4 class="text-[10px] font-black uppercase tracking-wider text-amber-300">${escapeHtml(group.title)}</h4>
     ${group.rounds.map((round) => `<div>
-      <p class="mb-1.5 text-[10px] font-black uppercase tracking-wider text-gray-400">${escapeHtml(round.label)}</p>
+      <div class="mb-1.5">
+        <p class="text-[10px] font-black uppercase tracking-wider text-gray-400">${escapeHtml(round.label)}</p>
+        ${round.matches[0] ? standardRoundGameTag(round.matches[0], true) : ''}
+      </div>
       <div class="grid gap-2 sm:grid-cols-2">${round.matches.map((m) => cardFn(m)).join('')}</div>
     </div>`).join('')}
   </div>`).join('');
@@ -2268,7 +2271,10 @@ function standardTreeHtml(list) {
   const count = rounds.length;
   const first = list.filter((m) => m.round === rounds[0]).length;
   const rowsTotal = first * 2;
-  const labels = rounds.map((round, ri) => `<p style="grid-column:${ri + 1};grid-row:1" class="text-center text-[10px] font-black uppercase tracking-wider text-gray-400">${escapeHtml(bracketRoundLabel(round, count))}</p>`);
+  const labels = rounds.map((round, ri) => `<div style="grid-column:${ri + 1};grid-row:1" class="text-center">
+      <p class="text-[10px] font-black uppercase tracking-wider text-gray-400">${escapeHtml(bracketRoundLabel(round, count))}</p>
+      ${standardRoundGameTag(list.find((m) => m.round === round), true)}
+    </div>`);
   const cards = rounds.flatMap((round, ri) => {
     const span = 2 ** (ri + 1);
     return list.filter((m) => m.round === round)
@@ -2286,7 +2292,7 @@ function standardTreeHtml(list) {
       });
   });
   return `<div class="overflow-x-auto pb-2">
-    <div class="grid" style="grid-template-columns:repeat(${count},minmax(170px,1fr));column-gap:24px;grid-template-rows:24px repeat(${rowsTotal},${TREE_ROW_PX}px);min-width:${count * 200}px">
+    <div class="grid" style="grid-template-columns:repeat(${count},minmax(170px,1fr));column-gap:24px;grid-template-rows:auto repeat(${rowsTotal},${TREE_ROW_PX}px);min-width:${count * 200}px">
       ${labels.join('')}
       ${cards.join('')}
     </div>
@@ -2304,7 +2310,7 @@ function standardBracketPublicHtml(matches) {
         ${standardTreeHtml(list)}
       </div>`;
     }
-    return standardBracketHtml(list, (m) => standardPublicMatchCard(m));
+    return standardBracketHtml(list, (m) => standardPublicMatchCard(m, '', false));
   }).join('');
 }
 
@@ -2454,14 +2460,16 @@ function standardRoundKeyLabel(key) {
   return key;
 }
 
-// Ligne « jeu du tour » d'un match BO1 (la finale BO3 affiche chaque jeu à part).
-function standardMatchGameLine(m) {
+// Jeu du tour d'un match BO1 (la finale BO3 affiche chaque jeu à part).
+// Centré : sous le titre de la phase ; sinon : dans la carte du match.
+function standardRoundGameTag(m, centered = false) {
+  if (!m) return '';
   const t = tournamentById(m.tournament_id);
   if (!t || isStandardBo3(m, t)) return '';
   const gameId = standardRoundGameId(t, standardRoundKey(m, t));
   if (!gameId) return '';
   const logo = gameLogo(gameId);
-  return `<p class="flex items-center gap-1 text-[9px] font-bold text-violet-300">${logo ? `<img src="${logo}" alt="" onerror="this.remove()" class="inline-block h-[1em] w-[1em] shrink-0 object-contain">` : ''}<span class="truncate">${escapeHtml(gameName(gameId))}</span></p>`;
+  return `<p class="mt-0.5 flex items-center ${centered ? 'justify-center' : ''} gap-1 text-[9px] font-bold text-violet-300">${logo ? `<img src="${logo}" alt="" onerror="this.remove()" class="inline-block h-[1em] w-[1em] shrink-0 object-contain">` : ''}<span class="truncate">${escapeHtml(gameName(gameId))}</span></p>`;
 }
 
 function standardRoundGameId(t, key) {
