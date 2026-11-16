@@ -2857,14 +2857,26 @@ const BO9_SLOT_CATEGORIES = [
 ];
 
 function fillBo9GameSelects() {
-  document.querySelectorAll('.bo9-game').forEach((select, index) => {
-    const current = select.value;
-    select.innerHTML = `<option value="">Jeu ${index + 1}…</option>`
-      + games.map((g) => `<option value="${g.id}">${escapeHtml(gameOptionLabel(g))}</option>`).join('');
-    if (current && games.some((g) => g.id === current)) select.value = current;
-    select.onchange = updateBo9GamesStatus;
-  });
+  refreshBo9GameSelects('.bo9-game');
   updateBo9GamesStatus();
+}
+
+// Un jeu choisi dans une case disparaît des autres cases du même BO9 :
+// chaque jeu ne peut figurer qu'une fois.
+function refreshBo9GameSelects(selector) {
+  const selects = [...document.querySelectorAll(selector)];
+  selects.forEach((select, index) => {
+    const current = select.value;
+    const others = selects.filter((s) => s !== select).map((s) => s.value);
+    const available = games.filter((g) => g.id === current || !others.includes(g.id));
+    select.innerHTML = `<option value="">Jeu ${index + 1}…</option>`
+      + available.map((g) => `<option value="${g.id}">${escapeHtml(gameOptionLabel(g))}</option>`).join('');
+    if (current && available.some((g) => g.id === current)) select.value = current;
+    select.onchange = () => {
+      refreshBo9GameSelects(selector);
+      if (selector === '.bo9-game') updateBo9GamesStatus();
+    };
+  });
 }
 
 function updateBo9GamesStatus() {
@@ -3240,6 +3252,7 @@ function fillEditBo9Games(t) {
     select.value = cfg.games[index]?.game_id || '';
     select.disabled = locked;
   });
+  refreshBo9GameSelects('.edit-bo9-game');
   const filled = cfg.games.filter((g) => g.game_id).length;
   $('editBo9Status').textContent = locked
     ? 'Des matchs existent : les jeux ne peuvent plus être modifiés.'
