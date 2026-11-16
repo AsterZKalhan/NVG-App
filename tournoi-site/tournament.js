@@ -2946,7 +2946,7 @@ function renderMyTeams() {
           <span class="shrink-0 text-[10px] px-2 py-1 rounded-full border border-[#1f293d] text-gray-400">${members.length}/${tournament.team_max || '?'}</span>
         </div>
         <ul class="text-[11px] text-gray-400 space-y-1">
-          ${members.map((m) => `<li>${m.role === 'captain' ? '👑' : '•'} ${escapeHtml(m.nvg_users?.name || 'Membre')}${m.user_id === currentUser?.id ? ' <span class="text-gray-600">(toi)</span>' : ''}</li>`).join('')}
+          ${members.map((m) => `<li>${m.role === 'captain' ? '👑' : '•'} ${escapeHtml(m.nvg_users?.name || 'Membre')}${m.user_id === currentUser?.id ? ' <span class="text-gray-600">(toi)</span>' : ''}${isCaptain && m.role !== 'captain' ? ` <button onclick="setTeamCaptain('${team.id}', '${m.user_id}')" class="ml-2 text-[10px] font-bold text-amber-400 hover:text-amber-300">Passer capitaine</button>` : ''}</li>`).join('')}
         </ul>
         ${isCaptain ? `
           <div class="flex flex-wrap items-center gap-2">
@@ -3049,7 +3049,7 @@ function renderManage() {
           </div>
         </div>
         <ul class="space-y-1 text-[11px] text-gray-300">
-          ${members.map((m) => `<li>${m.role === 'captain' ? '👑' : '•'} ${escapeHtml(m.nvg_users?.name || 'Joueur')}${m.user_id === currentUser?.id ? ' <span class="text-gray-600">(toi)</span>' : ''}</li>`).join('')}
+          ${members.map((m) => `<li>${m.role === 'captain' ? '👑' : '•'} ${escapeHtml(m.nvg_users?.name || 'Joueur')}${m.user_id === currentUser?.id ? ' <span class="text-gray-600">(toi)</span>' : ''}${isCaptain && m.role !== 'captain' ? ` <button onclick="setTeamCaptain('${team.id}', '${m.user_id}')" class="ml-2 text-[10px] font-bold text-amber-400 hover:text-amber-300">Passer capitaine</button>` : ''}</li>`).join('')}
         </ul>
         <div class="flex flex-wrap items-center gap-2">
           <input readonly value="${escapeHtml(inviteUrl(team.invite_code))}" class="min-w-[160px] flex-1 rounded-lg border border-[#1f293d] bg-[#0b0f17] px-3 py-2 text-[10px] text-gray-400">
@@ -3189,6 +3189,19 @@ async function createTeamFromManage(tournamentId) {
     });
     notify(`Équipe créée. Code : ${res.invite_code}`);
     await loadMember();
+  } catch (err) {
+    notify('Erreur : ' + err.message, true);
+  }
+}
+
+// Transfert du rôle de capitaine à un membre (capitaine actuel ou admin).
+async function setTeamCaptain(teamId, userId) {
+  if (!window.confirm('Passer le rôle de capitaine à ce joueur ?')) return;
+  try {
+    await rpc('nvg_tournament_set_captain', { p_team: teamId, p_user: userId });
+    notify('Nouveau capitaine désigné.');
+    await loadMember();
+    if (isAdmin) await loadAdmin();
   } catch (err) {
     notify('Erreur : ' + err.message, true);
   }
@@ -3877,7 +3890,7 @@ function adminTeamCard(team, teamMax) {
           <span>${m.role === 'captain' ? '👑' : '•'} ${escapeHtml(m.nvg_users?.name || 'Joueur')}</span>
           ${m.role === 'captain'
             ? '<span class="text-[9px] text-gray-500">capitaine</span>'
-            : `<button onclick="adminRemoveTeamMember('${team.id}', '${m.user_id}')" class="text-[10px] font-bold text-red-400 hover:text-red-300">Retirer</button>`}
+            : `<span class="flex items-center gap-2"><button onclick="setTeamCaptain('${team.id}', '${m.user_id}')" class="text-[10px] font-bold text-amber-400 hover:text-amber-300">Passer capitaine</button><button onclick="adminRemoveTeamMember('${team.id}', '${m.user_id}')" class="text-[10px] font-bold text-red-400 hover:text-red-300">Retirer</button></span>`}
         </li>`).join('')}
         ${Array.from({ length: Math.max(0, teamMax - members.length) }, () => '<li class="flex items-center justify-between gap-2 text-gray-600"><span>— slot libre</span></li>').join('')}
       </ul>
