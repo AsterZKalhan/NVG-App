@@ -3822,7 +3822,7 @@ function adminTeamCard(team, teamMax) {
 }
 
 // Ligne d'un joueur de l'évènement : voyant de paiement, pseudo, actions (payé, annuler, rembourser, retirer).
-function adminEventPlayerRow(tournamentId, p, inTeam) {
+function adminEventPlayerRow(tournamentId, p, teamName) {
   const status = p.payment_status || 'not_required';
   const light = status === 'paid' ? 'bg-emerald-400' : status === 'refunded' ? 'bg-sky-400' : status === 'not_required' ? 'bg-gray-500' : 'bg-red-500';
   const btn = 'text-[10px] font-bold transition';
@@ -3835,7 +3835,7 @@ function adminEventPlayerRow(tournamentId, p, inTeam) {
   ].join('');
   return `<li class="flex flex-wrap items-center gap-2 rounded-lg border border-[#1f293d] bg-[#07090e] px-3 py-2 text-[11px]">
     <span class="h-2.5 w-2.5 shrink-0 rounded-full ${light}" title="${escapeHtml(PLAYER_PAY_LABELS[status] || status)}"></span>
-    <span class="min-w-0 flex-1 truncate text-gray-200">${escapeHtml(p.nvg_users?.name || 'Joueur')} <span class="text-gray-500">· pseudo : ${escapeHtml(p.platform_id || '—')} · ${escapeHtml(PLAYER_PAY_LABELS[status] || status)}</span>${inTeam ? '' : ' <span class="text-[9px] font-bold text-amber-300">sans équipe</span>'}</span>
+    <span class="min-w-0 flex-1 truncate text-gray-200">${escapeHtml(p.nvg_users?.name || 'Joueur')} <span class="text-gray-500">· pseudo : ${escapeHtml(p.platform_id || '—')} · ${escapeHtml(PLAYER_PAY_LABELS[status] || status)}</span>${teamName ? ` <span class="text-[9px] font-bold text-sky-400">${escapeHtml(teamName)}</span>` : ' <span class="text-[9px] font-bold text-amber-300">sans équipe</span>'}</span>
     <div class="flex flex-wrap items-center gap-2">${actions}</div>
   </li>`;
 }
@@ -3848,12 +3848,13 @@ function renderAdminTeams() {
   const teams = adminTeams.filter((x) => x.tournament_id === t.id);
   const players = adminEventPlayers.filter((p) => p.tournament_id === t.id);
   const teamMax = Number(t.team_max) || 5;
-  const inTeam = new Set(teams.flatMap((x) => (x.nvg_tournament_team_members || []).map((m) => m.user_id)));
+  const teamOf = new Map();
+  teams.forEach((x) => (x.nvg_tournament_team_members || []).forEach((m) => teamOf.set(m.user_id, x.name)));
   $('adminTeamsSubtitle').textContent = `${t.name} · ${players.length} joueur(s) dans l’évènement · ${teams.length} équipe(s) · ${teamMax} joueurs max par équipe`;
   $('adminTeamsBody').innerHTML = `
     <section class="space-y-2">
       <h3 class="text-[10px] font-black uppercase tracking-wider text-amber-300">Joueurs de l’évènement (${players.length})</h3>
-      ${players.length ? `<ul class="space-y-1.5">${players.map((p) => adminEventPlayerRow(t.id, p, inTeam.has(p.user_id))).join('')}</ul>` : '<p class="text-xs text-gray-500">Aucun joueur n’a encore rejoint l’évènement.</p>'}
+      ${players.length ? `<ul class="space-y-1.5">${players.map((p) => adminEventPlayerRow(t.id, p, teamOf.get(p.user_id) || null)).join('')}</ul>` : '<p class="text-xs text-gray-500">Aucun joueur n’a encore rejoint l’évènement.</p>'}
     </section>
     <section class="space-y-2">
       <h3 class="text-[10px] font-black uppercase tracking-wider text-amber-300">Équipes (${teams.length})</h3>
