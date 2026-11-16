@@ -12,6 +12,7 @@ create table if not exists public.nvg_tournament_games (
   name text not null,
   slug text not null unique,
   team_size integer check (team_size is null or team_size between 1 and 6),
+  scoring_mode text not null default 'versus' check (scoring_mode in ('versus', 'cumulative')),
   logo_url text,
   banner_url text,
   created_at timestamptz not null default now()
@@ -23,6 +24,9 @@ alter table public.nvg_tournament_games add column if not exists banner_url text
 -- Nombre de joueurs par équipe propre au jeu (repris à la création d'un
 -- tournoi « jeu unique »).
 alter table public.nvg_tournament_games add column if not exists team_size integer;
+-- Mode de score : `versus` (confrontation) ou `cumulative` (total des points
+-- des joueurs, ex. Trackmania en time attack).
+alter table public.nvg_tournament_games add column if not exists scoring_mode text not null default 'versus';
 
 create table if not exists public.nvg_tournaments (
   id uuid primary key default gen_random_uuid(),

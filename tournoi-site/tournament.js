@@ -127,8 +127,10 @@ function gameTeamSize(id) {
 
 function gameOptionLabel(game) {
   const size = Number(game?.team_size) || 0;
-  if (!size) return game.name;
-  return `${game.name} — ${size === 1 ? 'solo' : `${size} joueurs`}`;
+  const bits = [];
+  if (size) bits.push(size === 1 ? 'solo' : `${size} joueurs`);
+  if (game?.scoring_mode === 'cumulative') bits.push('cumul');
+  return bits.length ? `${game.name} — ${bits.join(' · ')}` : game.name;
 }
 
 function applyGameTeamSize() {
@@ -222,6 +224,17 @@ function bo9MatchTotals(match, cfg) {
   (Array.isArray(match?.games) ? match.games : []).forEach((g) => {
     const slot = bo9Slot(cfg, g.slot);
     if (!slot) return;
+    if (slot.scoring === 'cumulative') {
+      // Jeu en cumul (ex. Trackmania en time attack) : le total de points de
+      // chaque équipe désigne le vainqueur du jeu. Égalité = points partagés.
+      const value = (Number(slot.units) || 0) * (Number(slot.points_per_unit) || 0);
+      const rawA = Number(g.points_raw_a) || 0;
+      const rawB = Number(g.points_raw_b) || 0;
+      if (rawA > rawB) a += value;
+      else if (rawB > rawA) b += value;
+      else { a += value / 2; b += value / 2; }
+      return;
+    }
     const max = Number(slot.units) || 0;
     const unitsA = Math.max(0, Math.min(max, Number(g.units_a) || 0));
     const unitsB = Math.max(0, Math.min(max, Number(g.units_b) || 0));
@@ -730,10 +743,14 @@ function bo9FormatBlock(t) {
           return `<div class="rounded-lg border border-[#1f293d] bg-[#07090e] p-2.5">
             <p class="text-[10px] font-black uppercase tracking-wider ${cat.tone}">${cat.icon} ${cat.label}</p>
             <ul class="mt-1.5 space-y-1">
-              ${slots.map((s) => `<li class="flex items-center justify-between gap-2 text-[10px]">
-                <span class="truncate text-gray-200">${escapeHtml(gameName(s.game_id))}</span>
+              ${slots.map((s) => {
+                const cumulative = s.scoring === 'cumulative';
+                const players = gameTeamSize(s.game_id) * 2;
+                return `<li class="flex items-center justify-between gap-2 text-[10px]">
+                <span class="truncate text-gray-200">${escapeHtml(gameName(s.game_id))}${cumulative ? ` <span class="font-bold text-fuchsia-300" title="Cumul des points des joueurs">· cumul${players ? ` ${players} joueurs` : ''}</span>` : ''}</span>
                 <span class="shrink-0 text-gray-500">${formatPoints(Number(s.units) * Number(s.points_per_unit))} pts</span>
-              </li>`).join('')}
+              </li>`;
+              }).join('')}
             </ul>
             <p class="mt-1.5 border-t border-[#1f293d] pt-1 text-right text-[9px] font-bold text-gray-400">${formatPoints(bo9CategoryTotal(cfg, cat.key))} pts</p>
           </div>`;
@@ -770,7 +787,11 @@ function bo9PublicMatchCard(match, cfg, labelText = '') {
           ${played.map((g) => {
             const slot = bo9Slot(cfg, g.slot);
             if (!slot) return '';
-            return `<li class="flex items-center justify-between gap-2 text-[10px]"><span class="truncate text-gray-400">${escapeHtml(gameName(slot.game_id))}</span><span class="shrink-0 font-bold text-gray-200">${formatPoints(Number(g.units_a) || 0)} — ${formatPoints(Number(g.units_b) || 0)}</span></li>`;
+            const cumulative = slot.scoring === 'cumulative';
+            const scoreA = cumulative ? (g.points_raw_a ?? 0) : (Number(g.units_a) || 0);
+            const scoreB = cumulative ? (g.points_raw_b ?? 0) : (Number(g.units_b) || 0);
+            const mark = cumulative ? ' <span class="text-[9px] font-bold uppercase tracking-wider text-fuchsia-300">cumul</span>' : '';
+            return `<li class="flex items-center justify-between gap-2 text-[10px]"><span class="truncate text-gray-400">${escapeHtml(gameName(slot.game_id))}${mark}</span><span class="shrink-0 font-bold text-gray-200">${formatPoints(scoreA)} — ${formatPoints(scoreB)}</span></li>`;
           }).join('')}
         </ul>
       </details>` : ''}
@@ -1151,7 +1172,11 @@ function previewBo9Match(matchId) {
     const b = bo9MatchInputs(matchId, slot.slot, 'b');
     if (!a || !b) return;
     if (a.value === '' && b.value === '') return;
-    games.push({ slot: slot.slot, units_a: Number(a.value) || 0, units_b: Number(b.value) || 0 });
+    if (slot.scoring === 'cumulative') {
+      games.push({ slot: slot.slot, scoring: 'cumulative', points_raw_a: Number(a.value) || 0, points_raw_b: Number(b.value) || 0 });
+    } else {
+      games.push({ slot: slot.slot, units_a: Number(a.value) || 0, units_b: Number(b.value) || 0 });
+    }
   });
   const capA = $(`bo9-m-${matchId}-cap-a`)?.value;
   const capB = $(`bo9-m-${matchId}-cap-b`)?.value;
@@ -1177,6 +1202,20 @@ async function saveBo9MatchResult(matchId) {
     if (!aEl || !bEl) continue;
     const touched = aEl.value !== '' || bEl.value !== '';
     if (!touched) continue;
+    if (slot.scoring === 'cumulative') {
+      if (aEl.value === '' || bEl.value === '') {
+        notify(`Jeu « ${gameName(slot.game_id)} » : indique le total de points des deux équipes.`, true);
+        return;
+      }
+      const rawA = Number(aEl.value);
+      const rawB = Number(bEl.value);
+      if (!Number.isFinite(rawA) || !Number.isFinite(rawB) || rawA < 0 || rawB < 0) {
+        notify(`Jeu « ${gameName(slot.game_id)} » : totaux de points invalides.`, true);
+        return;
+      }
+      games.push({ slot: slot.slot, scoring: 'cumulative', points_raw_a: rawA, points_raw_b: rawB });
+      continue;
+    }
     const unitsA = Number(aEl.value) || 0;
     const unitsB = Number(bEl.value) || 0;
     if (unitsA < 0 || unitsB < 0 || unitsA > slot.units || unitsB > slot.units || unitsA + unitsB !== Number(slot.units)) {
@@ -1307,16 +1346,20 @@ function adminBo9MatchCard(match, cfg, labelText = '') {
             const slot = slotByNumber.get(Number(slotNumber));
             if (!slot) return '';
             const score = played.get(Number(slotNumber)) || {};
+            const cumulative = slot.scoring === 'cumulative';
+            const slotValue = Number(slot.units) * Number(slot.points_per_unit);
+            const valueA = cumulative ? (score.points_raw_a ?? '') : (score.units_a ?? '');
+            const valueB = cumulative ? (score.points_raw_b ?? '') : (score.units_b ?? '');
             return `<div class="grid grid-cols-1 gap-1.5 rounded-lg border border-[#1f293d] bg-[#121722] px-2 py-1.5 sm:grid-cols-[1fr_auto] sm:items-center">
               <div class="min-w-0">
-                <p class="truncate text-[10px] font-bold text-gray-200">${index + 1}. ${escapeHtml(gameName(slot.game_id))}</p>
-                <p class="text-[9px] text-gray-500">${slot.category === 'collectif' ? 'Collectif' : slot.category === 'escarmouche' ? 'Escarmouche' : 'Duel'} · ${slot.units} unité(s) × ${formatPoints(slot.points_per_unit)} pt = ${formatPoints(Number(slot.units) * Number(slot.points_per_unit))} pts</p>
+                <p class="truncate text-[10px] font-bold text-gray-200">${index + 1}. ${escapeHtml(gameName(slot.game_id))}${cumulative ? ' <span class="text-[9px] font-bold text-fuchsia-300">Cumul</span>' : ''}</p>
+                <p class="text-[9px] text-gray-500">${slot.category === 'collectif' ? 'Collectif' : slot.category === 'escarmouche' ? 'Escarmouche' : 'Duel'} · ${cumulative ? `total d’équipe · ${formatPoints(slotValue)} pts au vainqueur` : `${slot.units} unité(s) × ${formatPoints(slot.points_per_unit)} pt = ${formatPoints(slotValue)} pts`}</p>
               </div>
               <div class="flex items-center gap-1">
-                <input id="bo9-m-${match.id}-s${slotNumber}-a" type="number" min="0" max="${slot.units}" value="${score.units_a ?? ''}" oninput="previewBo9Match('${match.id}')" aria-label="Unités équipe A" class="w-12 rounded border border-[#1f293d] bg-[#07090e] px-1.5 py-1 text-center text-[11px] text-white">
+                <input id="bo9-m-${match.id}-s${slotNumber}-a" type="number" min="0" ${cumulative ? '' : `max="${slot.units}"`} value="${valueA}" oninput="previewBo9Match('${match.id}')" aria-label="${cumulative ? 'Points cumulés équipe A' : 'Unités équipe A'}" class="w-12 rounded border border-[#1f293d] bg-[#07090e] px-1.5 py-1 text-center text-[11px] text-white">
                 <span class="text-gray-500">–</span>
-                <input id="bo9-m-${match.id}-s${slotNumber}-b" type="number" min="0" max="${slot.units}" value="${score.units_b ?? ''}" oninput="previewBo9Match('${match.id}')" aria-label="Unités équipe B" class="w-12 rounded border border-[#1f293d] bg-[#07090e] px-1.5 py-1 text-center text-[11px] text-white">
-                <span class="ml-1 text-[9px] text-gray-500">/ ${slot.units}</span>
+                <input id="bo9-m-${match.id}-s${slotNumber}-b" type="number" min="0" ${cumulative ? '' : `max="${slot.units}"`} value="${valueB}" oninput="previewBo9Match('${match.id}')" aria-label="${cumulative ? 'Points cumulés équipe B' : 'Unités équipe B'}" class="w-12 rounded border border-[#1f293d] bg-[#07090e] px-1.5 py-1 text-center text-[11px] text-white">
+                <span class="ml-1 text-[9px] text-gray-500">${cumulative ? 'pts' : `/ ${slot.units}`}</span>
               </div>
             </div>`;
           }).join('')}
@@ -1912,6 +1955,7 @@ function renderAdminGames() {
           </span>
           <span class="truncate text-[11px] font-bold text-gray-200">${escapeHtml(g.name)}</span>
           ${Number(g.team_size) ? `<span class="shrink-0 rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-bold text-sky-300" title="Joueurs par équipe">${Number(g.team_size)}v${Number(g.team_size)}</span>` : ''}
+          ${g.scoring_mode === 'cumulative' ? '<span class="shrink-0 rounded border border-fuchsia-500/30 bg-fuchsia-500/10 px-1.5 py-0.5 text-[9px] font-bold text-fuchsia-300" title="Total des points des joueurs">Cumul</span>' : ''}
         </div>
         <div class="flex shrink-0 items-center gap-1">
           ${safeUrl(g.banner_url) ? '<span class="text-[9px] text-emerald-400" title="Bannière enregistrée">bannière</span>' : ''}
@@ -2022,12 +2066,14 @@ function bo9FormConfig() {
   const points = BO9_POINTS[mode];
   const gamesConfig = gameIds.map((gameId, index) => {
     const category = BO9_SLOT_CATEGORIES[index];
+    const cumulative = gameById(gameId)?.scoring_mode === 'cumulative';
     return {
       slot: index + 1,
       category,
       game_id: gameId,
       units: BO9_UNITS[category],
-      points_per_unit: points[category]
+      points_per_unit: points[category],
+      scoring: cumulative ? 'cumulative' : 'versus'
     };
   });
   return {
@@ -2425,6 +2471,7 @@ function resetGameForm() {
   editingGameId = null;
   ['gameName', 'gameLogo', 'gameBanner'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
   if ($('gameTeamSize')) $('gameTeamSize').value = '';
+  if ($('gameScoringMode')) $('gameScoringMode').value = 'versus';
   ['gameLogoFile', 'gameBannerFile'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
   const submit = $('gameSubmit');
   if (submit) submit.textContent = 'Créer le jeu';
@@ -2443,6 +2490,7 @@ function editGame(id) {
   editingGameId = id;
   $('gameName').value = g.name || '';
   if ($('gameTeamSize')) $('gameTeamSize').value = g.team_size ? String(g.team_size) : '';
+  if ($('gameScoringMode')) $('gameScoringMode').value = g.scoring_mode === 'cumulative' ? 'cumulative' : 'versus';
   $('gameLogo').value = g.logo_url || '';
   $('gameBanner').value = g.banner_url || '';
   const submit = $('gameSubmit');
@@ -2504,6 +2552,7 @@ async function saveGame() {
     name,
     slug: slugify(name),
     team_size: Number($('gameTeamSize')?.value) || null,
+    scoring_mode: $('gameScoringMode')?.value === 'cumulative' ? 'cumulative' : 'versus',
     logo_url: safeUrl($('gameLogo').value) || null,
     banner_url: safeUrl($('gameBanner').value) || null
   };

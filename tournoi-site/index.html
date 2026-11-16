@@ -326,7 +326,7 @@
             <h2 class="text-sm font-black text-white">🎮 Jeu</h2>
             <button id="gameCancel" onclick="cancelGameEdit()" class="hidden text-[10px] font-bold text-gray-400 hover:text-white">Annuler la modification</button>
           </div>
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <label class="block">
               <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Nom du jeu</span>
               <input id="gameName" placeholder="Nom du jeu" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
@@ -343,8 +343,15 @@
                 <option value="6">6 joueurs</option>
               </select>
             </label>
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Mode de score</span>
+              <select id="gameScoringMode" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+                <option value="versus">Confrontation — une équipe gagne le jeu</option>
+                <option value="cumulative">Cumul — total des points des joueurs</option>
+              </select>
+            </label>
           </div>
-          <p class="text-[9px] text-gray-500">Le format indiqué pour le jeu est repris automatiquement à la création d'un tournoi « jeu unique ».</p>
+          <p class="text-[9px] leading-relaxed text-gray-500">Le format et le mode de score du jeu sont repris à la création du tournoi. <span class="text-gray-400">Cumul</span> : les joueurs des deux équipes jouent ensemble (ex. Trackmania en time attack, 1v1v1v1…) ; on saisit le total de chaque équipe et le plus haut total remporte les points du jeu.</p>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div class="space-y-2">
               <p class="text-[10px] font-black uppercase tracking-wider text-gray-400">Logo carré</p>
