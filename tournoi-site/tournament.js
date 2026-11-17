@@ -6138,6 +6138,7 @@ async function init() {
     await loadMember();
   }
   showAccountUi();
+  document.body.classList.add('nav-ready');
   await loadPublic();
 
   const params = new URLSearchParams(window.location.search);

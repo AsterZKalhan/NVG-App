@@ -12,6 +12,11 @@
       style.id = 'routeFlashStyle';
       style.textContent = '.tab-content{display:none!important}#tab-' + tab + '{display:block!important}';
       document.head.appendChild(style);
+      var navStyle = document.createElement('style');
+      navStyle.textContent = 'body:not(.nav-ready)>header{visibility:hidden}';
+      document.head.appendChild(navStyle);
+      // Sécurité : l'en-tête s'affiche même si le chargement de la session échoue.
+      setTimeout(function () { document.body && document.body.classList.add('nav-ready'); }, 4000);
     })();
   </script>
   <title>Tournoi des 9 Mondes - Normandy Viking Gaming</title>
