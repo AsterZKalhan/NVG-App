@@ -3,6 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    // Le menu n'apparaît qu'une fois la session connue (pas d'éléments qui arrivent un par un).
+    // Retiré par app.js (classe nav-ready) ; sécurité après 4 s si le démarrage échoue.
+    (function () {
+      var style = document.createElement('style');
+      style.textContent = 'body:not(.nav-ready) #mainNav{visibility:hidden}';
+      document.head.appendChild(style);
+      setTimeout(function () { document.body && document.body.classList.add('nav-ready'); }, 4000);
+    })();
+  </script>
   <title>Normandy Viking Gaming - Event Companion</title>
   
   <!-- Favicon -->

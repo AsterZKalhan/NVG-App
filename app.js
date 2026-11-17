@@ -52,6 +52,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const target = document.getElementById(startTab);
     if (target && target.classList.contains('hidden')) showTab('calendar');
   }
+  // Session connue : le menu s'affiche d'un bloc, selon le grade.
+  document.body.classList.add('nav-ready');
   
   // Enregistrement du Service Worker pour les notifications Push
 	if ('serviceWorker' in navigator && 'PushManager' in window) {

@@ -18,6 +18,9 @@ jobs:
       - name: Compiler le CSS (Tailwind)
         run: npx --yes tailwindcss@3.4.17 -c tailwind.config.js -i src/tailwind.css -o tailwind.css --minify
 
+      - name: Identifier le déploiement (cache du service worker)
+        run: sed -i "s/__BUILD__/${GITHUB_SHA::12}/" sw.js
+
       - name: Minifier les scripts
         run: |
           npm install -g terser@5
