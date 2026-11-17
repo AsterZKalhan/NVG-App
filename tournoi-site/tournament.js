@@ -4654,8 +4654,14 @@ function adminRegistrationRow(r) {
           </div>
         </div>
         <div class="flex flex-wrap items-center gap-1.5">
-          <span class="rounded-full border px-2 py-1 text-[9px] font-black uppercase ${r.status === 'confirmed' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : r.status === 'cancelled' ? 'text-gray-500 border-[#1f293d] bg-white/5' : 'text-amber-400 border-amber-500/30 bg-amber-500/10'}">${escapeHtml(REG_LABELS[r.status] || r.status)}</span>
-          ${teamHasPaidPlayer(r) ? presenceBadge() : paymentBadge(payment)}
+          ${team && r.status !== 'cancelled'
+            ? `<span class="rounded-full border px-2 py-1 text-[9px] font-black uppercase ${r.status === 'confirmed' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-gray-400 border-[#1f293d] bg-white/5'}">${r.status === 'confirmed' ? 'Confirmée' : 'Préinscrite'}</span>`
+            : `<span class="rounded-full border px-2 py-1 text-[9px] font-black uppercase ${r.status === 'confirmed' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : r.status === 'cancelled' ? 'text-gray-500 border-[#1f293d] bg-white/5' : 'text-amber-400 border-amber-500/30 bg-amber-500/10'}">${escapeHtml(REG_LABELS[r.status] || r.status)}</span>`}
+          ${team && teamHasPaidPlayer(r)
+            ? presenceBadge()
+            : team && payment === 'awaiting'
+              ? '<span class="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-amber-400">En attente de paiement d’au moins un joueur</span>'
+              : paymentBadge(payment)}
         </div>
       </div>
       ${team ? '' : `<dl class="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] sm:grid-cols-4">
