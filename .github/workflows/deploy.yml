@@ -15,6 +15,9 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Compiler le CSS (Tailwind)
+        run: npx --yes tailwindcss@3.4.17 -c tailwind.config.js -i src/tailwind.css -o tailwind.css --minify
+
       - name: Minifier les scripts
         run: |
           npm install -g terser@5

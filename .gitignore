@@ -20,3 +20,6 @@ backups/
 
 # CSS Tailwind compilé au déploiement (voir deploy-tournament.yml)
 tournoi-site/tailwind.css
+
+# CSS Tailwind compile au deploiement (application)
+/tailwind.css

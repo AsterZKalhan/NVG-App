@@ -8,8 +8,8 @@ USER = os.environ["SFTP_USER"]
 PASSWORD = os.environ["SFTP_PASSWORD"]
 REMOTE_ROOT = "APP"
 
-SKIP_DIRS = {".git", ".github", "bot-site", "tournoi-site"}
-SKIP_FILES = {".gitignore", "README.md"}
+SKIP_DIRS = {".git", ".github", "bot-site", "tournoi-site", "src"}
+SKIP_FILES = {".gitignore", "README.md", "tailwind.config.js"}
 
 
 def ensure_remote_dir(sftp, path):
