@@ -1071,6 +1071,7 @@ function bo9PoolStandings(groupName, cfg, matches) {
 
 function bo9PoolTable(groupName, cfg, matches) {
   const standings = bo9PoolStandings(groupName, cfg, matches);
+  const qualifiers = Number(cfg?.qualifiers_per_pool) || 2;
   return `
     <div class="overflow-hidden rounded-xl border border-[#1f293d] bg-[#07090e]">
       <p class="border-b border-[#1f293d] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-amber-300">Poule ${escapeHtml(groupName)}</p>
@@ -1096,7 +1097,7 @@ function bo9PoolTable(groupName, cfg, matches) {
             <td class="px-1 py-1 text-center text-gray-400">${r.wins}</td>
             <td class="px-1 py-1 text-center text-gray-400">${r.draws}</td>
             <td class="px-1 py-1 text-center text-gray-400">${r.losses}</td>
-            <td class="px-1 py-1 text-center font-black text-white">${r.points}</td>
+            <td class="px-1 py-1 text-center font-black ${i < qualifiers ? 'text-emerald-400' : 'text-red-400'}">${r.points}</td>
             <td class="px-2 py-1 text-right ${r.scored - r.conceded >= 0 ? 'text-emerald-400' : 'text-red-400'}">${r.scored - r.conceded > 0 ? '+' : ''}${formatPoints(r.scored - r.conceded)}</td>
           </tr>`).join('')}
         </tbody>
@@ -2200,9 +2201,14 @@ function standardStandings(matches) {
     || y.scored - x.scored);
 }
 
-function standardStandingsTable(matches) {
+function standardStandingsTable(matches, qualifiersPerPool) {
   const rows = standardStandings(matches);
   if (!rows.length) return '';
+  // Points des qualifiés en vert, des autres en rouge (rang dans le classement).
+  const qualifiers = Number(qualifiersPerPool) || 2;
+  // Poule terminée (tous ses matchs joués) : le nombre de rounds passe en bleu.
+  const pool = matches.filter((m) => m.phase === 'pool');
+  const poolDone = pool.length > 0 && pool.every((m) => m.status === 'finished');
   return `
     <div class="overflow-hidden rounded-xl border border-[#1f293d] bg-[#07090e]">
       <table class="text-[10px]" style="width:100%;table-layout:fixed">
@@ -2219,13 +2225,13 @@ function standardStandingsTable(matches) {
           </tr>
         </thead>
         <tbody>
-          ${rows.map((r) => `<tr class="border-t border-[#1f293d]">
+          ${rows.map((r, i) => `<tr class="border-t border-[#1f293d]">
             <td class="truncate px-2 py-1 font-bold text-gray-200">${escapeHtml(teamLabelById(r.id))}</td>
-            <td class="px-1 py-1 text-center text-gray-400">${r.played}</td>
+            <td class="px-1 py-1 text-center ${poolDone ? 'font-black text-blue-400' : 'text-gray-400'}">${r.played}</td>
             <td class="px-1 py-1 text-center text-gray-400">${r.wins}</td>
             <td class="px-1 py-1 text-center text-gray-400">${r.draws}</td>
             <td class="px-1 py-1 text-center text-gray-400">${r.losses}</td>
-            <td class="px-2 py-1 text-center font-black text-white">${r.points}</td>
+            <td class="px-2 py-1 text-center font-black ${i < qualifiers ? 'text-emerald-400' : 'text-red-400'}">${r.points}</td>
             <td class="px-2 py-1 text-right ${r.scored - r.conceded >= 0 ? 'text-emerald-400' : 'text-red-400'}">${r.scored - r.conceded > 0 ? '+' : ''}${formatPoints(r.scored - r.conceded)}</td>
           </tr>`).join('')}
         </tbody>
@@ -2300,12 +2306,12 @@ function filterStandardPools(scopeId) {
 }
 
 // Un classement par poule s'il y a plusieurs poules, sinon un seul classement.
-function standardStandingsBlocks(matches) {
+function standardStandingsBlocks(matches, qualifiersPerPool) {
   const groups = [...new Set(matches.filter((m) => m.phase === 'pool').map((m) => m.group_name))].sort();
-  if (groups.length <= 1) return standardStandingsTable(matches);
+  if (groups.length <= 1) return standardStandingsTable(matches, qualifiersPerPool);
   return groups.map((g) => `<div class="space-y-1">
     <p class="text-[10px] font-black uppercase tracking-wider text-gray-400">Poule ${escapeHtml(g)}</p>
-    ${standardStandingsTable(matches.filter((m) => m.group_name === g))}
+    ${standardStandingsTable(matches.filter((m) => m.group_name === g), qualifiersPerPool)}
   </div>`).join('');
 }
 
@@ -2627,7 +2633,7 @@ function standardCompetitionBlock(t) {
     <div class="space-y-4">
       ${pools.length ? `<div>
         <h3 class="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">🏟️ Poules</h3>
-        ${standardStandingsBlocks(matches)}
+        ${standardStandingsBlocks(matches, t.format_config?.qualifiers_per_pool)}
         <div id="stdPoolsPublic" class="mt-2 space-y-2">
           ${standardPoolFilters('stdPoolsPublic', pools)}
           <div class="grid gap-2 sm:grid-cols-2">
@@ -3041,7 +3047,7 @@ function renderStandardMatchPanel(t) {
       ${gamesForm}
       ${pools.length ? `<div class="space-y-2">
         <h3 class="text-xs font-black uppercase tracking-wider text-white">🏟️ Matchs</h3>
-        ${standardStandingsBlocks(matches)}
+        ${standardStandingsBlocks(matches, t.format_config?.qualifiers_per_pool)}
         <div id="stdPoolsAdmin" class="space-y-2">
           ${standardPoolRoundsHtml('stdPoolsAdmin', pools, (m) => adminStandardMatchCard(m, m.label || (m.group_name ? `Poule ${m.group_name}` : 'Match')))}
         </div>
