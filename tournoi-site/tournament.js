@@ -1080,7 +1080,7 @@ function bo9PoolTable(groupName, cfg, matches) {
           <tr>
             <th class="px-2 py-1 text-left font-bold">#</th>
             <th class="px-2 py-1 text-left font-bold">Équipe</th>
-            <th class="px-2 py-1 text-center font-bold">J</th>
+            <th class="px-2 py-1 text-center font-bold">Round</th>
             <th class="px-1 py-1 text-center font-bold">V</th>
             <th class="px-1 py-1 text-center font-bold">N</th>
             <th class="px-1 py-1 text-center font-bold">D</th>
@@ -2210,7 +2210,7 @@ function standardStandingsTable(matches) {
         <thead class="bg-white/5 text-gray-400">
           <tr>
             <th class="px-2 py-1 text-left font-black">Équipe</th>
-            <th class="px-2 py-1 text-center font-black">J</th>
+            <th class="px-2 py-1 text-center font-black">Round</th>
             <th class="px-1 py-1 text-center font-black">V</th>
             <th class="px-1 py-1 text-center font-black">N</th>
             <th class="px-1 py-1 text-center font-black">D</th>
