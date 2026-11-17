@@ -410,7 +410,8 @@
               <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Format du tournoi</span>
               <select id="tourFormatType" onchange="toggleTournamentFormat()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
                 <option value="single">Un jeu — format standard</option>
-                <option value="bo9">Tournoi des 9 Mondes — 9 jeux (BO9)</option>
+                <option value="bo9">Décathlon — 9 jeux avec points (BO9)</option>
+                <option value="nine_worlds">Tournoi des 9 Mondes — un jeu par tour</option>
               </select>
             </label>
             <label id="tourStdWrap" class="block sm:col-span-2">
@@ -423,7 +424,8 @@
                 <option value="league">Championnat (round robin global)</option>
                 <option value="swiss">Suisse</option>
               </select>
-              <span class="mt-1 block text-[9px] text-gray-500">Le nombre de joueurs par équipe est repris du jeu choisi ci-dessus.</span>
+              <span id="tourStdDefaultHint" class="mt-1 block text-[9px] text-gray-500">Le nombre de joueurs par équipe est repris du jeu choisi ci-dessus.</span>
+              <span id="tourStdFormatHint" class="mt-1 hidden text-[9px] text-violet-300"></span>
               <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <div id="tourStdPoolsWrap" class="hidden">
                   <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Nombre de poules</span>
@@ -488,9 +490,14 @@
               </select>
               <span id="tourTeamSizeHint" class="mt-1 block text-[9px] text-gray-500"></span>
             </label>
+            <div id="tourStdRoundGamesWrap" class="hidden sm:col-span-2 rounded-xl border border-violet-500/30 bg-violet-500/5 p-3">
+              <p class="text-[10px] font-black uppercase tracking-wider text-violet-300">🎮 Jeu de chaque tour</p>
+              <p class="mt-1 text-[10px] text-gray-500">Un jeu par tour, des poules jusqu'à la finale. Laisse vide pour choisir plus tard dans « Gestion tournoi ».</p>
+              <div id="tourStdRoundGamesGrid" class="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3"></div>
+            </div>
             <div id="tourBo9Wrap" class="hidden sm:col-span-2 space-y-4">
               <div class="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-[11px] leading-relaxed text-amber-100/80">
-                <p class="text-[10px] font-black uppercase tracking-wider text-amber-300">Multigaming Esport — BO9</p>
+                <p class="text-[10px] font-black uppercase tracking-wider text-amber-300">Décathlon — 9 jeux avec points</p>
                 <p class="mt-1">9 jeux en trois catégories : <strong class="text-white">collectif 5v5</strong>, <strong class="text-white">escarmouche 2v2/3v3</strong> et <strong class="text-white">duel 1v1</strong>. La majorité des points gagne la rencontre. Équipes de 5 joueurs, poules puis bracket.</p>
               </div>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -763,7 +770,7 @@
           </label>
         </div>
         <div id="editBo9Wrap" class="hidden space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
-          <p class="text-[10px] font-black uppercase tracking-wider text-amber-300">🎮 Jeux du tournoi des 9 Mondes</p>
+          <p class="text-[10px] font-black uppercase tracking-wider text-amber-300">🎮 Jeux du décathlon</p>
           <p id="editBo9Status" class="text-[10px] text-gray-400"></p>
           <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <select id="editBo9Game1" class="edit-bo9-game bg-[#07090e] border border-[#1f293d] rounded-xl px-2 py-2 text-[11px] text-white"></select>

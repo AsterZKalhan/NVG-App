@@ -157,7 +157,8 @@ function gameOptionLabel(game) {
 }
 
 function applyGameTeamSize() {
-  if ($('tourFormatType')?.value === 'bo9') return;
+  const type = $('tourFormatType')?.value;
+  if (type === 'bo9' || type === 'nine_worlds') return;
   const gameId = $('tourGame')?.value;
   const hint = $('tourTeamSizeHint');
   if (!gameId) {
@@ -176,7 +177,7 @@ function applyGameTeamSize() {
 }
 
 // ---------------------------------------------------------------------------
-// Format BO9 « Multigaming Esport »
+// Décathlon (BO9) « 9 jeux avec points »
 // ---------------------------------------------------------------------------
 // 9 jeux en trois catégories. Chaque catégorie vaut 9 points (ou 15 en All-In) :
 //   collectif 5v5    : 1 unité × 3 pts   (All-In × 5)
@@ -336,11 +337,34 @@ function bo9MatchTotals(match, cfg) {
   return { a: round2(a), b: round2(b) };
 }
 
-// Libellé d'un tournoi : jeu unique ou « 9 jeux · Décathlon Esport ».
+// Tournoi des 9 Mondes : format standard à un jeu par tour. Les tournois créés
+// avant l'indicateur `nine_worlds` (comme le ZZ admin) sont reconnus par leurs jeux de tour.
+function isNineWorlds(t) {
+  const cfg = t?.format_config;
+  if (!cfg || cfg.type !== 'standard') return false;
+  if (cfg.nine_worlds === true) return true;
+  return !t.game_id && Object.values(cfg.round_games || {}).some(Boolean);
+}
+
+// Libellé d'un tournoi : jeu unique, Décathlon ou Tournoi des 9 Mondes.
 function tournamentGamesLabel(t) {
   const cfg = bo9Config(t);
-  if (cfg) return `9 jeux · Multigaming Esport`;
+  if (cfg) return 'Décathlon · 9 jeux';
+  if (isNineWorlds(t)) {
+    const games = new Set(Object.values(t.format_config.round_games || {}).filter(Boolean));
+    return games.size
+      ? `Tournoi des 9 Mondes · ${games.size} jeu${games.size > 1 ? 'x' : ''}`
+      : 'Tournoi des 9 Mondes · jeux à définir';
+  }
   return gameName(t.game_id);
+}
+
+// Format de compétition affiché en badge (Décathlon, 9 Mondes, standard).
+function competitionFormatLabel(t) {
+  if (bo9Config(t)) return 'Décathlon · BO9';
+  if (isNineWorlds(t)) return 'Un jeu par tour';
+  if (t?.format_config?.format) return STANDARD_FORMAT_LABELS[standardFormat(t)] || standardFormat(t);
+  return '';
 }
 
 function bo9FirstGameId(t) {
@@ -764,6 +788,7 @@ function openTournamentDetails(id, options = {}) {
       <div class="flex flex-wrap items-center gap-2">
         <span class="rounded border border-[#2a3750] px-2 py-1 text-[10px] font-bold text-gray-300">${escapeHtml(modeLabel(t))}</span>
         <span class="rounded border border-[#2a3750] px-2 py-1 text-[10px] font-bold text-gray-300">${escapeHtml(FORMAT_LABELS[t.format] || t.format)}</span>
+        ${competitionFormatLabel(t) ? `<span class="rounded border border-violet-500/40 bg-violet-500/10 px-2 py-1 text-[10px] font-bold text-violet-300">${escapeHtml(competitionFormatLabel(t))}</span>` : ''}
         <span class="rounded border px-2 py-1 text-[10px] font-bold ${Number(t.entry_fee_cents) > 0 ? 'border-amber-500/40 bg-amber-500/10 text-amber-300' : 'border-[#2a3750] text-gray-400'}">${escapeHtml(feeLabel(t))}</span>
         <span class="rounded border border-[#2a3750] px-2 py-1 text-[10px] font-bold text-gray-300">👥 ${escapeHtml(places)}</span>
       </div>
@@ -853,7 +878,7 @@ function bo9FormatBlock(t) {
   return `
     <div class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <h3 class="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-300">⚔️ Format BO9 — Multigaming Esport</h3>
+        <h3 class="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-300">⚔️ Décathlon — 9 jeux avec points</h3>
         <span class="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-amber-300">${total} points · ${escapeHtml(bo9PointsModeLabel(cfg))}</span>
       </div>
       <div class="mt-3 grid gap-2 sm:grid-cols-3">
@@ -1702,6 +1727,12 @@ function isStandard(t) {
 
 function standardFormat(t) {
   return t?.format_config?.format || 'single_elim';
+}
+
+// Libellé affiché : distingue le format « Tournoi des 9 Mondes » (un jeu par tour).
+function standardFormatTitle(t) {
+  const label = STANDARD_FORMAT_LABELS[standardFormat(t)] || standardFormat(t);
+  return isNineWorlds(t) ? `Tournoi des 9 Mondes · ${label}` : label;
 }
 
 async function generateStandardMatches(tournamentId) {
@@ -2655,7 +2686,7 @@ function renderStandardMatchPanel(t) {
   const teams = adminTeamsFor(t.id);
   const format = standardFormat(t);
   const generated = STANDARD_GENERATED_FORMATS.includes(format);
-  $('adminMatchSubtitle').textContent = `${t.name} · ${STANDARD_FORMAT_LABELS[format] || format} · ${teams.length} équipe(s) confirmée(s) · ${standardScoreHint(t)}${t.status === 'running' ? '' : ' · résultats verrouillés (tournoi non « en cours »)'}`;
+  $('adminMatchSubtitle').textContent = `${t.name} · ${standardFormatTitle(t)} · ${teams.length} équipe(s) confirmée(s) · ${standardScoreHint(t)}${t.status === 'running' ? '' : ' · résultats verrouillés (tournoi non « en cours »)'}`;
   $('adminMatchTools').innerHTML = `
     ${generated ? `<button onclick="generateStandardMatches('${t.id}')" class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-[10px] font-bold text-amber-300 transition hover:bg-amber-500/20">🏗️ ${format === 'swiss' ? 'Générer la ronde 1' : 'Générer les matchs'}</button>` : ''}
     ${format === 'swiss' && matches.length ? `<button onclick="generateSwissRound('${t.id}')" class="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold text-emerald-300 transition hover:bg-emerald-500/20">➕ Ronde suivante</button>` : ''}
@@ -3676,6 +3707,46 @@ function syncStandardSlots() {
       + (bracketSize > bracketTeams ? ' (exemptions)' : '')
       + (powerOfTwo ? '' : ' · double élimination indisponible (tableau non puissance de 2).');
   }
+  renderTourStdRoundGames();
+}
+
+// Tournoi des 9 Mondes : aperçu de la configuration en cours pour lister les tours.
+function stdRoundGamesPreviewTournament() {
+  const pools = Number($('tourStdPools')?.value) || 2;
+  const size = Number($('tourStdPoolSize')?.value) || 4;
+  return {
+    id: null,
+    max_participants: pools * size,
+    format_config: {
+      type: 'standard',
+      format: 'groups_playoffs',
+      pool_count: pools,
+      pool_size: size,
+      qualifiers_per_pool: Number($('tourStdQualifiers')?.value) || 2,
+      tree: $('tourStdTree')?.value === 'double' ? 'double' : 'single'
+    }
+  };
+}
+
+// Sélecteurs « jeu de chaque tour » du formulaire de création (format 9 Mondes).
+function renderTourStdRoundGames() {
+  const wrap = $('tourStdRoundGamesWrap');
+  if (!wrap) return;
+  const nineWorlds = $('tourFormatType')?.value === 'nine_worlds';
+  wrap.classList.toggle('hidden', !nineWorlds);
+  if (!nineWorlds) return;
+  const grid = $('tourStdRoundGamesGrid');
+  if (!grid) return;
+  const current = {};
+  grid.querySelectorAll('select[data-round-key]').forEach((select) => {
+    current[select.dataset.roundKey] = select.value;
+  });
+  const options = (selected) => '<option value="">—</option>'
+    + games.map((g) => `<option value="${g.id}" ${g.id === selected ? 'selected' : ''}>${escapeHtml(gameOptionLabel(g))}</option>`).join('');
+  grid.innerHTML = standardRoundKeys(stdRoundGamesPreviewTournament()).map((key) => `<label class="block">
+    <span class="mb-0.5 block text-[9px] font-black uppercase tracking-wider text-gray-500">${escapeHtml(standardRoundKeyLabel(key))}</span>
+    <select id="tour-rg-${key}" data-round-key="${key}" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-2 py-2 text-[11px] text-white">${options(current[key] || '')}</select>
+  </label>`).join('');
 }
 
 // Taille de tableau immédiatement supérieure (puissance de 2, minimum 2).
@@ -3686,12 +3757,30 @@ function nextPowerOfTwo(value) {
 }
 
 function toggleTournamentFormat() {
-  const bo9 = $('tourFormatType')?.value === 'bo9';
+  const type = $('tourFormatType')?.value || 'single';
+  const bo9 = type === 'bo9';
+  const nineWorlds = type === 'nine_worlds';
+  const stdFormat = $('tourStdFormat');
+  if (stdFormat) {
+    if (nineWorlds) {
+      // Le Tournoi des 9 Mondes suit le moteur standard : poules puis tableau.
+      stdFormat.value = 'groups_playoffs';
+      stdFormat.disabled = true;
+    } else {
+      stdFormat.disabled = false;
+    }
+  }
   toggleStandardOptions();
   $('tourBo9Wrap')?.classList.toggle('hidden', !bo9);
   $('tourStdWrap')?.classList.toggle('hidden', bo9);
-  $('tourGameWrap')?.classList.toggle('hidden', bo9);
+  $('tourGameWrap')?.classList.toggle('hidden', bo9 || nineWorlds);
   $('tourTeamSizeWrap')?.classList.toggle('hidden', bo9);
+  $('tourStdFormatHint')?.classList.toggle('hidden', !nineWorlds);
+  $('tourStdDefaultHint')?.classList.toggle('hidden', nineWorlds);
+  if (nineWorlds) {
+    const hint = $('tourStdFormatHint');
+    if (hint) hint.textContent = 'Chaque tour se joue sur un jeu différent (jeux à choisir plus bas).';
+  }
   if (bo9) {
     const teamSize = $('tourTeamSize');
     if (teamSize) teamSize.value = '5';
@@ -3699,9 +3788,15 @@ function toggleTournamentFormat() {
     if (hint) hint.textContent = '';
     syncBo9Slots();
     fillBo9GameSelects();
+  } else if (nineWorlds) {
+    const teamSize = $('tourTeamSize');
+    if (teamSize && Number(teamSize.value) < 2) teamSize.value = '5';
+    const hint = $('tourTeamSizeHint');
+    if (hint) hint.textContent = 'Équipe de 5 joueurs par défaut : modifiable si besoin.';
   } else {
     applyGameTeamSize();
   }
+  renderTourStdRoundGames();
 }
 
 // Construit les 9 slots d'un BO9 à partir des jeux choisis (null = slot vide).
@@ -4743,7 +4838,9 @@ async function saveGame() {
 async function createTournament() {
   const name = $('tourName').value.trim();
   if (!name) { notify('Saisis un nom de tournoi.', true); return; }
-  const bo9 = $('tourFormatType')?.value === 'bo9';
+  const tournamentType = $('tourFormatType')?.value || 'single';
+  const bo9 = tournamentType === 'bo9';
+  const nineWorlds = tournamentType === 'nine_worlds';
   let formatConfig = null;
   let gameId = $('tourGame').value || null;
   let mode = 'solo';
@@ -4763,14 +4860,27 @@ async function createTournament() {
     }
   } else {
     mode = teamSize === 1 ? 'solo' : 'team';
-    const format = $('tourStdFormat')?.value || 'single_elim';
+    const format = nineWorlds ? 'groups_playoffs' : ($('tourStdFormat')?.value || 'single_elim');
     formatConfig = { type: 'standard', format };
+    if (nineWorlds) {
+      // Même moteur que le tournoi ZZ : standard, poules + tableau, un jeu par tour.
+      formatConfig.nine_worlds = true;
+      gameId = null;
+    }
     if (format === 'groups_playoffs') {
       formatConfig.pool_count = Number($('tourStdPools')?.value) || 2;
       formatConfig.pool_size = Number($('tourStdPoolSize')?.value) || 4;
       formatConfig.qualifiers_per_pool = Number($('tourStdQualifiers')?.value) || 2;
       formatConfig.tree = $('tourStdTree')?.value === 'double' ? 'double' : 'single';
       maxParticipants = formatConfig.pool_count * formatConfig.pool_size;
+      if (nineWorlds) {
+        const roundGames = {};
+        standardRoundKeys(stdRoundGamesPreviewTournament()).forEach((key) => {
+          const value = $(`tour-rg-${key}`)?.value;
+          if (value) roundGames[key] = value;
+        });
+        if (Object.keys(roundGames).length) formatConfig.round_games = roundGames;
+      }
     }
     if (format === 'swiss') {
       const rounds = parseInt($('tourStdRounds')?.value, 10);
@@ -4809,10 +4919,12 @@ async function createTournament() {
     if (error) throw new Error(error.message);
     ['tourName', 'tourBanner', 'tourToornament', 'tourPrizeFirst', 'tourPrizeSecond', 'tourPrizeThird',
       'tourFee', 'tourPaymentUrl', 'tourPaymentInstructions', 'tourMax'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
-    if (bo9) {
+    if (bo9 || nineWorlds) {
       if ($('tourFormatType')) $('tourFormatType').value = 'single';
       document.querySelectorAll('.bo9-game').forEach((select) => { select.value = ''; });
       updateBo9GamesStatus();
+      const roundGrid = $('tourStdRoundGamesGrid');
+      if (roundGrid) roundGrid.innerHTML = '';
       toggleTournamentFormat();
     }
     notify('Tournoi créé.');

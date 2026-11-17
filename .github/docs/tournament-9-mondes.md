@@ -93,14 +93,24 @@ tournoi** dès que le jeu est sélectionné ; l'organisateur peut toujours le
 modifier pour un événement particulier. Le libellé du jeu dans les menus
 indique aussi le format (`League of Legends — 5 joueurs`).
 
-## Format BO9 — Multigaming Esport
+## Trois formats : standard, Décathlon (BO9), Tournoi des 9 Mondes
 
 Le formulaire **➕ Nouveau tournoi** commence par un menu **Format du tournoi** :
 
-- **Jeu unique** : fonctionnement historique (un jeu, 1 à 6 joueurs, tableau
-  à élimination géré par l'organisateur ou Toornament) ;
-- **BO9 — Multigaming Esport (9 jeux)** : tournoi multi-jeux, équipes de
-  **5 joueurs**, phase de poules puis bracket.
+- **Un jeu — format standard** : fonctionnement historique (un jeu, 1 à 6 joueurs,
+  élimination directe, double élimination, poules, poules + élimination,
+  championnat ou suisse, géré par l'organisateur ou Toornament) ;
+- **Décathlon — 9 jeux avec points (BO9)** : tournoi multi-jeux, équipes de
+  **5 joueurs**, phase de poules puis bracket, barème de points, mercy rule,
+  carte capitaine et pick & ban (voir ci-dessous) ;
+- **Tournoi des 9 Mondes — un jeu par tour** : même moteur que le tournoi ZZ admin.
+  `format_config = { type: 'standard', format: 'groups_playoffs', nine_worlds:
+  true, round_games: { … } }`, `game_id = null`, équipes de 5 par défaut, type de
+  compétition verrouillé sur **Poules + élimination**. Les jeux de chaque tour
+  (`P1…`, `B1…`, `T`, `F1…F3`) se choisissent à la création puis dans
+  **⚙️ Gestion tournoi** ; un jeu peut être laissé vide et complété plus tard.
+  Un tournoi standard sans `game_id` mais avec des `round_games` (le ZZ admin)
+  est reconnu comme Tournoi des 9 Mondes.
 
 ### Les 9 jeux et le barème
 
@@ -385,7 +395,7 @@ menus :
 |---|---|
 | **👥 Joueurs** | recherche par pseudo, nom ou e-mail ; modification du pseudo, du prénom, du nom et de la date de naissance ; nombre d'inscriptions par joueur. Les rangs et rôles restent gérés dans l'application NVG. |
 | **🎮 Jeux** | création et modification d'un jeu (nom, **joueurs par équipe 1–6**, **mode de score confrontation/cumul/victoires/aucun/BO3 2v2**, logo et bannière téléversés ou URL externe). |
-| **➕ Nouveau tournoi** | formulaire complet de création (format du tournoi jeu unique ou BO9, jeu(x), format de jeu 1–6, type, statut, slots, frais, podium, dates, visuels, Toornament, paiement, description, publication). En BO9 : 9 jeux par catégorie, mode de points, poules et options de compétition. |
+| **➕ Nouveau tournoi** | formulaire complet de création (format du tournoi : standard, Décathlon BO9 ou Tournoi des 9 Mondes, jeu(x), format de jeu 1–6, type, statut, slots, frais, podium, dates, visuels, Toornament, paiement, description, publication). En Décathlon : 9 jeux par catégorie, mode de points, poules et options de compétition ; en Tournoi des 9 Mondes : jeux de chaque tour. |
 | **📋 Gestion des tournois** | liste filtrable (tous / en cours et ouverts / brouillons / terminés et annulés) avec barre de remplissage, changement de statut, modification, suppression, accès aux inscriptions et bouton **⚔️ Gérer** pour les tournois BO9. |
 
 Chaque menu est adressable par lien : `?tab=admin&admin=players`,
