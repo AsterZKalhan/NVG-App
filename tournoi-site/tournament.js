@@ -828,14 +828,14 @@ function openTournamentDetails(id, options = {}) {
 
       ${t.description ? `<p class="whitespace-pre-line text-xs leading-relaxed text-gray-300">${escapeHtml(t.description)}</p>` : ''}
 
-      ${bo9FormatBlock(t)}
-      ${bo9CompetitionBlock(t)}
-      ${isStandard(t) ? standardCompetitionBlock(t) : ''}
-
-      <div>
-        <h3 class="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">${trophyIcon('h-4 w-4 text-amber-400')} Récompenses</h3>
-        <div class="grid gap-2 sm:grid-cols-3">${prizeRows(t)}</div>
+      <div class="flex gap-1 border-b border-[#1f293d]">
+        <button id="ficheTabInfo" type="button" onclick="setFicheTab('info')" class="-mb-px border-b-2 border-amber-500 px-4 py-2 text-[11px] font-black uppercase tracking-wider text-amber-300 transition">ℹ️ Informations</button>
+        <button id="ficheTabFollow" type="button" onclick="setFicheTab('follow')" class="-mb-px border-b-2 border-transparent px-4 py-2 text-[11px] font-black uppercase tracking-wider text-gray-400 transition hover:text-white">📺 Suivi du tournoi en direct</button>
       </div>
+
+      <div id="ficheInfo" class="space-y-5">
+      ${ficheInfoBlock(t)}
+      ${bo9FormatBlock(t)}
 
       ${t.rules ? `<div><h3 class="mb-1 text-xs font-black uppercase tracking-wider text-white">Règlement</h3><p class="whitespace-pre-line text-[11px] leading-relaxed text-gray-400">${escapeHtml(t.rules)}</p></div>` : ''}
 
@@ -845,6 +845,13 @@ function openTournamentDetails(id, options = {}) {
           ${t.payment_instructions ? `<p class="mt-1 whitespace-pre-line text-[11px] leading-relaxed text-gray-300">${escapeHtml(t.payment_instructions)}</p>` : ''}
           ${!paymentOpen(t) ? `<div class="mt-2">${paymentClosedNote()}</div>` : `<div class="mt-2 flex flex-wrap gap-2">${externalLink(t.ticket_url_player) ? ticketButton(t.id, 'player', 'Je prends mon billet') : ''}${t.mode === 'team' && externalLink(t.ticket_url_team) ? ticketButton(t.id, 'team', `Je prends un pass équipe (je paie pour les ${Number(t.team_max) || 5} joueurs de mon équipe)`) : ''}</div>`}
         </div>` : ''}
+      </div>
+
+      <div id="ficheFollow" class="hidden space-y-5">
+        ${bo9CompetitionBlock(t)}
+        ${isStandard(t) ? standardCompetitionBlock(t) : ''}
+        ${ficheRankingBlock(t)}
+      </div>
 
       <div class="flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-4">
         ${currentUser && (already || myTeam || (t.mode === 'team' && open) || myParticipations.some((p) => p.tournament_id === t.id))
@@ -2387,11 +2394,11 @@ function standardBracketPublicHtml(matches) {
       </div>`;
     }
     return standardBracketHtml(list, (m) => standardPublicMatchCard(m, '', false));
-  }).join('') + standardPodiumHtml(matches);
+  }).join('');
 }
 
-// Podium : les 3 premiers, issus de la finale (1er, 2e) et de la petite finale (3e).
-function standardPodiumHtml(matches) {
+// Podium : 1er et 2e issus de la finale, 3e de la petite finale.
+function podiumWinners(matches) {
   const finals = matches.filter((m) => m.phase === 'grand');
   const lastRound = Math.max(0, ...matches.filter((m) => m.phase === 'bracket' || m.phase === 'winners').map((m) => m.round));
   const final = finals[0] || matches.find((m) => (m.phase === 'bracket' || m.phase === 'winners') && m.round === lastRound);
@@ -2402,15 +2409,65 @@ function standardPodiumHtml(matches) {
     if (!w || !m.team_a || !m.team_b) return null;
     return w === m.team_a ? m.team_b : m.team_a;
   };
-  const rows = [['1er', winner(final)], ['2e', loser(final)], ['3e', winner(third)]];
-  if (!rows.some(([, id]) => id)) return '';
-  return `<div class="space-y-1.5">
-    <h4 class="text-[10px] font-black uppercase tracking-wider text-amber-300">Classement final</h4>
-    ${rows.map(([place, id]) => `<div class="flex items-center justify-between gap-2 rounded-lg border border-[#1f293d] bg-[#07090e] px-2.5 py-1.5">
-      <span class="text-[10px] font-black text-amber-300">${place}</span>
-      <span class="truncate text-[11px] font-bold ${id ? 'text-gray-200' : 'text-gray-500'}">${id ? escapeHtml(teamLabelById(id)) : 'À déterminer'}</span>
-    </div>`).join('')}
+  return { first: winner(final), second: loser(final), third: winner(third) };
+}
+
+// Section « Podium » de l'onglet Suivi : 2e, 1er, 3e en podium, avec le lot de chaque place.
+function ficheRankingBlock(t) {
+  const matches = tournamentMatches.filter((m) => m.tournament_id === t.id);
+  const { first, second, third } = isStandard(t) && matches.length ? podiumWinners(matches) : {};
+  const places = [
+    { medal: '🥈', label: '2e', id: second, prize: t.prize_second, offset: 'sm:mt-6' },
+    { medal: '🥇', label: '1er', id: first, prize: t.prize_first || t.prize, offset: '' },
+    { medal: '🥉', label: '3e', id: third, prize: t.prize_third, offset: 'sm:mt-10' }
+  ];
+  return `<div class="space-y-3">
+    <h3 class="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">${trophyIcon('h-4 w-4 text-amber-400')} Podium</h3>
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:items-end">
+      ${places.map((p) => `<div class="${p.offset} flex flex-col items-center gap-1 rounded-xl border p-4 text-center ${p.id ? 'border-amber-500/40 bg-amber-500/5' : 'border-[#1f293d] bg-[#07090e]'}">
+        <span class="text-2xl">${p.medal}</span>
+        <p class="text-[10px] font-black uppercase tracking-wider text-amber-300">${p.label}</p>
+        <p class="w-full truncate text-sm font-black ${p.id ? 'text-white' : 'text-gray-500'}">${p.id ? escapeHtml(teamLabelById(p.id)) : 'À déterminer'}</p>
+        <p class="text-[11px] text-gray-400">${p.prize ? `Lot : ${escapeHtml(p.prize)}` : 'Lot à confirmer'}</p>
+      </div>`).join('')}
+    </div>
   </div>`;
+}
+
+// Onglet Informations : dates, lieu, restauration, plan de la salle, autres informations.
+function ficheInfoBlock(t) {
+  const rows = [
+    ['📅 Dates', dateRange(t)],
+    ['📍 Lieu', t.venue],
+    ['🍽️ Restauration sur place', t.food_info],
+    ['ℹ️ Autres informations', t.info_notes]
+  ].filter(([, value]) => value);
+  const plan = externalLink(t.room_plan_url);
+  return `<div class="space-y-3">
+    <dl class="grid gap-2 sm:grid-cols-2">
+      ${rows.map(([label, value]) => `<div class="rounded-xl border border-[#1f293d] bg-[#07090e] p-3">
+        <dt class="text-[10px] font-black uppercase tracking-wider text-amber-300">${label}</dt>
+        <dd class="mt-1 whitespace-pre-line text-[11px] leading-relaxed text-gray-300">${escapeHtml(value)}</dd>
+      </div>`).join('')}
+    </dl>
+    ${plan ? `<a href="${plan}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-amber-300 transition hover:bg-amber-500/20">🗺️ Voir le plan de la salle</a>` : ''}
+  </div>`;
+}
+
+// Onglets de la fiche : Informations / Suivi du tournoi en direct.
+function setFicheTab(name) {
+  const info = name === 'info';
+  $('ficheInfo')?.classList.toggle('hidden', !info);
+  $('ficheFollow')?.classList.toggle('hidden', info);
+  const tabs = [['ficheTabInfo', info], ['ficheTabFollow', !info]];
+  tabs.forEach(([id, active]) => {
+    const btn = $(id);
+    if (!btn) return;
+    btn.classList.toggle('border-amber-500', active);
+    btn.classList.toggle('text-amber-300', active);
+    btn.classList.toggle('border-transparent', !active);
+    btn.classList.toggle('text-gray-400', !active);
+  });
 }
 
 function standardCompetitionBlock(t) {
@@ -2422,7 +2479,7 @@ function standardCompetitionBlock(t) {
   return `
     <div class="space-y-4">
       ${pools.length ? `<div>
-        <h3 class="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">🏟️ Classement</h3>
+        <h3 class="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">🏟️ Poules</h3>
         ${standardStandingsBlocks(matches)}
         <div id="stdPoolsPublic" class="mt-2 space-y-2">
           ${standardPoolFilters('stdPoolsPublic', pools)}
@@ -2432,7 +2489,7 @@ function standardCompetitionBlock(t) {
         </div>
       </div>` : ''}
       ${bracket.length ? `<div class="space-y-3">
-        <h3 class="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">🏆 ${escapeHtml(STANDARD_FORMAT_LABELS[format] || 'Tableau')}</h3>
+        <h3 class="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">🏆 Élimination</h3>
         ${standardBracketPublicHtml(bracket)}
       </div>` : ''}
     </div>`;
@@ -4691,6 +4748,10 @@ function editTournament(id) {
   $('editEnd').value = toLocalInput(t.ends_at);
   $('editClose').value = toLocalInput(t.registration_closes_at);
   $('editDesc').value = t.description || '';
+  $('editVenue').value = t.venue || '';
+  $('editFood').value = t.food_info || '';
+  $('editRoomPlan').value = t.room_plan_url || '';
+  $('editInfoNotes').value = t.info_notes || '';
   $('editBanner').value = t.banner_url || '';
   $('editLogo').value = t.logo_url || '';
   $('editToornament').value = t.toornament_url || '';
@@ -4956,6 +5017,10 @@ async function saveTournament() {
     ends_at: endValue ? new Date(endValue).toISOString() : null,
     registration_closes_at: $('editClose').value ? new Date($('editClose').value).toISOString() : null,
     description: $('editDesc').value.trim() || null,
+    venue: $('editVenue').value.trim() || null,
+    food_info: $('editFood').value.trim() || null,
+    room_plan_url: safeUrl($('editRoomPlan').value) || null,
+    info_notes: $('editInfoNotes').value.trim() || null,
     banner_url: bannerUrl || null,
     logo_url: safeUrl($('editLogo').value) || null,
     toornament_url: toornamentUrl || null,
@@ -5326,6 +5391,10 @@ async function createTournament() {
       name,
       game_id: gameId,
       description: $('tourDesc').value.trim() || null,
+      venue: $('tourVenue').value.trim() || null,
+      food_info: $('tourFood').value.trim() || null,
+      room_plan_url: safeUrl($('tourRoomPlan').value) || null,
+      info_notes: $('tourInfoNotes').value.trim() || null,
       mode,
       format: $('tourFormat').value,
       format_config: formatConfig,
@@ -5352,7 +5421,7 @@ async function createTournament() {
     }).select('id').single();
     if (error) throw new Error(error.message);
     ['tourName', 'tourBanner', 'tourToornament', 'tourPrizeFirst', 'tourPrizeSecond', 'tourPrizeThird',
-      'tourFee', 'tourTicketPlayer', 'tourTicketTeam', 'tourTicketCompanion', 'tourPaymentInstructions', 'tourMax', 'tourEnd'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
+      'tourFee', 'tourTicketPlayer', 'tourTicketTeam', 'tourTicketCompanion', 'tourPaymentInstructions', 'tourMax', 'tourEnd', 'tourVenue', 'tourFood', 'tourRoomPlan', 'tourInfoNotes'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
     if (bo9 || nineWorlds) {
       if ($('tourFormatType')) $('tourFormatType').value = 'single';
       document.querySelectorAll('.bo9-game').forEach((select) => { select.value = ''; });
