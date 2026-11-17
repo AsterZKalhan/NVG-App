@@ -4749,7 +4749,7 @@ function adminTournamentStats(t) {
   return { max, registered, preRegistered, paid, awaiting, refunded, percent, free: max > 0 ? Math.max(0, max - regs.length) : null };
 }
 
-let adminSelectedTournamentId = null;
+let adminSelectedTournamentId = localStorage.getItem('nvg_admin_tournament') || null;
 let adminTab = 'manage';
 
 const ADMIN_TABS = [
@@ -4852,6 +4852,7 @@ function renderAdminTournaments() {
   });
   const nav = $('adminTournamentNav');
   if (!rows.some((t) => t.id === adminSelectedTournamentId)) adminSelectedTournamentId = rows[0]?.id || null;
+  if (adminSelectedTournamentId) localStorage.setItem('nvg_admin_tournament', adminSelectedTournamentId);
   const current = tournamentById(adminSelectedTournamentId);
   if (!current || !adminTabsFor(current).some((tab) => tab.key === adminTab)) adminTab = 'manage';
   if (nav) {
