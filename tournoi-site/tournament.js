@@ -6141,7 +6141,32 @@ async function refreshAccount() {
   await Promise.all([showProfile(), checkAdmin(), loadMember()]);
 }
 
+// Copie locale du compte : nom affiché et droit admin, pour afficher le menu sans attendre.
+const SESSION_SNAPSHOT_KEY = 'nvg_site_session';
+
+function applyCachedAccount(userId) {
+  try {
+    const snap = JSON.parse(localStorage.getItem(SESSION_SNAPSHOT_KEY) || 'null');
+    if (!snap || snap.id !== userId) return;
+    isAdmin = snap.isAdmin === true;
+    $('navAdmin').classList.toggle('hidden', !isAdmin);
+    $('navAdminMobile').classList.toggle('hidden', !isAdmin);
+    if (snap.name) $('accountName').textContent = snap.name;
+  } catch (_) {
+    // Copie illisible : le menu attend les données, comme avant.
+  }
+}
+
+function saveAccountSnapshot() {
+  if (!currentUser) {
+    localStorage.removeItem(SESSION_SNAPSHOT_KEY);
+    return;
+  }
+  localStorage.setItem(SESSION_SNAPSHOT_KEY, JSON.stringify({ id: currentUser.id, name: $('accountName')?.textContent || '', isAdmin }));
+}
+
 async function signOut() {
+  localStorage.removeItem(SESSION_SNAPSHOT_KEY);
   await supabaseClient.auth.signOut();
   window.location.href = window.location.pathname;
 }
@@ -6152,10 +6177,16 @@ async function init() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   currentUser = session?.user || null;
   if (currentUser) {
+    // Menu affiché tout de suite à partir de la copie locale (valable tant que la session l'est),
+    // puis revérifié : profil, droits admin et adhésion.
+    applyCachedAccount(currentUser.id);
+    showAccountUi();
+    document.body.classList.add('nav-ready');
     await showProfile();
     await checkAdmin();
     await loadMember();
   }
+  saveAccountSnapshot();
   showAccountUi();
   document.body.classList.add('nav-ready');
   await loadPublic();

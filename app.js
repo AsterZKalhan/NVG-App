@@ -41,6 +41,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Vérification de la session Supabase existante au démarrage
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (session && session.user) {
+    // Copie locale valable tant que la session l'est : le menu s'affiche tout de suite,
+    // le profil est revérifié ensuite.
+    const snapshot = readUserSnapshot(session.user.id);
+    if (snapshot) {
+      currentUser = snapshot;
+      applyUserUi();
+      const authModal = document.getElementById('authModal');
+      if (authModal) authModal.classList.add('hidden');
+      document.body.classList.add('nav-ready');
+    }
     await handleSuccessfulAuth(session.user);
   } else {
     showAuthModal();
@@ -289,6 +299,16 @@ function showTab(tabId) {
 
 // Gestion de l'authentification réussie
 // Connexion : charge le profil, applique le grade admin réservé à asterz et crée le profil s'il manque. Voir NOTES.md section 5.
+// Copie locale de l'utilisateur connecté, seulement si elle correspond à la session.
+function readUserSnapshot(userId) {
+  try {
+    const snapshot = JSON.parse(localStorage.getItem('nvg_user_snapshot') || 'null');
+    return snapshot && snapshot.id === userId && snapshot.user ? snapshot.user : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function handleSuccessfulAuth(authUser) {
   const email = authUser.email ? authUser.email.toLowerCase() : '';
   
@@ -336,6 +356,8 @@ async function handleSuccessfulAuth(authUser) {
     twitch_channel: userProfile ? userProfile.twitch_channel : ''
   };
 
+  localStorage.setItem('nvg_user_snapshot', JSON.stringify({ id: currentUser.id, user: { ...currentUser, email: undefined } }));
+
   if (!userProfile) {
     await supabaseClient.from('nvg_users').upsert([{
       id: currentUser.id,
@@ -353,6 +375,13 @@ async function handleSuccessfulAuth(authUser) {
   const authModal = document.getElementById('authModal');
   if (authModal) authModal.classList.add('hidden');
 
+  applyUserUi();
+  await renderAll();
+}
+
+// Profil et boutons selon le grade. Appelé après la vérification du profil, et au
+// démarrage à partir de la copie locale (menu affiché tout de suite).
+function applyUserUi() {
   const profileBadge = document.getElementById('userProfileBadge');
   const userNameEl = document.getElementById('sidebarUserName');
   const userRankEl = document.getElementById('sidebarUserRank');
@@ -409,7 +438,6 @@ async function handleSuccessfulAuth(authUser) {
     else videosRefreshBtn.classList.add('hidden');
   }
 
-  await renderAll();
 }
 
 async function renderAll() {

@@ -108,6 +108,7 @@ async function registerUserToSupabase(name, email, password) {
 async function handleLogout() {
   await supabaseClient.auth.signOut();
   currentUser = null;
+  localStorage.removeItem('nvg_user_snapshot');
   window.location.reload();
 }
 
