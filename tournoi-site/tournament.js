@@ -2196,7 +2196,7 @@ function standardPoolRoundsHtml(scopeId, pools, renderCard) {
     const open = hadPrevious ? openRounds.has(round) : round === current;
     return `<details data-round="${round}" ${open ? 'open' : ''} class="group overflow-hidden rounded-xl border border-[#1f293d] bg-[#07090e]">
       <summary class="flex cursor-pointer list-none items-center gap-2 px-2.5 py-2 text-[10px] font-black uppercase tracking-wider text-gray-300 transition hover:text-white">
-        <span class="text-amber-400 transition group-open:rotate-90">▶</span>
+        <span class="round-arrow text-amber-400">▶</span>
         <span>Round ${round}</span>
         <span class="rounded border border-[#2a3750] px-1.5 py-0.5 text-[9px] font-bold text-gray-400">${done}/${list.length}</span>
         ${groups.length ? `<span class="min-w-0 flex-1 truncate text-[9px] font-bold normal-case tracking-normal text-gray-500">${groups.length > 1 ? `Poules ${groups.map(escapeHtml).join(', ')}` : `Poule ${escapeHtml(groups[0])}`}</span>` : ''}

@@ -23,6 +23,8 @@
     /* Dépliants (rounds de poule) : on garde notre propre flèche. */
     summary { list-style: none; }
     summary::-webkit-details-marker { display: none; }
+    .round-arrow { transition: transform 150ms ease; }
+    details[open] > summary .round-arrow { transform: rotate(90deg); }
   </style>
 </head>
 <body class="app-bg min-h-screen text-gray-200 antialiased">
