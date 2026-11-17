@@ -1187,6 +1187,46 @@ function bracketSeedOrder(size) {
   return order;
 }
 
+// Ordre de répartition des matchs dans le tableau : 1, moitié opposée, 2, moitié
+// opposée... pour que les matchs les plus forts ne tombent pas dans la même moitié.
+function bracketSpreadOrder(m) {
+  if (m === 1) return [1];
+  const half = m / 2;
+  const left = bracketSpreadOrder(half);
+  const right = left.map((x) => x + half);
+  const out = [];
+  for (let i = 0; i < half; i += 1) out.push(left[i], right[i]);
+  return out;
+}
+
+// Croisement des poules par paires (A-B, C-D...) : le 1er de A rencontre le dernier
+// qualifié de B, le 2e de A rencontre l'avant-dernier de B, etc. Renvoie les équipes
+// dans l'ordre des cases du tableau, ou null si le cas n'est pas couvert (nombre de
+// poules impair, ou nombre total de qualifiés non puissance de 2).
+function crossedBracketSlots(poolCount, qualifiers, standingsByGroup) {
+  const size = poolCount * qualifiers;
+  if (poolCount % 2 || qualifiers < 1 || size < 2 || (size & (size - 1))) return null;
+  const master = (rank, pool) => rank * poolCount + pool;
+  const matches = [];
+  for (let p = 0; p < poolCount; p += 2) {
+    for (let i = 0; i < qualifiers; i += 1) {
+      const a = standingsByGroup[p][i];
+      const b = standingsByGroup[p + 1][qualifiers - 1 - i];
+      if (!a || !b) return null;
+      matches.push({ teams: [a.id, b.id], priority: Math.min(master(i, p), master(qualifiers - 1 - i, p + 1)) });
+    }
+  }
+  matches.sort((x, y) => x.priority - y.priority);
+  const positions = bracketSpreadOrder(matches.length);
+  const slots = new Array(size).fill(null);
+  matches.forEach((match, j) => {
+    const pos = positions[j] - 1;
+    slots[2 * pos] = match.teams[0];
+    slots[2 * pos + 1] = match.teams[1];
+  });
+  return slots;
+}
+
 function roundRobinRounds(teams) {
   const list = [...teams];
   if (list.length % 2 === 1) list.push(null);
@@ -1264,7 +1304,7 @@ async function generateBo9Pools(tournamentId, options = {}) {
   const t = tournamentById(tournamentId);
   const cfg = bo9Config(t);
   if (!cfg) return;
-  const useSeed = options.seed !== false && Array.isArray(cfg.seed_order) && cfg.seed_order.length > 0;
+  const useSeed = options.seed !== false && hasSeed(cfg);
   if (!cfg.complete) {
     notify('Choisis les 9 jeux du tournoi avant de générer les poules.', true);
     return;
@@ -1888,7 +1928,7 @@ async function generateStandardMatches(tournamentId, options = {}) {
   if (format === 'single_elim') error = await insertStandardBracket(tournamentId, teams);
   else if (format === 'double_elim') error = await insertStandardDoubleElim(tournamentId, teams);
   else if (format === 'groups_playoffs') {
-    const useSeed = options.seed !== false && Array.isArray(t.format_config?.seed_order) && t.format_config.seed_order.length > 0;
+    const useSeed = options.seed !== false && hasSeed(t.format_config);
     const groups = poolGroupsFromTeams(poolCount, teams, t.format_config?.seed_order, !useSeed);
     error = await insertStandardPools(tournamentId, groups, false);
   } else error = await insertStandardRoundRobin(tournamentId, teams, format === 'league');
@@ -2011,9 +2051,16 @@ async function generateStandardPlayoffBracket(tournamentId) {
   const letters = [...new Set(pools.map((m) => m.group_name))].sort();
   const qualifiers = Number(t.format_config?.qualifiers_per_pool) || 2;
   const standingsByGroup = letters.map((g) => standardStandings(pools.filter((m) => m.group_name === g)));
-  const seeds = [];
+  let seeds = [];
   for (let rank = 0; rank < qualifiers; rank += 1) {
     standingsByGroup.forEach((rows) => { if (rows[rank]) seeds.push({ id: rows[rank].id }); });
+  }
+  // Croisement par paires de poules : 1er A / 2e B, 1er B / 2e A, etc. (seed 1 et 2 en finale).
+  const crossed = crossedBracketSlots(letters.length, qualifiers, standingsByGroup);
+  if (crossed) {
+    const order = bracketSeedOrder(crossed.length);
+    seeds = new Array(crossed.length).fill(null);
+    order.forEach((seed, i) => { seeds[seed - 1] = { id: crossed[i] }; });
   }
   if (seeds.length < 2) { notify('Pas assez de qualifiés.', true); return; }
   if (t.format_config?.tree === 'double' && ![4, 8, 16, 32].includes(seeds.length)) {
@@ -3124,14 +3171,21 @@ function closeAdminMatchPanel() {
 // poules. L'ordre est enregistré dans format_config.seed_order.
 // ---------------------------------------------------------------------------
 
-function seedOrderedIds(t, teams) {
-  const remaining = new Set(teams.map((team) => team.id));
-  const ordered = [];
-  (t.format_config?.seed_order || []).forEach((id) => {
-    if (remaining.has(id)) { ordered.push(id); remaining.delete(id); }
+// Cases du seed : une case par équipe (case 1 = seed 1), null si la case est vide.
+function seedSlots(t, teams) {
+  const valid = new Set(teams.map((team) => team.id));
+  const stored = Array.isArray(t.format_config?.seed_order) ? t.format_config.seed_order : [];
+  const used = new Set();
+  return Array.from({ length: teams.length }, (_, i) => {
+    const id = stored[i];
+    if (!valid.has(id) || used.has(id)) return null;
+    used.add(id);
+    return id;
   });
-  remaining.forEach((id) => ordered.push(id));
-  return ordered;
+}
+
+function hasSeed(cfg) {
+  return Array.isArray(cfg?.seed_order) && cfg.seed_order.some(Boolean);
 }
 
 async function saveSeedOrder(tournamentId, order) {
@@ -3144,15 +3198,29 @@ async function saveSeedOrder(tournamentId, order) {
   renderAdminSeedPanel();
 }
 
-async function moveSeedTeam(tournamentId, teamId, direction) {
+// Place une équipe dans une case (ou vide la case si teamId est vide). Une équipe
+// déjà placée ailleurs quitte son ancienne case.
+async function setSeedSlot(tournamentId, index, teamId) {
   const t = tournamentById(tournamentId);
   if (!t) return;
-  const order = seedOrderedIds(t, adminTeamsFor(tournamentId));
-  const i = order.indexOf(teamId);
-  const j = i + direction;
-  if (i < 0 || j < 0 || j >= order.length) return;
-  [order[i], order[j]] = [order[j], order[i]];
-  await saveSeedOrder(tournamentId, order);
+  const slots = seedSlots(t, adminTeamsFor(tournamentId)).map((id) => (id === teamId ? null : id));
+  slots[index] = teamId || null;
+  await saveSeedOrder(tournamentId, slots);
+}
+
+// « Finir le remplissage » : les cases vides reçoivent les équipes restantes, dans
+// l'ordre de la liste admin.
+async function fillSeedSlots(tournamentId) {
+  const t = tournamentById(tournamentId);
+  if (!t) return;
+  const teams = adminTeamsFor(tournamentId);
+  const slots = seedSlots(t, teams);
+  const placed = new Set(slots.filter(Boolean));
+  const rest = teams.map((team) => team.id).filter((id) => !placed.has(id));
+  slots.forEach((id, i) => {
+    if (!id && rest.length) slots[i] = rest.shift();
+  });
+  await saveSeedOrder(tournamentId, slots);
 }
 
 async function resetSeedOrder(tournamentId) {
@@ -3166,29 +3234,27 @@ function renderAdminSeedPanel() {
   const t = tournamentById(viewingSeedTournamentId);
   if (!t) { panel.classList.add('hidden'); return; }
   const teams = adminTeamsFor(t.id);
-  const order = seedOrderedIds(t, teams);
-  const byId = new Map(teams.map((team) => [team.id, team]));
+  const slots = seedSlots(t, teams);
   const poolCount = Number(t.format_config?.pool_count) || 4;
-  const seeded = Array.isArray(t.format_config?.seed_order) ? t.format_config.seed_order.length : 0;
-  $('adminSeedSubtitle').textContent = `${t.name} · ${teams.length} équipe(s) · ${poolCount} poules · ${seeded ? `${seeded} équipe(s) classée(s)` : 'aucun seed enregistré'}`;
+  const filled = slots.filter(Boolean).length;
+  const seeded = hasSeed(t.format_config);
+  $('adminSeedSubtitle').textContent = `${t.name} · ${teams.length} équipe(s) · ${poolCount} poules · ${filled}/${teams.length} seed(s) placé(s)`;
   $('adminSeedTools').innerHTML = `
+    <button onclick="fillSeedSlots('${t.id}')" class="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-[10px] font-bold text-cyan-300 transition hover:bg-cyan-500/20">✍️ Finir le remplissage</button>
     <button onclick="generatePoolsFromSeed('${t.id}', true)" class="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold text-emerald-300 transition hover:bg-emerald-500/20">🏗️ Répartir selon le seed</button>
     <button onclick="generatePoolsFromSeed('${t.id}', false)" class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-[10px] font-bold text-amber-300 transition hover:bg-amber-500/20">🎲 Répartir aléatoirement</button>
     ${seeded ? `<button onclick="resetSeedOrder('${t.id}')" class="rounded-lg border border-[#1f293d] bg-white/5 px-3 py-1.5 text-[10px] font-bold text-gray-400 transition hover:text-white">↩️ Réinitialiser le seed</button>` : ''}
   `;
   $('adminSeedBody').innerHTML = `
-    <p class="text-[10px] text-gray-500">Classe les équipes du plus fort au plus faible. La répartition place le 1er en poule A, le 2e en B, le 3e en C, le 4e en D, puis le 5e en A, etc.</p>
-    ${order.length ? order.map((id, i) => {
-      const team = byId.get(id);
-      const letter = 'ABCDEFGH'[i % poolCount] || String((i % poolCount) + 1);
-      return `<div class="flex items-center gap-2 rounded-lg border border-[#1f293d] bg-[#07090e] px-3 py-2">
-        <span class="w-7 shrink-0 text-[10px] font-black text-gray-500">#${i + 1}</span>
-        <span class="min-w-0 flex-1 truncate text-[11px] font-bold text-gray-200">${escapeHtml(team.name)}${team.tag ? ` [${escapeHtml(team.tag)}]` : ''}</span>
-        <span class="shrink-0 rounded bg-white/5 px-1.5 py-0.5 text-[9px] font-bold text-gray-400">Poule ${letter}</span>
-        <button onclick="moveSeedTeam('${t.id}','${id}',-1)" ${i === 0 ? 'disabled' : ''} class="rounded border border-[#1f293d] px-2 py-0.5 text-[11px] text-gray-300 transition hover:text-white disabled:opacity-30" aria-label="Monter">↑</button>
-        <button onclick="moveSeedTeam('${t.id}','${id}',1)" ${i === order.length - 1 ? 'disabled' : ''} class="rounded border border-[#1f293d] px-2 py-0.5 text-[11px] text-gray-300 transition hover:text-white disabled:opacity-30" aria-label="Descendre">↓</button>
-      </div>`;
-    }).join('') : `<p class="rounded-xl border border-[#1f293d] bg-[#07090e] p-3 text-xs text-gray-400">Aucune équipe confirmée pour ce tournoi.</p>`}`;
+    <p class="text-[10px] text-gray-500">Choisis une équipe dans chaque case (1 = le plus fort). La répartition place le seed 1 en poule A, le 2 en B, le 3 en C, le 4 en D, puis le 5 en A, etc. Les cases vides sont complétées au moment de la répartition.</p>
+    ${teams.length ? slots.map((id, i) => `<div class="flex items-center gap-2 rounded-lg border border-[#1f293d] bg-[#07090e] px-3 py-2">
+        <span class="w-9 shrink-0 text-[10px] font-black text-gray-500">Seed ${i + 1}</span>
+        <select onchange="setSeedSlot('${t.id}', ${i}, this.value)" class="min-w-0 flex-1 rounded-lg border border-[#1f293d] bg-[#0b0f17] px-2 py-1 text-[11px] font-bold text-gray-200">
+          <option value="">— case vide —</option>
+          ${teams.map((team) => `<option value="${team.id}" ${team.id === id ? 'selected' : ''}>${escapeHtml(team.name)}${team.tag ? ` [${escapeHtml(team.tag)}]` : ''}</option>`).join('')}
+        </select>
+        <span class="shrink-0 rounded bg-white/5 px-1.5 py-0.5 text-[9px] font-bold text-gray-400">Poule ${'ABCDEFGH'[i % poolCount] || (i % poolCount) + 1}</span>
+      </div>`).join('') : `<p class="rounded-xl border border-[#1f293d] bg-[#07090e] p-3 text-xs text-gray-400">Aucune équipe confirmée pour ce tournoi.</p>`}`;
   panel.classList.remove('hidden');
   applyAdminView();
 }
@@ -3196,8 +3262,8 @@ function renderAdminSeedPanel() {
 async function generatePoolsFromSeed(tournamentId, useSeed) {
   const t = tournamentById(tournamentId);
   if (!t) return;
-  if (useSeed && !(Array.isArray(t.format_config?.seed_order) && t.format_config.seed_order.length)) {
-    notify('Classe d’abord les équipes avec les flèches du seed.', true);
+  if (useSeed && !hasSeed(t.format_config)) {
+    notify('Place d’abord des équipes dans les cases du seed.', true);
     return;
   }
   if (isStandard(t)) await generateStandardMatches(tournamentId, { seed: useSeed });
