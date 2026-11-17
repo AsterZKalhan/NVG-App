@@ -2500,6 +2500,19 @@ function setFicheTab(name) {
   if (name === 'roster') loadFicheRoster(viewingFicheTournamentId);
 }
 
+// Ordre d'affichage des équipes et inscriptions : confirmées, puis préinscrites,
+// puis les autres statuts ; à statut égal, ordre alphabétique du nom.
+const TEAM_ORDER_COLLATOR = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
+
+function teamOrderRank(status) {
+  return status === 'confirmed' ? 0 : status === 'pending' ? 1 : 2;
+}
+
+function sortTeamsForDisplay(list, statusOf, nameOf) {
+  return [...list].sort((a, b) => teamOrderRank(statusOf(a)) - teamOrderRank(statusOf(b))
+    || TEAM_ORDER_COLLATOR.compare(nameOf(a) || '', nameOf(b) || ''));
+}
+
 // Pastilles de statut, identiques à la liste admin.
 function rosterStatusBadge(confirmed) {
   return `<span class="rounded-full border px-2 py-1 text-[9px] font-black uppercase ${confirmed ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-gray-400 border-[#1f293d] bg-white/5'}">${confirmed ? 'Confirmée' : 'Préinscrite'}</span>`;
@@ -2549,7 +2562,7 @@ async function loadFicheRoster(tournamentId) {
   const confirmed = rows.filter((r) => r.status === 'confirmed').length;
   const pending = rows.length - confirmed;
   box.innerHTML = `<p class="text-[10px] font-bold text-gray-400">${confirmed} confirmée(s) · ${pending} préinscrite(s)</p>`
-    + (rows.length ? rows.map((r) => rosterCard(t, r)).join('') : '<p class="text-xs text-gray-500">Aucune inscription pour le moment.</p>');
+    + (rows.length ? sortTeamsForDisplay(rows, (r) => r.status, (r) => r.name).map((r) => rosterCard(t, r)).join('') : '<p class="text-xs text-gray-500">Aucune inscription pour le moment.</p>');
 }
 
 function standardCompetitionBlock(t) {
@@ -3305,7 +3318,7 @@ function renderMyTeams() {
     box.innerHTML = '<div class="md:col-span-2 bg-[#121722] border border-[#1f293d] rounded-2xl p-5 text-xs text-gray-400">Aucune équipe pour le moment. Choisis un tournoi en équipe puis clique sur « S\'inscrire » pour en créer une.</div>';
     return;
   }
-  box.innerHTML = myTeams.map((team) => {
+  box.innerHTML = sortTeamsForDisplay(myTeams, (team) => (myRegistrations.find((r) => r.team_id === team.id && r.status !== 'cancelled') || {}).status, (team) => team.name).map((team) => {
     const tournament = team.nvg_tournaments || {};
     const members = team.nvg_tournament_team_members || [];
     const isCaptain = team.captain_id === currentUser?.id;
@@ -4500,7 +4513,7 @@ function renderAdminTeams() {
     <section class="space-y-2">
       <h3 class="text-[10px] font-black uppercase tracking-wider text-amber-300">Équipes (${teams.length})</h3>
       <input id="adminTeamsSearch" value="${escapeHtml(prevTeamsQuery)}" oninput="filterAdminTeamsView()" placeholder="Rechercher une équipe (nom, tag)…" class="${MANAGE_INPUT_CLASS}">
-      ${teams.length ? teams.map((team) => adminTeamCard(team, teamMax)).join('') : '<p class="text-xs text-gray-500">Aucune équipe.</p>'}
+      ${teams.length ? sortTeamsForDisplay(teams, (team) => (adminRegs.find((r) => r.tournament_id === t.id && r.team_id === team.id && r.status !== 'cancelled') || {}).status, (team) => team.name).map((team) => adminTeamCard(team, teamMax)).join('') : '<p class="text-xs text-gray-500">Aucune équipe.</p>'}
     </section>`;
   filterAdminTeamsView();
   panel.classList.remove('hidden');
@@ -4605,7 +4618,7 @@ function showAdminRegs(tournamentId) {
   $('adminRegsFree').textContent = s.free === null ? 'Places illimitées' : `${s.free} place(s) restante(s)`;
   $('adminRegsPaid').textContent = `${s.paid} participation(s) validée(s) · ${s.awaiting} en attente de paiement${s.refunded ? ` · ${s.refunded} remboursée(s)` : ''}`;
   $('adminRegsList').innerHTML = regs.length
-    ? regs.map((r) => adminRegistrationRow(r)).join('')
+    ? sortTeamsForDisplay(regs, (r) => r.status, (r) => r.nvg_tournament_teams?.name || r.nvg_users?.name || '').map((r) => adminRegistrationRow(r)).join('')
     : '<p class="text-xs text-gray-500">Aucune inscription pour ce tournoi.</p>';
   panel.classList.remove('hidden');
 
