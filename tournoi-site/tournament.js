@@ -1285,9 +1285,20 @@ function seedTeamOrder(teams, seedOrder, random = false) {
 
 // Les equipes classees sont reparties une par poule : 1 en A, 2 en B, 3 en C,
 // 4 en D, puis 5 en A, 6 en B, etc. (ou melange si le seed n'est pas utilise).
-function poolGroupsFromTeams(poolCount, teams, seedOrder, random = false) {
+// Composition choisie à la main (format_config.pool_assignment) d'abord ; les équipes
+// sans choix sont réparties ensuite, dans la poule la moins remplie.
+function poolGroupsFromTeams(poolCount, teams, seedOrder, random = false, assignment = {}) {
   const groups = Array.from({ length: poolCount }, () => []);
-  seedTeamOrder(teams, seedOrder, random).forEach((team, i) => groups[i % poolCount].push(team));
+  const rest = [];
+  teams.forEach((team) => {
+    const index = 'ABCDEFGH'.indexOf(assignment?.[team.id]);
+    if (index >= 0 && index < poolCount) groups[index].push(team);
+    else rest.push(team);
+  });
+  seedTeamOrder(rest, seedOrder, random).forEach((team) => {
+    const smallest = groups.reduce((best, g, i) => (g.length < groups[best].length ? i : best), 0);
+    groups[smallest].push(team);
+  });
   return groups;
 }
 
@@ -1968,7 +1979,7 @@ async function generateStandardMatches(tournamentId, options = {}) {
   else if (format === 'double_elim') error = await insertStandardDoubleElim(tournamentId, teams);
   else if (format === 'groups_playoffs') {
     const useSeed = options.seed !== false && hasSeed(t.format_config);
-    const groups = poolGroupsFromTeams(poolCount, teams, t.format_config?.seed_order, !useSeed);
+    const groups = poolGroupsFromTeams(poolCount, teams, t.format_config?.seed_order, !useSeed, t.format_config?.pool_assignment);
     error = await insertStandardPools(tournamentId, groups, false);
   } else error = await insertStandardRoundRobin(tournamentId, teams, format === 'league');
   if (error) { notify('Erreur : ' + error.message, true); return; }
@@ -2080,13 +2091,8 @@ async function generateSwissRound(tournamentId) {
 
 // Poules + élimination : les N premiers de chaque poule (tour par tour, en
 // alternant les poules) forment le tableau, têtes de série comprises.
-async function generateStandardPlayoffBracket(tournamentId) {
-  const t = tournamentById(tournamentId);
-  if (!t || standardFormat(t) !== 'groups_playoffs') return;
-  const all = tournamentMatches.filter((m) => m.tournament_id === tournamentId);
-  const pools = all.filter((m) => m.phase === 'pool');
-  if (!pools.length) { notify('Génère d’abord les poules.', true); return; }
-  if (pools.some((m) => m.status !== 'finished')) { notify('Termine d’abord tous les matchs de poule.', true); return; }
+// Qualifiés dans l'ordre des seeds du tableau, à partir du classement actuel des poules.
+function standardPlayoffSeeds(t, pools) {
   const letters = [...new Set(pools.map((m) => m.group_name))].sort();
   const qualifiers = Number(t.format_config?.qualifiers_per_pool) || 2;
   const standingsByGroup = letters.map((g) => standardStandings(pools.filter((m) => m.group_name === g), t.format_config?.tiebreaks));
@@ -2101,6 +2107,21 @@ async function generateStandardPlayoffBracket(tournamentId) {
     seeds = new Array(crossed.length).fill(null);
     order.forEach((seed, i) => { seeds[seed - 1] = { id: crossed[i] }; });
   }
+  return seeds;
+}
+
+async function generateStandardPlayoffBracket(tournamentId) {
+  const t = tournamentById(tournamentId);
+  if (!t || standardFormat(t) !== 'groups_playoffs') return;
+  const all = tournamentMatches.filter((m) => m.tournament_id === tournamentId);
+  const pools = all.filter((m) => m.phase === 'pool');
+  if (!pools.length) { notify('Génère d’abord les poules.', true); return; }
+  if (pools.some((m) => m.status !== 'finished')) { notify('Termine d’abord tous les matchs de poule.', true); return; }
+  if (all.some((m) => m.phase !== 'pool' && m.status !== 'scheduled' && m.team_a && m.team_b)) {
+    notify('La phase finale a commencé : le tableau ne peut plus être régénéré.', true);
+    return;
+  }
+  const seeds = standardPlayoffSeeds(t, pools);
   if (seeds.length < 2) { notify('Pas assez de qualifiés.', true); return; }
   if (t.format_config?.tree === 'double' && ![4, 8, 16, 32].includes(seeds.length)) {
     notify(`La double élimination demande 4, 8, 16 ou 32 qualifiés (actuellement ${seeds.length}).`, true);
@@ -3153,22 +3174,143 @@ async function saveStandardMatchResult(matchId) {
   renderAdminMatchPanel();
 }
 
+async function saveFormatConfig(tournamentId, patch) {
+  const t = tournamentById(tournamentId);
+  if (!t) return;
+  const { error } = await supabaseClient.from('nvg_tournaments').update({ format_config: { ...t.format_config, ...patch } }).eq('id', tournamentId);
+  if (error) { notify('Erreur : ' + error.message, true); return; }
+  await loadPublic();
+  renderAdminMatchPanel();
+}
+
+// Composition des poules, avant la génération : une poule par équipe, ou « Auto ».
+async function setPoolAssignment(tournamentId, teamId, letter) {
+  const t = tournamentById(tournamentId);
+  if (!t) return;
+  const assignment = { ...(t.format_config?.pool_assignment || {}) };
+  if (letter) assignment[teamId] = letter;
+  else delete assignment[teamId];
+  await saveFormatConfig(tournamentId, { pool_assignment: assignment });
+}
+
+function standardPoolAssignmentHtml(t, teams) {
+  const poolCount = Number(t.format_config?.pool_count) || 2;
+  const size = Number(t.format_config?.pool_size) || 4;
+  const letters = 'ABCDEFGH'.slice(0, poolCount).split('');
+  const assignment = t.format_config?.pool_assignment || {};
+  const counts = Object.fromEntries(letters.map((l) => [l, 0]));
+  teams.forEach((team) => { if (counts[assignment[team.id]] !== undefined) counts[assignment[team.id]] += 1; });
+  return `<div class="space-y-2">
+    <h3 class="text-xs font-black uppercase tracking-wider text-white">🏟️ Composition des poules</h3>
+    <p class="text-[10px] text-gray-500">Choisis la poule de chaque équipe. Les équipes en « Auto » sont réparties à la génération.</p>
+    <div class="flex flex-wrap gap-3 text-[10px] text-gray-400">${letters.map((l) => `<span>Poule ${l} : ${counts[l]}/${size}</span>`).join('')}</div>
+    <div class="grid gap-1.5 sm:grid-cols-2">${teams.map((team) => `<div class="flex items-center justify-between gap-2 rounded-lg border border-[#1f293d] bg-[#07090e] px-3 py-1.5">
+      <span class="truncate text-[11px] font-bold text-gray-200">${escapeHtml(teamLabelById(team.id))}</span>
+      <select onchange="setPoolAssignment('${t.id}','${team.id}',this.value)" class="${MANAGE_INPUT_CLASS} py-1">
+        <option value="">Auto</option>
+        ${letters.map((l) => `<option value="${l}" ${assignment[team.id] === l ? 'selected' : ''}>Poule ${l}</option>`).join('')}
+      </select>
+    </div>`).join('')}</div>
+  </div>`;
+}
+
+// Encart : le classement a changé depuis la génération du tableau (qualifiés différents).
+function standardBracketDriftHtml(t, matches) {
+  const pools = matches.filter((m) => m.phase === 'pool');
+  const bracket = matches.filter((m) => m.phase === 'bracket' || m.phase === 'winners');
+  if (!pools.length || !bracket.length || pools.some((m) => m.status !== 'finished')) return '';
+  const first = Math.min(...bracket.map((m) => m.round));
+  const current = new Set(bracket.filter((m) => m.round === first).flatMap((m) => [m.team_a, m.team_b]).filter(Boolean));
+  const expected = standardPlayoffSeeds(t, pools).map((s) => s.id);
+  if (expected.length === current.size && expected.every((id) => current.has(id))) return '';
+  return `<div class="space-y-2 rounded-xl border border-amber-500/50 bg-amber-500/10 p-3">
+    <p class="text-[11px] font-bold text-amber-300">⚠️ Le classement a changé depuis la génération du tableau.</p>
+    <p class="text-[10px] text-gray-400">Les qualifiés du tableau ne sont plus ceux du classement. Régénère le bracket pour les mettre à jour (le tableau actuel sera effacé).</p>
+    <button onclick="generateStandardPlayoffBracket('${t.id}')" class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-[10px] font-bold text-amber-300 transition hover:bg-amber-500/20">🔁 Régénérer le bracket</button>
+  </div>`;
+}
+
+// Placement du premier tour : chaque case peut recevoir une autre équipe, les deux
+// équipes échangeant leurs places. Verrouillé dès qu'un match de la phase a commencé.
+function standardBracketSlotsHtml(t, matches) {
+  const bracket = matches.filter((m) => m.phase === 'bracket' || m.phase === 'winners');
+  if (!bracket.length) return '';
+  const first = Math.min(...bracket.map((m) => m.round));
+  const round1 = bracket.filter((m) => m.round === first).sort((a, b) => a.position - b.position);
+  const locked = matches.some((m) => m.phase !== 'pool' && m.status !== 'scheduled' && m.team_a && m.team_b);
+  const teamIds = round1.flatMap((m) => [m.team_a, m.team_b]).filter(Boolean);
+  const select = (m, side, fixed) => `<select ${fixed ? 'disabled' : ''} onchange="setBracketSlot('${t.id}','${m.id}','${side}',this.value)" class="${MANAGE_INPUT_CLASS} min-w-0 flex-1 py-1">
+    ${teamIds.map((id) => `<option value="${id}" ${(side === 'a' ? m.team_a : m.team_b) === id ? 'selected' : ''}>${escapeHtml(teamLabelById(id))}</option>`).join('')}
+  </select>`;
+  return `<div class="space-y-2">
+    <h3 class="text-xs font-black uppercase tracking-wider text-white">🏆 Tableau : placement des équipes</h3>
+    <p class="text-[10px] text-gray-500">${locked ? 'La phase a commencé : le placement est verrouillé.' : 'Change une équipe de case : les deux équipes échangent leurs places. Verrouillé dès que la phase commence.'}</p>
+    <div class="grid gap-1.5 sm:grid-cols-2">${round1.map((m) => {
+      const fixed = locked || m.status !== 'scheduled' || !m.team_a || !m.team_b;
+      return `<div class="flex items-center gap-2 rounded-lg border border-[#1f293d] bg-[#07090e] px-2 py-1.5">
+        ${select(m, 'a', fixed)}<span class="text-[9px] font-black text-gray-500">vs</span>${select(m, 'b', fixed)}
+      </div>`;
+    }).join('')}</div>
+  </div>`;
+}
+
+async function setBracketSlot(tournamentId, matchId, side, teamId) {
+  const all = tournamentMatches.filter((m) => m.tournament_id === tournamentId && m.phase !== 'pool');
+  if (all.some((m) => m.status !== 'scheduled' && m.team_a && m.team_b)) {
+    notify('La phase a commencé : le placement est verrouillé.', true);
+    renderAdminMatchPanel();
+    return;
+  }
+  const bracket = all.filter((m) => m.phase === 'bracket' || m.phase === 'winners');
+  const first = Math.min(...bracket.map((m) => m.round));
+  const round1 = bracket.filter((m) => m.round === first);
+  const target = round1.find((m) => m.id === matchId);
+  const col = side === 'a' ? 'team_a' : 'team_b';
+  const other = side === 'a' ? 'team_b' : 'team_a';
+  if (!target || !target.team_a || !target.team_b || target[col] === teamId) return;
+  const old = target[col];
+  const holder = round1.find((m) => m.id !== target.id && (m.team_a === teamId || m.team_b === teamId));
+  const updates = [{ id: target.id, patch: { [col]: teamId } }];
+  if (holder) {
+    if (holder.status !== 'scheduled' || !holder.team_a || !holder.team_b) {
+      notify('Cette équipe est exemptée au premier tour : elle ne peut pas être échangée.', true);
+      return;
+    }
+    updates.push({ id: holder.id, patch: { [holder.team_a === teamId ? 'team_a' : 'team_b']: old } });
+  } else if (target[other] === teamId) {
+    updates[0].patch[other] = old;
+  }
+  for (const u of updates) {
+    const { error } = await supabaseClient.from('nvg_tournament_matches').update(u.patch).eq('id', u.id);
+    if (error) { notify('Erreur : ' + error.message, true); return; }
+  }
+  await loadMatchesOnly();
+  renderAdminMatchPanel();
+}
+
 function renderStandardMatchPanel(t) {
   const matches = tournamentMatches.filter((m) => m.tournament_id === t.id);
   const teams = adminTeamsFor(t.id);
   const format = standardFormat(t);
   const generated = STANDARD_GENERATED_FORMATS.includes(format);
   $('adminMatchSubtitle').textContent = `${t.name} · ${standardFormatTitle(t)} · ${teams.length} équipe(s) confirmée(s) · ${standardScoreHint(t)}${t.status === 'running' ? '' : ' · résultats verrouillés (tournoi non « en cours »)'}`;
+  // Chaque bouton vit dans son onglet : les poules (Poules) ou le tableau (Bracket).
+  // Les formats à élimination directe n'ont que le Bracket.
+  const onBracketTab = adminTab === 'bracket';
+  const elimOnly = format === 'single_elim' || format === 'double_elim';
+  const poolsExist = matches.some((m) => m.phase === 'pool');
+  const inTab = elimOnly ? onBracketTab : !onBracketTab;
+  const generateLabel = format === 'swiss' ? 'Générer la ronde 1' : format === 'groups_playoffs' ? 'Générer les poules' : elimOnly ? 'Générer le bracket' : 'Générer les matchs';
   $('adminMatchTools').innerHTML = `
-    ${generated ? `<button onclick="generateStandardMatches('${t.id}')" class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-[10px] font-bold text-amber-300 transition hover:bg-amber-500/20">🏗️ ${format === 'swiss' ? 'Générer la ronde 1' : 'Générer les matchs'}</button>` : ''}
-    ${format === 'swiss' && matches.length ? `<button onclick="generateSwissRound('${t.id}')" class="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold text-emerald-300 transition hover:bg-emerald-500/20">➕ Ronde suivante</button>` : ''}
-    ${format === 'groups_playoffs' && matches.some((m) => m.phase === 'pool') ? `<button onclick="generateStandardPlayoffBracket('${t.id}')" class="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold text-emerald-300 transition hover:bg-emerald-500/20">🏁 Générer le tableau</button>` : ''}
-    ${matches.length ? `<button onclick="deleteBo9Matches('${t.id}')" class="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-[10px] font-bold text-red-300 transition hover:bg-red-500/20">🗑️ Effacer les matchs</button>` : ''}
+    ${generated && inTab ? `<button onclick="generateStandardMatches('${t.id}')" class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-[10px] font-bold text-amber-300 transition hover:bg-amber-500/20">🏗️ ${generateLabel}</button>` : ''}
+    ${format === 'swiss' && matches.length && inTab ? `<button onclick="generateSwissRound('${t.id}')" class="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold text-emerald-300 transition hover:bg-emerald-500/20">➕ Ronde suivante</button>` : ''}
+    ${format === 'groups_playoffs' && poolsExist && onBracketTab ? `<button onclick="generateStandardPlayoffBracket('${t.id}')" class="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold text-emerald-300 transition hover:bg-emerald-500/20">🏁 Générer le bracket</button>` : ''}
+    ${matches.length && inTab ? `<button onclick="deleteBo9Matches('${t.id}')" class="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-[10px] font-bold text-red-300 transition hover:bg-red-500/20">🗑️ Effacer les matchs</button>` : ''}
     ${!generated ? '<span class="text-[10px] text-gray-500">Ce format n’est pas encore généré.</span>' : ''}
   `;
   const gamesForm = format === 'groups_playoffs' ? standardRoundGamesForm(t) : '';
   if (!matches.length) {
-    $('adminMatchBody').innerHTML = `${gamesForm}${standardSkeletonHtml(t)}<p class="rounded-xl border border-[#1f293d] bg-[#07090e] p-3 text-xs text-gray-400">Aucun match. Génère les matchs dès que les équipes sont confirmées.</p>`;
+    $('adminMatchBody').innerHTML = `${gamesForm}${format === 'groups_playoffs' && !onBracketTab ? standardPoolAssignmentHtml(t, teams) : ''}${standardSkeletonHtml(t)}<p class="rounded-xl border border-[#1f293d] bg-[#07090e] p-3 text-xs text-gray-400">Aucun match. Génère les matchs dès que les équipes sont confirmées.</p>`;
   } else {
     const pools = matches.filter((m) => m.phase === 'pool')
       .sort((a, b) => a.round - b.round || standardGroupOrder(a.group_name, b.group_name) || a.position - b.position);
@@ -3183,6 +3325,7 @@ function renderStandardMatchPanel(t) {
         </div>
       </div>` : ''}
       ${pools.length ? standardTiebreakHtml(t, matches) : ''}
+      ${format === 'groups_playoffs' && onBracketTab ? `${standardBracketDriftHtml(t, matches)}${standardBracketSlotsHtml(t, matches)}` : ''}
       ${bracket.length ? `<div class="space-y-2">
         <h3 class="text-xs font-black uppercase tracking-wider text-white">🏆 Tableau</h3>
         <div class="space-y-1">
