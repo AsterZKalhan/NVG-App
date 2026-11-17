@@ -76,7 +76,7 @@ async function loadTournoi9() {
   renderTournoi9();
 }
 
-function t9Standings(matches) {
+function t9Standings(matches, tiebreaks = {}) {
   const rows = new Map();
   const ensure = (id) => {
     if (!id) return null;
@@ -98,6 +98,8 @@ function t9Standings(matches) {
     else if (pb > pa) { b.wins += 1; b.points += 3; a.losses += 1; }
     else { a.draws += 1; b.draws += 1; a.points += 1; b.points += 1; }
   });
+  // Point de départage attribué par l'organisation : il compte dans le classement.
+  rows.forEach((r) => { r.bonus = Number(tiebreaks?.[r.id]) || 0; r.points += r.bonus; });
   return [...rows.values()].sort((x, y) => y.points - x.points
     || (y.scored - y.conceded) - (x.scored - x.conceded) || y.scored - x.scored);
 }
@@ -116,7 +118,7 @@ function t9ExpectedRounds(poolMatches) {
 // Classement d'une poule. Points verts pour les qualifiés, rouges pour les autres ;
 // le nombre de rounds passe en bleu dès que l'équipe a joué tous ses matchs de poule.
 function t9Table(matches, t) {
-  const rows = t9Standings(matches);
+  const rows = t9Standings(matches, t?.format_config?.tiebreaks);
   const qualifiers = Number(t?.format_config?.qualifiers_per_pool) || 2;
   const expected = t9ExpectedRounds(matches);
   return `<div class="overflow-x-auto rounded-xl border border-[#1f293d] bg-[#07090e]">
@@ -131,7 +133,7 @@ function t9Table(matches, t) {
         <td class="px-1 py-1 text-center text-gray-400">${r.wins}</td>
         <td class="px-1 py-1 text-center text-gray-400">${r.draws}</td>
         <td class="px-1 py-1 text-center text-gray-400">${r.losses}</td>
-        <td class="px-2 py-1 text-center font-black ${i < qualifiers ? 'text-emerald-400' : 'text-red-400'}">${r.points}</td>
+        <td class="px-2 py-1 text-center font-black ${i < qualifiers ? 'text-emerald-400' : 'text-red-400'}">${r.points}${r.bonus ? ` <span class="text-[9px] text-amber-300" title="Point de départage">+${r.bonus}⚖️</span>` : ''}</td>
         <td class="px-2 py-1 text-right ${r.scored - r.conceded >= 0 ? 'text-emerald-400' : 'text-red-400'}">${r.scored - r.conceded > 0 ? '+' : ''}${t9Num(r.scored - r.conceded)}</td>
       </tr>`).join('')}</tbody>
     </table>

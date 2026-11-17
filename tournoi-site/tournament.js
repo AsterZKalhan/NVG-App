@@ -2003,7 +2003,7 @@ async function generateSwissRound(tournamentId) {
   if (pools.some((m) => m.status !== 'finished')) { notify('Termine d’abord la ronde en cours.', true); return; }
   const order = current === 0
     ? [...teams].sort(() => Math.random() - 0.5)
-    : standardStandings(all).map((r) => r.id);
+    : standardStandings(all, t.format_config?.tiebreaks).map((r) => r.id);
   const ranked = [...teams].sort((x, y) => {
     const ix = order.indexOf(x.id);
     const iy = order.indexOf(y.id);
@@ -2050,7 +2050,7 @@ async function generateStandardPlayoffBracket(tournamentId) {
   if (pools.some((m) => m.status !== 'finished')) { notify('Termine d’abord tous les matchs de poule.', true); return; }
   const letters = [...new Set(pools.map((m) => m.group_name))].sort();
   const qualifiers = Number(t.format_config?.qualifiers_per_pool) || 2;
-  const standingsByGroup = letters.map((g) => standardStandings(pools.filter((m) => m.group_name === g)));
+  const standingsByGroup = letters.map((g) => standardStandings(pools.filter((m) => m.group_name === g), t.format_config?.tiebreaks));
   let seeds = [];
   for (let rank = 0; rank < qualifiers; rank += 1) {
     standingsByGroup.forEach((rows) => { if (rows[rank]) seeds.push({ id: rows[rank].id }); });
@@ -2246,7 +2246,7 @@ async function insertStandardDoubleElim(tournamentId, teams, keepOrder = false) 
 }
 
 // Classement d'une phase en round robin : victoire 3, nul 1, défaite 0.
-function standardStandings(matches) {
+function standardStandings(matches, tiebreaks = {}) {
   const rows = new Map();
   const ensure = (id) => {
     if (!id) return null;
@@ -2273,6 +2273,8 @@ function standardStandings(matches) {
     else if (pb > pa) { b.wins += 1; b.points += 3; a.losses += 1; }
     else { a.draws += 1; b.draws += 1; a.points += 1; b.points += 1; }
   });
+  // Point de départage ajouté par l'admin : il compte dans le classement.
+  rows.forEach((r) => { r.bonus = Number(tiebreaks?.[r.id]) || 0; r.points += r.bonus; });
   return [...rows.values()].sort((x, y) => y.points - x.points
     || (y.scored - y.conceded) - (x.scored - x.conceded)
     || y.scored - x.scored);
@@ -2290,8 +2292,8 @@ function poolExpectedRounds(poolMatches) {
   return expected;
 }
 
-function standardStandingsTable(matches, qualifiersPerPool) {
-  const rows = standardStandings(matches);
+function standardStandingsTable(matches, qualifiersPerPool, tiebreaks) {
+  const rows = standardStandings(matches, tiebreaks);
   if (!rows.length) return '';
   // Points des qualifiés en vert, des autres en rouge (rang dans le classement).
   const qualifiers = Number(qualifiersPerPool) || 2;
@@ -2318,7 +2320,7 @@ function standardStandingsTable(matches, qualifiersPerPool) {
             <td class="px-1 py-1 text-center text-gray-400">${r.wins}</td>
             <td class="px-1 py-1 text-center text-gray-400">${r.draws}</td>
             <td class="px-1 py-1 text-center text-gray-400">${r.losses}</td>
-            <td class="px-2 py-1 text-center font-black ${i < qualifiers ? 'text-emerald-400' : 'text-red-400'}">${r.points}</td>
+            <td class="px-2 py-1 text-center font-black ${i < qualifiers ? 'text-emerald-400' : 'text-red-400'}">${r.points}${r.bonus ? ` <span class="text-[9px] text-amber-300" title="Point de départage">+${r.bonus}⚖️</span>` : ''}</td>
             <td class="px-2 py-1 text-right ${r.scored - r.conceded >= 0 ? 'text-emerald-400' : 'text-red-400'}">${r.scored - r.conceded > 0 ? '+' : ''}${formatPoints(r.scored - r.conceded)}</td>
           </tr>`).join('')}
         </tbody>
@@ -2393,12 +2395,12 @@ function filterStandardPools(scopeId) {
 }
 
 // Un classement par poule s'il y a plusieurs poules, sinon un seul classement.
-function standardStandingsBlocks(matches, qualifiersPerPool) {
+function standardStandingsBlocks(matches, qualifiersPerPool, tiebreaks) {
   const groups = [...new Set(matches.filter((m) => m.phase === 'pool').map((m) => m.group_name))].sort();
-  if (groups.length <= 1) return standardStandingsTable(matches, qualifiersPerPool);
+  if (groups.length <= 1) return standardStandingsTable(matches, qualifiersPerPool, tiebreaks);
   return groups.map((g) => `<div class="space-y-1">
     <p class="text-[10px] font-black uppercase tracking-wider text-gray-400">Poule ${escapeHtml(g)}</p>
-    ${standardStandingsTable(matches.filter((m) => m.group_name === g), qualifiersPerPool)}
+    ${standardStandingsTable(matches.filter((m) => m.group_name === g), qualifiersPerPool, tiebreaks)}
   </div>`).join('');
 }
 
@@ -2720,7 +2722,7 @@ function standardCompetitionBlock(t) {
     <div class="space-y-4">
       ${pools.length ? `<div>
         <h3 class="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">🏟️ Poules</h3>
-        ${standardStandingsBlocks(matches, t.format_config?.qualifiers_per_pool)}
+        ${standardStandingsBlocks(matches, t.format_config?.qualifiers_per_pool, t.format_config?.tiebreaks)}
         <div id="stdPoolsPublic" class="mt-2 space-y-2">
           ${standardPoolFilters('stdPoolsPublic', pools)}
           <div class="grid gap-2 sm:grid-cols-2">
@@ -3134,11 +3136,12 @@ function renderStandardMatchPanel(t) {
       ${gamesForm}
       ${pools.length ? `<div class="space-y-2">
         <h3 class="text-xs font-black uppercase tracking-wider text-white">🏟️ Matchs</h3>
-        ${standardStandingsBlocks(matches, t.format_config?.qualifiers_per_pool)}
+        ${standardStandingsBlocks(matches, t.format_config?.qualifiers_per_pool, t.format_config?.tiebreaks)}
         <div id="stdPoolsAdmin" class="space-y-2">
           ${standardPoolRoundsHtml('stdPoolsAdmin', pools, (m) => adminStandardMatchCard(m, m.label || (m.group_name ? `Poule ${m.group_name}` : 'Match')))}
         </div>
       </div>` : ''}
+      ${pools.length ? standardTiebreakHtml(t, matches) : ''}
       ${bracket.length ? `<div class="space-y-2">
         <h3 class="text-xs font-black uppercase tracking-wider text-white">🏆 Tableau</h3>
         <div class="space-y-1">
@@ -3221,6 +3224,41 @@ async function fillSeedSlots(tournamentId) {
     if (!id && rest.length) slots[i] = rest.shift();
   });
   await saveSeedOrder(tournamentId, slots);
+}
+
+// Départage : l'admin ajoute ou retire 1 point à une équipe à égalité. Le point est
+// stocké dans format_config.tiebreaks et compte dans le classement et le tableau.
+function standardTiebreakHtml(t, matches) {
+  const poolIds = new Set(matches.filter((m) => m.phase === 'pool').flatMap((m) => [m.team_a, m.team_b]).filter(Boolean));
+  const teams = adminTeamsFor(t.id).filter((team) => poolIds.has(team.id));
+  const bonuses = t.format_config?.tiebreaks || {};
+  if (!teams.length) return '';
+  return `<div class="space-y-2">
+    <h3 class="text-xs font-black uppercase tracking-wider text-white">⚖️ Départage (matchs de poule)</h3>
+    <p class="text-[10px] text-gray-500">En cas d’égalité, ajoute 1 point à l’une des deux équipes. Le point compte dans le classement et la qualification.</p>
+    <div class="flex flex-wrap gap-2">
+      ${teams.map((team) => `<div class="flex items-center gap-1.5 rounded-lg border border-[#1f293d] bg-[#07090e] px-2 py-1">
+        <span class="text-[10px] font-bold text-gray-200">${escapeHtml(team.name)}${team.tag ? ` [${escapeHtml(team.tag)}]` : ''}</span>
+        ${bonuses[team.id] ? `<span class="text-[10px] font-black text-amber-300">+${bonuses[team.id]}</span>` : ''}
+        <button onclick="adjustTiebreak('${t.id}','${team.id}',-1)" class="rounded border border-[#1f293d] px-1.5 text-[11px] text-gray-300 hover:text-white" aria-label="Retirer un point">−1</button>
+        <button onclick="adjustTiebreak('${t.id}','${team.id}',1)" class="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 text-[11px] font-bold text-amber-300 hover:bg-amber-500/20" aria-label="Ajouter un point">+1</button>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+async function adjustTiebreak(tournamentId, teamId, delta) {
+  const t = tournamentById(tournamentId);
+  if (!t) return;
+  const tiebreaks = { ...(t.format_config?.tiebreaks || {}) };
+  const value = (tiebreaks[teamId] || 0) + delta;
+  if (value > 0) tiebreaks[teamId] = value;
+  else delete tiebreaks[teamId];
+  const formatConfig = { ...t.format_config, tiebreaks };
+  const { error } = await supabaseClient.from('nvg_tournaments').update({ format_config: formatConfig }).eq('id', tournamentId);
+  if (error) { notify('Erreur : ' + error.message, true); return; }
+  await loadPublic();
+  renderAdminMatchPanel();
 }
 
 async function resetSeedOrder(tournamentId) {
