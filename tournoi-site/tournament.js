@@ -597,8 +597,16 @@ function renderCalendar() {
     </div>`).join('');
 }
 
+// En équipe, la barre de remplissage ne compte que les équipes validées (présence
+// validée) ; les équipes préinscrites gardent leur slot mais sont comptées à part.
 function registeredCount(tournamentId) {
-  return publicRegs.filter((r) => r.tournament_id === tournamentId).length;
+  const team = tournamentById(tournamentId)?.mode === 'team';
+  return publicRegs.filter((r) => r.tournament_id === tournamentId && (!team || r.status === 'confirmed')).length;
+}
+
+function preRegisteredTeamCount(tournamentId) {
+  if (tournamentById(tournamentId)?.mode !== 'team') return 0;
+  return publicRegs.filter((r) => r.tournament_id === tournamentId && r.status === 'pending').length;
 }
 
 function isRegistered(tournamentId) {
@@ -783,7 +791,8 @@ function openTournamentDetails(id, options = {}) {
   const toornament = externalLink(t.toornament_url);
   const count = registeredCount(t.id);
   const unit = t.mode === 'team' ? 'équipe(s)' : 'joueur(s)';
-  const places = t.max_participants ? `${count} / ${t.max_participants} ${unit}` : `${count} ${unit}`;
+  const preRegistered = preRegisteredTeamCount(t.id);
+  const places = `${t.max_participants ? `${count} / ${t.max_participants} ${unit}` : `${count} ${unit}`}${preRegistered ? ` · Teams préinscrites : ${preRegistered}` : ''}`;
   const open = t.status === 'open';
   const already = isRegistered(t.id);
   const myTeam = t.mode === 'team' ? myTeams.find((team) => team.tournament_id === t.id) : null;
@@ -2302,12 +2311,12 @@ function standardBracketGroups(matches) {
   }).filter(Boolean);
 }
 
-function standardBracketHtml(matches, cardFn) {
+function standardBracketHtml(matches, cardFn, roundControl = null) {
   return standardBracketGroups(matches).map((group) => `<div class="space-y-2">
     <h4 class="text-[10px] font-black uppercase tracking-wider text-amber-300">${escapeHtml(group.title)}</h4>
     ${group.rounds.map((round) => `<div>
       <div class="mb-1.5">
-        <p class="text-[10px] font-black uppercase tracking-wider text-gray-400">${escapeHtml(round.label)}</p>
+        <p class="text-[10px] font-black uppercase tracking-wider text-gray-400">${escapeHtml(round.label)}${roundControl && round.matches[0] ? roundControl(round.matches[0]) : ''}</p>
         ${round.matches[0] ? standardRoundGameTag(round.matches[0]) : ''}
       </div>
       <div class="grid gap-2 sm:grid-cols-2">${round.matches.map((m) => cardFn(m)).join('')}</div>
@@ -2434,6 +2443,8 @@ function standardCompetitionBlock(t) {
 function adminStandardMatchCard(m, labelText = '') {
   const matchTournament = tournamentById(m.tournament_id);
   if (isStandardBo3(m, matchTournament)) return adminStandardBo3Card(m, matchTournament, labelText);
+  const series = seriesLength(m, matchTournament);
+  if (series > 1) labelText = labelText ? `BO${series} · ${labelText}` : `BO${series}`;
   const finished = m.status === 'finished';
   const exempt = !m.team_a || !m.team_b;
   if (exempt) {
@@ -2441,7 +2452,7 @@ function adminStandardMatchCard(m, labelText = '') {
   }
   const t = tournamentById(m.tournament_id);
   const mode = standardScoringMode(t);
-  const max = mode === 'bo3' ? 2 : mode === 'wins' ? standardDuelCount(t) : null;
+  const max = series > 1 ? Math.ceil(series / 2) : mode === 'bo3' ? 2 : mode === 'wins' ? standardDuelCount(t) : null;
   const maxAttr = max ? `max="${max}"` : '';
   return `
     <div class="rounded-lg border border-[#1f293d] bg-[#121722] px-2.5 py-2">
@@ -2507,11 +2518,61 @@ function standardTreeSize(t) {
   return size;
 }
 
-// La finale (arbre simple : dernier tour ; arbre double : grande finale) se joue en BO3.
+// Tournoi des 9 Mondes : la finale se joue en BO3 jeu par jeu (clés F1–F3).
+// Les autres tournois utilisent une série réglée par round (seriesLength).
 function isStandardBo3(m, t) {
-  if (!t || standardFormat(t) !== 'groups_playoffs') return false;
+  if (!t?.format_config?.nine_worlds || standardFormat(t) !== 'groups_playoffs') return false;
   const rounds = Math.log2(standardTreeSize(t));
   return m.phase === 'grand' || (m.phase === 'bracket' && m.round === rounds);
+}
+
+const SERIES_LENGTHS = [1, 3, 5, 7];
+
+// Clé stable d'un round de l'arbre, ex. « bracket-2 », « losers-3 », « grand ».
+function roundBoKey(m) {
+  return m.phase === 'grand' || m.phase === 'third' ? m.phase : `${m.phase}-${m.round}`;
+}
+
+// Nombre de manches gagnantes d'un match (BO1, BO3, BO5 ou BO7), réglé par round.
+// Les poules restent en BO1. Sans réglage, la finale d'un tournoi « poules puis
+// arbre » reste en BO3 comme avant.
+function seriesLength(m, t) {
+  if (!t || m.phase === 'pool' || t.format_config?.nine_worlds) return 1;
+  const configured = Number(t.format_config?.round_bo?.[roundBoKey(m)]);
+  if (SERIES_LENGTHS.includes(configured)) return configured;
+  const rounds = Math.log2(standardTreeSize(t));
+  const legacyFinal = standardFormat(t) === 'groups_playoffs'
+    && (m.phase === 'grand' || (m.phase === 'bracket' && m.round === rounds));
+  return legacyFinal ? 3 : 1;
+}
+
+// Sélecteur de BO d'un round de l'arbre (admin). Verrouillé dès qu'un match du round est joué.
+function roundBoControl(m) {
+  const t = tournamentById(m.tournament_id);
+  if (!t || t.format_config?.nine_worlds || m.phase === 'pool') return '';
+  const key = roundBoKey(m);
+  const current = seriesLength(m, t);
+  const locked = tournamentMatches.some((x) => x.tournament_id === t.id && roundBoKey(x) === key && x.status === 'finished');
+  return ` <select onchange="setRoundBo('${t.id}', '${key}', this.value)" ${locked ? 'disabled title="Un match de ce round est déjà joué"' : 'title="Nombre de manches gagnantes du round"'} class="ml-1 rounded border border-[#1f293d] bg-[#07090e] px-1 py-0.5 text-[10px] font-bold normal-case tracking-normal text-white">
+    ${SERIES_LENGTHS.map((n) => `<option value="${n}" ${n === current ? 'selected' : ''}>BO${n}</option>`).join('')}
+  </select>`;
+}
+
+async function setRoundBo(tournamentId, key, value) {
+  const t = tournamentById(tournamentId);
+  const bo = Number(value);
+  if (!t || !SERIES_LENGTHS.includes(bo)) return;
+  if (tournamentMatches.some((x) => x.tournament_id === tournamentId && roundBoKey(x) === key && x.status === 'finished')) {
+    notify('Un match de ce round est déjà joué : le BO ne peut plus changer.', true);
+    renderAdminMatchPanel();
+    return;
+  }
+  const formatConfig = { ...t.format_config, round_bo: { ...(t.format_config?.round_bo || {}), [key]: bo } };
+  const { error } = await supabaseClient.from('nvg_tournaments').update({ format_config: formatConfig }).eq('id', tournamentId);
+  if (error) { notify('Erreur : ' + error.message, true); return; }
+  notify(`Round réglé en BO${bo}.`);
+  await loadPublic();
+  renderAdminMatchPanel();
 }
 
 // Clé du tour de jeu : P1 = journée 1 des poules, B2 = 2e tour de l'arbre, etc.
@@ -2718,8 +2779,17 @@ async function saveStandardMatchResult(matchId) {
     return;
   }
   const t = tournamentById(match.tournament_id);
-  const rule = standardScoreRule(t, a, b);
-  if (rule) { notify(rule, true); return; }
+  const series = seriesLength(match, t);
+  if (series > 1) {
+    const need = Math.ceil(series / 2);
+    if (Math.max(a, b) !== need || Math.min(a, b) >= need) {
+      notify(`Une série BO${series} se gagne à ${need} victoire(s) : le vainqueur a ${need}, le perdant moins de ${need}.`, true);
+      return;
+    }
+  } else {
+    const rule = standardScoreRule(t, a, b);
+    if (rule) { notify(rule, true); return; }
+  }
   const elimination = match.phase !== 'pool';
   if (elimination && a === b) { notify('Pas d’égalité en élimination directe.', true); return; }
   if (!match.team_a || !match.team_b) { notify('Les deux équipes ne sont pas encore connues.', true); return; }
@@ -2780,7 +2850,7 @@ function renderStandardMatchPanel(t) {
           <p class="text-[9px] font-black uppercase tracking-wider text-gray-500">Aperçu en arbre (lecture seule)</p>
           ${standardBracketPublicHtml(bracket)}
         </div>
-        ${standardBracketHtml(bracket, (m) => adminStandardMatchCard(m))}
+        ${standardBracketHtml(bracket, (m) => adminStandardMatchCard(m), roundBoControl)}
       </div>` : ''}`;
   }
   $('adminMatchPanel').classList.remove('hidden');
@@ -2804,6 +2874,7 @@ function closeAdminMatchPanel() {
 function tournamentCard(t) {
   const count = registeredCount(t.id);
   const unit = t.mode === 'team' ? 'équipe(s)' : 'joueur(s)';
+  const preRegistered = preRegisteredTeamCount(t.id);
   const places = t.max_participants ? `${count} / ${t.max_participants} ${unit}` : `${count} ${unit}`;
   const open = t.status === 'open';
   const already = isRegistered(t.id);
@@ -2849,7 +2920,11 @@ function tournamentCard(t) {
               : `<span class="px-3 py-2 bg-white/5 border border-[#1f293d] text-gray-500 text-[11px] font-bold rounded-lg">Inscriptions fermées</span>`}
           <button onclick="openTournamentDetails('${t.id}')" class="px-3 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-300 text-[11px] font-bold rounded-lg transition">Fiche</button>
           ${toornament ? `<a href="${toornament}" target="_blank" rel="noopener" title="Ouvrir la page Toornament du tournoi" class="px-3 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-300 text-[11px] font-bold rounded-lg transition">Toornament</a>` : ''}
-          <span class="ml-auto text-[10px] font-bold text-gray-500">👥 ${escapeHtml(places)}</span>
+          <div class="ml-auto flex min-w-[160px] flex-1 flex-col items-end gap-1 sm:max-w-[240px]">
+            <span class="w-full text-right text-[10px] font-bold text-gray-500">👥 ${escapeHtml(places)}</span>
+            ${t.max_participants ? `<div class="h-1.5 w-full overflow-hidden rounded-full bg-white/10"><div class="h-full rounded-full bg-gradient-to-r from-amber-500 to-emerald-500" style="width:${Math.min(100, Math.round((count / Number(t.max_participants)) * 100))}%"></div></div>` : ''}
+            ${preRegistered ? `<span class="w-full text-right text-[10px] font-bold text-violet-300">Teams préinscrites : ${preRegistered}</span>` : ''}
+          </div>
           ${t.registration_closes_at ? `<span class="w-full text-[10px] text-gray-500">Clôture des inscriptions : ${escapeHtml(formatDate(t.registration_closes_at))}</span>` : ''}
         </div>
       </div>
@@ -3126,7 +3201,7 @@ function renderMyTeams() {
           </div>` : ''}
         <div class="flex flex-wrap items-center gap-2">
           ${alreadyRegistered
-            ? `<span class="px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold rounded-lg">✅ Équipe inscrite</span><span title="Paiement de l'inscription de l'équipe">${paymentBadge(registration.payment_status)}</span>`
+            ? `<span class="px-3 py-2 ${registration.status === 'confirmed' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-white/5 border-[#1f293d] text-gray-300'} border text-[10px] font-bold rounded-lg">${registration.status === 'confirmed' ? '✅ Présence validée' : '⏳ Équipe préinscrite'}</span><span title="Paiement de l'inscription de l'équipe">${paymentBadge(registration.payment_status)}</span>`
             : isCaptain
               ? `<button onclick="registerTeam('${team.id}')" ${enough ? '' : 'disabled'} class="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-[10px] rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed">Inscrire l'équipe${enough ? '' : ' (incomplète)'}</button>`
               : '<span class="px-3 py-2 bg-white/5 border border-[#1f293d] text-gray-500 text-[10px] font-bold rounded-lg">En attente du capitaine</span>'}
@@ -4001,12 +4076,14 @@ function tournamentRegs(tournamentId) {
 function adminTournamentStats(t) {
   const regs = tournamentRegs(t.id);
   const max = Number(t.max_participants) || 0;
-  const registered = regs.length;
+  // En équipe : les préinscrites gardent leur slot mais ne remplissent la barre qu'une fois validées.
+  const preRegistered = t.mode === 'team' ? regs.filter((r) => r.status === 'pending').length : 0;
+  const registered = regs.length - preRegistered;
   const paid = regs.filter((r) => r.payment_status === 'paid').length;
   const awaiting = regs.filter((r) => r.payment_status === 'awaiting').length;
   const refunded = adminRegs.filter((r) => r.tournament_id === t.id && r.payment_status === 'refunded').length;
   const percent = max > 0 ? Math.min(100, Math.round((registered / max) * 100)) : 0;
-  return { max, registered, paid, awaiting, refunded, percent, free: max > 0 ? Math.max(0, max - registered) : null };
+  return { max, registered, preRegistered, paid, awaiting, refunded, percent, free: max > 0 ? Math.max(0, max - regs.length) : null };
 }
 
 let adminSelectedTournamentId = null;
@@ -4140,7 +4217,7 @@ function renderAdminTournaments() {
         </div>
         <div class="space-y-1">
           <div class="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-gray-400">
-            <span>${s.max > 0 ? `${s.registered} / ${s.max} inscrit(s)` : `${s.registered} inscrit(s) · illimité`}</span>
+            <span>${s.max > 0 ? `${s.registered} / ${s.max} inscrit(s)` : `${s.registered} inscrit(s) · illimité`}${s.preRegistered ? ` · Teams préinscrites : ${s.preRegistered}` : ''}</span>
             <span>${s.max > 0 ? `${s.percent} %` : '—'}</span>
           </div>
           <div class="h-2 w-full overflow-hidden rounded-full bg-white/10">
@@ -4585,6 +4662,12 @@ function editTournament(id) {
   $('editTeamSize').title = bo9 ? 'Format BO9 : équipes de 5 joueurs' : '';
   $('editFormat').value = ['online', 'lan', 'both'].includes(t.format) ? t.format : 'online';
   $('editTournamentType').value = type;
+  const stdCfg = t.format_config || {};
+  $('editStdFormat').value = ['single_elim', 'double_elim', 'groups_playoffs'].includes(standardFormat(t)) ? standardFormat(t) : 'single_elim';
+  $('editStdPools').value = String(Number(stdCfg.pool_count) || 2);
+  $('editStdPoolSize').value = String(Number(stdCfg.pool_size) || 4);
+  $('editStdQualifiers').value = String(Number(stdCfg.qualifiers_per_pool) || 2);
+  $('editStdTree').value = stdCfg.tree === 'double' ? 'double' : 'single';
   const gameSelect = $('editGame');
   if (gameSelect) {
     gameSelect.innerHTML = '<option value="">— Choisir un jeu —</option>'
@@ -4611,6 +4694,48 @@ function editTournament(id) {
   const panel = $('adminEdit');
   panel.classList.remove('hidden');
   panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// Structure d'un tournoi standard lue dans le formulaire d'édition : élimination
+// directe, double élimination, ou poules puis arbre (simple ou double).
+function editStandardStructure() {
+  const format = $('editStdFormat')?.value || 'single_elim';
+  if (format !== 'groups_playoffs') return { type: 'standard', format };
+  return {
+    type: 'standard',
+    format,
+    pool_count: Number($('editStdPools').value) || 2,
+    pool_size: Number($('editStdPoolSize').value) || 4,
+    qualifiers_per_pool: Number($('editStdQualifiers').value) || 2,
+    tree: $('editStdTree').value === 'double' ? 'double' : 'single'
+  };
+}
+
+const STANDARD_STRUCTURE_KEYS = ['type', 'format', 'pool_count', 'pool_size', 'qualifiers_per_pool', 'tree'];
+
+function standardStructureChanged(current, next) {
+  return STANDARD_STRUCTURE_KEYS.some((key) => (current?.[key] ?? null) !== (next[key] ?? null));
+}
+
+// Arbre double : seulement pour un tableau de 4, 8, 16 ou 32 qualifiés.
+function isPowerOfTwoBracket(teams) {
+  return teams >= 4 && Number.isInteger(Math.log2(teams));
+}
+
+function syncEditStandardStructure() {
+  const format = $('editStdFormat')?.value || 'single_elim';
+  $('editStdPoolsWrap')?.classList.toggle('hidden', format !== 'groups_playoffs');
+  if (format === 'groups_playoffs') {
+    const teams = (Number($('editStdPools').value) || 2) * (Number($('editStdQualifiers').value) || 2);
+    const powerOfTwo = isPowerOfTwoBracket(teams);
+    const tree = $('editStdTree');
+    const doubleOption = [...tree.options].find((opt) => opt.value === 'double');
+    if (doubleOption) doubleOption.disabled = !powerOfTwo;
+    if (!powerOfTwo && tree.value === 'double') tree.value = 'single';
+  }
+  const t = tournamentById(editingTournamentId);
+  const changed = Boolean(t) && standardStructureChanged(t.format_config, editStandardStructure());
+  $('editStdWarning')?.classList.toggle('hidden', !changed || tournamentTypeOf(t) !== 'single');
 }
 
 function closeEdit() {
@@ -4648,6 +4773,8 @@ function syncEditTournamentFormat(initial = false) {
     gameSelect.value = games[0]?.id || '';
   }
   fillEditBo9Games(t, type);
+  $('editStdWrap')?.classList.toggle('hidden', type !== 'single');
+  if (type === 'single') syncEditStandardStructure();
   const warning = $('editFormatWarning');
   if (warning) warning.classList.toggle('hidden', type === tournamentTypeOf(t));
 }
@@ -4722,9 +4849,17 @@ async function saveTournament() {
   const selectedType = $('editTournamentType')?.value;
   const targetType = ['single', 'bo9', 'nine_worlds'].includes(selectedType) ? selectedType : currentType;
   const typeChanged = targetType !== currentType;
+  const stdNext = targetType === 'single' ? editStandardStructure() : null;
+  const structureChanged = Boolean(stdNext) && standardStructureChanged(edited.format_config, stdNext);
+  const formatChanged = typeChanged || structureChanged;
+  if (stdNext && stdNext.format === 'groups_playoffs' && stdNext.tree === 'double'
+    && !isPowerOfTwoBracket(stdNext.pool_count * stdNext.qualifiers_per_pool)) {
+    notify('L’arbre double demande un nombre de qualifiés égal à 4, 8, 16 ou 32.', true);
+    return;
+  }
   const hasMatches = bo9TournamentLocked(editedId);
-  if (typeChanged && hasMatches && !window.confirm(
-    'Changer le format effacera tous les matchs existants (poules, tableau et scores). Continuer ?'
+  if (formatChanged && hasMatches && !window.confirm(
+    'Changer le format ou la structure effacera tous les matchs existants (poules, tableau et scores). Continuer ?'
   )) return;
 
   const baseCfg = edited.format_config || {};
@@ -4775,8 +4910,8 @@ async function saveTournament() {
     mode = size === 1 ? 'solo' : 'team';
     maxParticipants = formatConfig.pool_count * formatConfig.pool_size;
   } else {
-    formatConfig = typeChanged || baseCfg.type !== 'standard'
-      ? { type: 'standard', format: 'single_elim' }
+    formatConfig = formatChanged || baseCfg.type !== 'standard'
+      ? stdNext
       : { ...baseCfg };
     gameId = $('editGame')?.value || null;
     if (!gameId) {
@@ -4826,7 +4961,7 @@ async function saveTournament() {
   try {
     const { error } = await supabaseClient.from('nvg_tournaments').update(patch).eq('id', editedId);
     if (error) throw new Error(error.message);
-    if (typeChanged && hasMatches) {
+    if (formatChanged && hasMatches) {
       const { error: matchesError } = await supabaseClient.from('nvg_tournament_matches')
         .delete().eq('tournament_id', editedId);
       if (matchesError) throw new Error(matchesError.message);

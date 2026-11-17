@@ -710,6 +710,44 @@
             <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Jeu du tournoi</span>
             <select id="editGame" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white"></select>
           </label>
+          <div id="editStdWrap" class="hidden sm:col-span-2 space-y-3 rounded-xl border border-[#1f293d] bg-[#07090e] p-3">
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Structure (phases)</span>
+              <select id="editStdFormat" onchange="syncEditStandardStructure()" class="w-full bg-[#0b0f17] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+                <option value="single_elim">Élimination directe (arbre simple)</option>
+                <option value="double_elim">Double élimination (arbre + repêchage)</option>
+                <option value="groups_playoffs">Poules puis arbre</option>
+              </select>
+            </label>
+            <div id="editStdPoolsWrap" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <label class="block">
+                <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Poules</span>
+                <select id="editStdPools" onchange="syncEditStandardStructure()" class="w-full bg-[#0b0f17] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
+                  <option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option>
+                </select>
+              </label>
+              <label class="block">
+                <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Équipes par poule</span>
+                <select id="editStdPoolSize" onchange="syncEditStandardStructure()" class="w-full bg-[#0b0f17] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
+                  <option>2</option><option>3</option><option>4</option><option>5</option><option>6</option>
+                </select>
+              </label>
+              <label class="block">
+                <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Qualifiés par poule</span>
+                <select id="editStdQualifiers" onchange="syncEditStandardStructure()" class="w-full bg-[#0b0f17] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
+                  <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option>
+                </select>
+              </label>
+              <label class="block">
+                <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Arbre</span>
+                <select id="editStdTree" onchange="syncEditStandardStructure()" class="w-full bg-[#0b0f17] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
+                  <option value="single">Simple</option>
+                  <option value="double">Double (repêchage)</option>
+                </select>
+              </label>
+            </div>
+            <span id="editStdWarning" class="hidden block text-[10px] text-amber-400">⚠️ Changer la structure effacera tous les matchs existants lors de l’enregistrement. Pour ajouter ou retirer le repêchage, change l’arbre ici.</span>
+          </div>
           <label class="block">
             <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Format de jeu</span>
             <select id="editTeamSize" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
