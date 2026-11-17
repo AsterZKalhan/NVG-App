@@ -167,13 +167,11 @@ function applyGameTeamSize() {
     if (hint) hint.textContent = '';
     return;
   }
-  // Jeu 1v1 en victoires (ex. Hearthstone) : une équipe de 5 joue 5 duels.
-  const size = gameById(gameId)?.scoring_mode === 'wins' && gameTeamSize(gameId) === 1 ? 5 : gameTeamSize(gameId);
-  const select = $('tourTeamSize');
-  if (size && select) select.value = String(size);
+  // Information seulement : la taille d'équipe se règle pour chaque tournoi.
+  const size = gameTeamSize(gameId);
   if (hint) {
     hint.textContent = size
-      ? `Format du jeu : ${size === 1 ? 'solo' : `${size} joueurs par équipe`}`
+      ? `Le jeu se joue ${size === 1 ? 'en solo' : `à ${size} joueurs`} : règle la taille d’équipe de ce tournoi ci-dessus.`
       : 'Le format du jeu n’est pas précisé.';
   }
 }
