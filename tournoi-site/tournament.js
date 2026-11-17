@@ -1611,6 +1611,45 @@ async function saveBo9MatchResult(matchId) {
   renderAdminMatchPanel();
 }
 
+// Annule les scores d'un match. Les scores tapés sont effacés à l'écran ; un résultat
+// enregistré est retiré, et le vainqueur/perdant est enlevé du tour suivant si celui-ci
+// n'a pas encore commencé.
+async function resetMatchResult(matchId) {
+  const match = tournamentMatches.find((m) => m.id === matchId);
+  if (!match) return;
+  const t = tournamentById(match.tournament_id);
+  document.querySelectorAll(`[id^="std-m-${matchId}-"], [id^="std-g-${matchId}-"], [id^="bo9-m-${matchId}-"]`).forEach((el) => {
+    if (el.tagName === 'INPUT' || el.tagName === 'SELECT') el.value = '';
+  });
+  if (match.status === 'scheduled') { notify('Scores effacés.'); return; }
+  if (!resultsOpen(t)) return;
+  if (!window.confirm('Annuler le résultat enregistré de ce match ?\n\nLes scores sont effacés et le vainqueur est retiré du tour suivant.')) return;
+  const next = match.next_match_id ? tournamentMatches.find((m) => m.id === match.next_match_id) : null;
+  const loserNext = match.loser_next_match_id ? tournamentMatches.find((m) => m.id === match.loser_next_match_id) : null;
+  if ([next, loserNext].some((x) => x && (x.status === 'finished' || x.status === 'live'))) {
+    notify('Le tour suivant a déjà commencé : annule d’abord ses résultats.', true);
+    return;
+  }
+  const oldWinner = match.winner_team || null;
+  const oldLoser = oldWinner ? (oldWinner === match.team_a ? match.team_b : match.team_a) : null;
+  const now = new Date().toISOString();
+  const patch = { points_a: null, points_b: null, winner_team: null, status: 'scheduled', games: null, updated_at: now };
+  if (isBo9(t)) { patch.captain_card = null; patch.mercy = false; }
+  const { error } = await supabaseClient.from('nvg_tournament_matches').update(patch).eq('id', matchId);
+  if (error) { notify('Erreur : ' + error.message, true); return; }
+  const unplace = async (target, slot, teamId) => {
+    if (!target || !slot || !teamId) return;
+    const col = slot === 'a' ? 'team_a' : 'team_b';
+    if (target[col] !== teamId) return;
+    await supabaseClient.from('nvg_tournament_matches').update({ [col]: null, updated_at: now }).eq('id', target.id);
+  };
+  await unplace(next, match.next_slot, oldWinner);
+  await unplace(loserNext, match.loser_next_slot, oldLoser);
+  notify('Résultat annulé.');
+  await loadMatchesOnly();
+  renderAdminMatchPanel();
+}
+
 async function saveBo9PickOrder(matchId, order) {
   const { error } = await supabaseClient.from('nvg_tournament_matches')
     .update({ pick_order: order, updated_at: new Date().toISOString() })
@@ -1788,6 +1827,7 @@ function adminBo9MatchCard(match, cfg, labelText = '') {
         <div class="flex flex-wrap items-center justify-between gap-2 border-t border-[#1f293d] pt-2">
           <span id="bo9-m-${match.id}-preview" class="text-[10px] font-bold text-amber-300">${formatPoints(totals.a)} — ${formatPoints(totals.b)}</span>
           <button onclick="saveBo9MatchResult('${match.id}')" class="rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black text-black transition hover:bg-amber-400">💾 Enregistrer le résultat</button>
+          <button onclick="resetMatchResult('${match.id}')" class="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-[10px] font-bold text-red-300 transition hover:bg-red-500/20">↺ Réinitialiser</button>
         </div>
       </div>
     </details>`;
@@ -2761,6 +2801,7 @@ function adminStandardMatchCard(m, labelText = '') {
         <input id="std-m-${m.id}-b" type="number" min="0" ${maxAttr} value="${finished ? formatPoints(m.points_b) : ''}" aria-label="Score équipe B" class="w-14 rounded border border-[#1f293d] bg-[#07090e] px-1.5 py-1 text-center text-[11px] text-white">
         <span class="flex min-w-0 flex-1 items-center justify-end gap-1.5 text-right text-[10px] font-bold text-gray-200">${teamLogoHtml(m.team_b, 'h-4 w-4')}<span class="truncate">${escapeHtml(teamLabelById(m.team_b))}</span></span>
         <button onclick="saveStandardMatchResult('${m.id}')" class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-300 transition hover:bg-amber-500/20">Enregistrer</button>
+        <button onclick="resetMatchResult('${m.id}')" class="rounded-lg border border-red-500/40 bg-red-500/10 px-2 py-1 text-[10px] font-bold text-red-300 transition hover:bg-red-500/20">↺ Réinitialiser</button>
       </div>
     </div>`;
 }
@@ -3002,6 +3043,7 @@ function adminStandardBo3Card(m, t, labelText = '') {
       <div class="flex flex-wrap items-center justify-between gap-2">
         <span class="text-[10px] text-gray-500">${finished ? `Vainqueur : ${escapeHtml(teamLabelById(m.winner_team))}` : `Score : ${formatPoints(m.points_a)} — ${formatPoints(m.points_b)}`}</span>
         <button onclick="saveStandardMatchResult('${m.id}')" class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-300 transition hover:bg-amber-500/20">Enregistrer</button>
+        <button onclick="resetMatchResult('${m.id}')" class="rounded-lg border border-red-500/40 bg-red-500/10 px-2 py-1 text-[10px] font-bold text-red-300 transition hover:bg-red-500/20">↺ Réinitialiser</button>
       </div>
     </div>`;
 }
