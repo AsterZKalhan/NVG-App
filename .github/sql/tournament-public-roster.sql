@@ -1,15 +1,18 @@
 -- Tournoi des 9 Mondes — liste publique des inscrits (onglet « Liste des inscrits »).
 --
 -- Renvoie, pour un tournoi publié, les inscriptions actives avec : nom d'équipe ou
--- pseudo du site, tag, statut (préinscrit / confirmé), nombre de joueurs ayant
--- réglé, et pseudos des membres. Aucune donnée personnelle (nom, prénom, date de
--- naissance, e-mail) ni état de paiement joueur par joueur n'est exposé.
+-- pseudo du site, tag, logo de l'équipe, statut (préinscrit / confirmé), nombre de
+-- joueurs ayant réglé, et pseudos des membres. Aucune donnée personnelle (nom,
+-- prénom, date de naissance, e-mail) ni état de paiement joueur par joueur n'est exposé.
+
+drop function if exists public.nvg_tournament_public_roster(uuid);
 
 create or replace function public.nvg_tournament_public_roster(p_tournament uuid)
 returns table (
   team_id uuid,
   name text,
   tag text,
+  logo_url text,
   status text,
   members_count int,
   paid_members int,
@@ -25,6 +28,7 @@ as $$
     r.team_id,
     coalesce(te.name, u.name, 'Joueur') as name,
     te.tag,
+    te.logo_url,
     r.status,
     coalesce((select count(*) from public.nvg_tournament_team_members m where m.team_id = r.team_id), 0)::int as members_count,
     coalesce((

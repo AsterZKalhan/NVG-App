@@ -2523,11 +2523,14 @@ function rosterCard(t, r) {
   const members = Array.isArray(r.members) ? r.members : [];
   return `<div class="rounded-xl border border-[#1f293d] bg-[#07090e] p-3 space-y-2">
     <div class="flex flex-wrap items-start justify-between gap-2">
-      <p class="min-w-0 truncate text-xs font-black text-white">🛡️ ${escapeHtml(r.name)}${r.tag ? ` <span class="text-gray-500">[${escapeHtml(r.tag)}]</span>` : ''}</p>
+      <div class="flex min-w-0 items-center gap-2.5">
+        <img src="${safeUrl(r.logo_url) || './Logos/no-logo.jpeg'}" alt="" onerror="this.onerror=null;this.src='./Logos/no-logo.jpeg'" class="h-9 w-9 shrink-0 rounded-lg border border-white/10 bg-white/5 object-cover">
+        <p class="min-w-0 truncate text-xs font-black text-white">${escapeHtml(r.name)}${r.tag ? ` <span class="text-gray-500">[${escapeHtml(r.tag)}]</span>` : ''}</p>
+      </div>
       <div class="flex flex-wrap items-center gap-1.5">${rosterStatusBadge(confirmed)}${rosterPaymentBadge(r.paid_members > 0, 'En attente de paiement d’au moins un joueur')}</div>
     </div>
-    <div class="flex flex-wrap gap-1.5">${members.map((m) => `<span class="rounded border border-[#1f293d] px-2 py-0.5 text-[10px] text-gray-300">${escapeHtml(m.pseudo || 'Joueur')}</span>`).join('')}</div>
-    <p class="text-[10px] text-gray-500">${Number(r.paid_members) || 0} / ${Number(r.members_count) || 0} joueur(s) ont réglé leur billet</p>
+    <div class="flex flex-wrap gap-1.5 pl-[46px]">${members.map((m) => `<span class="rounded border border-[#1f293d] px-2 py-0.5 text-[10px] text-gray-300">${escapeHtml(m.pseudo || 'Joueur')}</span>`).join('')}</div>
+    <p class="pl-[46px] text-[10px] text-gray-500">${Number(r.paid_members) || 0} / ${Number(r.members_count) || 0} joueur(s) ont réglé leur billet</p>
   </div>`;
 }
 
@@ -4863,12 +4866,12 @@ function editTournament(id) {
 
 // Structure d'un tournoi standard lue dans le formulaire d'édition : élimination
 // directe, double élimination, ou poules puis arbre (simple ou double).
-function editStandardStructure() {
-  const format = $('editStdFormat')?.value || 'single_elim';
-  if (format !== 'groups_playoffs') return { type: 'standard', format };
+function editStandardStructure(nine = false) {
+  const format = nine ? 'groups_playoffs' : ($('editStdFormat')?.value || 'single_elim');
+  const base = nine ? { type: 'standard', format, nine_worlds: true } : { type: 'standard', format };
+  if (format !== 'groups_playoffs') return base;
   return {
-    type: 'standard',
-    format,
+    ...base,
     pool_count: Number($('editStdPools').value) || 2,
     pool_size: Number($('editStdPoolSize').value) || 4,
     qualifiers_per_pool: Number($('editStdQualifiers').value) || 2,
@@ -4876,7 +4879,7 @@ function editStandardStructure() {
   };
 }
 
-const STANDARD_STRUCTURE_KEYS = ['type', 'format', 'pool_count', 'pool_size', 'qualifiers_per_pool', 'tree'];
+const STANDARD_STRUCTURE_KEYS = ['type', 'format', 'nine_worlds', 'pool_count', 'pool_size', 'qualifiers_per_pool', 'tree'];
 
 function standardStructureChanged(current, next) {
   return STANDARD_STRUCTURE_KEYS.some((key) => (current?.[key] ?? null) !== (next[key] ?? null));
@@ -4888,6 +4891,9 @@ function isPowerOfTwoBracket(teams) {
 }
 
 function syncEditStandardStructure() {
+  const nine = $('editTournamentType')?.value === 'nine_worlds';
+  if (nine) $('editStdFormat').value = 'groups_playoffs';
+  $('editStdFormatWrap')?.classList.toggle('hidden', nine);
   const format = $('editStdFormat')?.value || 'single_elim';
   $('editStdPoolsWrap')?.classList.toggle('hidden', format !== 'groups_playoffs');
   if (format === 'groups_playoffs') {
@@ -4899,8 +4905,8 @@ function syncEditStandardStructure() {
     if (!powerOfTwo && tree.value === 'double') tree.value = 'single';
   }
   const t = tournamentById(editingTournamentId);
-  const changed = Boolean(t) && standardStructureChanged(t.format_config, editStandardStructure());
-  $('editStdWarning')?.classList.toggle('hidden', !changed || tournamentTypeOf(t) !== 'single');
+  const changed = Boolean(t) && standardStructureChanged(t.format_config, editStandardStructure(nine));
+  $('editStdWarning')?.classList.toggle('hidden', !changed);
 }
 
 function closeEdit() {
@@ -4938,8 +4944,8 @@ function syncEditTournamentFormat(initial = false) {
     gameSelect.value = games[0]?.id || '';
   }
   fillEditBo9Games(t, type);
-  $('editStdWrap')?.classList.toggle('hidden', type !== 'single');
-  if (type === 'single') syncEditStandardStructure();
+  $('editStdWrap')?.classList.toggle('hidden', type !== 'single' && type !== 'nine_worlds');
+  if (type === 'single' || type === 'nine_worlds') syncEditStandardStructure();
   const warning = $('editFormatWarning');
   if (warning) warning.classList.toggle('hidden', type === tournamentTypeOf(t));
 }
@@ -5014,7 +5020,8 @@ async function saveTournament() {
   const selectedType = $('editTournamentType')?.value;
   const targetType = ['single', 'bo9', 'nine_worlds'].includes(selectedType) ? selectedType : currentType;
   const typeChanged = targetType !== currentType;
-  const stdNext = targetType === 'single' ? editStandardStructure() : null;
+  const nineTarget = targetType === 'nine_worlds';
+  const stdNext = targetType === 'single' || nineTarget ? editStandardStructure(nineTarget) : null;
   const structureChanged = Boolean(stdNext) && standardStructureChanged(edited.format_config, stdNext);
   const formatChanged = typeChanged || structureChanged;
   if (stdNext && stdNext.format === 'groups_playoffs' && stdNext.tree === 'double'
@@ -5058,18 +5065,10 @@ async function saveTournament() {
     size = 5;
     maxParticipants = (Number(base.pool_count) || 4) * (Number(base.pool_size) || 4);
   } else if (targetType === 'nine_worlds') {
+    // Structure (poules, qualifiés, arbre) lue dans le formulaire ; les jeux de chaque
+    // tour (round_games) ne sont conservés que si la structure ne change pas.
     const nine = isNineWorlds(edited) ? edited.format_config : {};
-    formatConfig = {
-      ...(typeChanged ? {} : nine),
-      type: 'standard',
-      format: 'groups_playoffs',
-      nine_worlds: true,
-      pool_count: Number(nine.pool_count) || 4,
-      pool_size: Number(nine.pool_size) || 4,
-      qualifiers_per_pool: Number(nine.qualifiers_per_pool) || 2,
-      tree: nine.tree === 'double' ? 'double' : 'single'
-    };
-    if (nine.round_games) formatConfig.round_games = nine.round_games;
+    formatConfig = { ...(formatChanged ? {} : nine), ...stdNext };
     gameId = null;
     size = parseInt($('editTeamSize').value, 10) || 5;
     mode = size === 1 ? 'solo' : 'team';
