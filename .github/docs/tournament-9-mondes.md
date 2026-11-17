@@ -379,13 +379,23 @@ renvoie vers la plateforme de règlement choisie par la NVG (Weezevent,
 HelloAsso, Stripe Checkout, virement…).
 
 - Pour un tournoi payant, la carte, la fiche et le formulaire d'inscription
-  affichent les frais (`10,00 €`) et un bouton **Régler mon inscription** quand
-  `payment_url` est renseignée ; `payment_instructions` précise le mode de
+  affichent les frais (`10,00 €`) et `payment_instructions` précise le mode de
   règlement (référence à indiquer, délai, etc.).
+- Deux liens de billetterie, configurés par l'admin à la création et en édition
+  (`ticket_url_player` et `ticket_url_team`, migration
+  `.github/sql/tournament-ticket-links.sql`) :
+  - **Je prends mon billet** : lien du « 1 pass joueur », affiché tant que ton
+    billet est à régler ;
+  - **Je prends un pass équipe (je paie pour les N joueurs de mon équipe)** :
+    lien du « 1 pass équipe », affiché au capitaine tant qu'un joueur de son
+    équipe n'a pas réglé. Les deux boutons apparaissent dans la fiche, dans
+    **⚙️ Gérer mon inscription** et dans **Mon espace** (Mes équipes et Mes
+    inscriptions). Ils ouvrent le lien dans un nouvel onglet ; la validation du
+    paiement reste faite par la NVG depuis le back-office.
 - À l'inscription, `payment_status` passe automatiquement à `awaiting` si des
   frais sont dus, sinon à `not_required`.
 - Dans **Mon espace**, chaque inscription affiche un badge de paiement et, si
-  nécessaire, le bouton **Régler mon inscription**.
+  nécessaire, les boutons de billetterie.
 - Libellés affichés : « Gratuit » / « 10,00 € », « En attente de paiement »,
   « Participation validée », « Remboursé », « Aucun paiement requis ».
 - Le statut d'inscription (`pending`, `confirmed`…) reste indépendant du statut

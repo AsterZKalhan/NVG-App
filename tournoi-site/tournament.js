@@ -662,40 +662,53 @@ function paymentClosedNote() {
   return '<p class="text-[10px] text-gray-400">Paiement clôturé : contacte l’organisation pour toute modification ou remboursement.</p>';
 }
 
-function registrationPaymentBlock(reg) {
-  const status = reg.payment_status || 'not_required';
-  const fee = Number(reg.nvg_tournaments?.entry_fee_cents) || 0;
-  if (status !== 'awaiting') return '';
-  if (!paymentOpen(reg.nvg_tournaments)) {
-    return `<div class="flex flex-col items-start gap-1">
-      <span class="text-[10px] font-bold text-amber-400">⏳ ${fee > 0 ? `${escapeHtml(formatFee(fee))} à régler` : 'Paiement en attente'}</span>
-      ${paymentClosedNote()}
-    </div>`;
-  }
-  return `<div class="flex flex-col items-start gap-1">
-      <span class="text-[10px] font-bold text-amber-400">⏳ ${fee > 0 ? `${escapeHtml(formatFee(fee))} à régler` : 'Paiement en attente'}</span>
-      <button onclick="payRegistration('${reg.id}')" class="rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black text-black transition hover:bg-amber-400">Régler mon inscription</button>
-    </div>`;
+// Billet personnel : état de paiement de ton propre billet (participation à
+// l'évènement en équipe, inscription en solo).
+function ownTicketStatus(t) {
+  if (t.mode === 'team') return myParticipations.find((p) => p.tournament_id === t.id)?.payment_status || null;
+  return myRegistrations.find((r) => r.tournament_id === t.id && r.status !== 'cancelled')?.payment_status || null;
 }
 
-function payRegistration(registrationId) {
-  const reg = myRegistrations.find((r) => r.id === registrationId);
-  if (!reg) return;
-  const t = reg.nvg_tournaments || {};
+function ticketButton(tournamentId, kind, label) {
+  return `<button onclick="openTicket('${tournamentId}', '${kind}')" class="rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black text-black transition hover:bg-amber-400">${escapeHtml(label)}</button>`;
+}
+
+// Boutons de billetterie d'un tournoi : « Je prends mon billet » tant que ton billet
+// n'est pas réglé, et « Je prends un pass équipe » pour le capitaine d'une équipe
+// dont des joueurs n'ont pas encore réglé.
+function paymentActions(tournamentId) {
+  const t = tournamentById(tournamentId);
+  if (!t || !(Number(t.entry_fee_cents) > 0)) return '';
+  const team = t.mode === 'team' ? myTeams.find((x) => x.tournament_id === t.id) : null;
+  const playerAwaiting = ownTicketStatus(t) === 'awaiting';
+  const teamAwaiting = Boolean(team && team.captain_id === currentUser?.id && (() => {
+    const payments = teamPayments.get(team.id);
+    return !payments || !payments.size || [...payments.values()].some((p) => p.payment_status === 'awaiting');
+  })());
+  if (!playerAwaiting && !teamAwaiting) return '';
+  if (!paymentOpen(t)) return paymentClosedNote();
+  const buttons = [];
+  if (playerAwaiting) buttons.push(ticketButton(t.id, 'player', 'Je prends mon billet'));
+  if (teamAwaiting) buttons.push(ticketButton(t.id, 'team', `Je prends un pass équipe (je paie pour les ${Number(t.team_max) || 5} joueurs de mon équipe)`));
+  return `<div class="flex flex-wrap items-center gap-2">${buttons.join('')}</div>`;
+}
+
+function openTicket(tournamentId, kind) {
+  const t = tournamentById(tournamentId) || {};
   if (!paymentOpen(t)) {
     notify('Paiement clôturé : contacte l’organisation pour toute modification ou remboursement.', true);
     return;
   }
-  const url = externalLink(t.payment_url);
+  const url = externalLink(kind === 'team' ? t.ticket_url_team : t.ticket_url_player);
   if (url) {
     window.open(url, '_blank', 'noopener');
-    notify('Page de règlement ouverte dans un nouvel onglet.');
+    notify('Billetterie ouverte dans un nouvel onglet.');
     return;
   }
   const instructions = String(t.payment_instructions || '').trim();
   notify(instructions
     ? `Paiement : ${instructions}`
-    : 'Aucun lien de règlement pour ce tournoi. Contacte la NVG pour payer ton inscription.');
+    : 'Aucun lien de billetterie pour ce tournoi. Contacte la NVG pour payer ton billet.');
 }
 
 function tournamentBanner(t) {
@@ -822,7 +835,7 @@ function openTournamentDetails(id, options = {}) {
         <div class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3">
           <p class="text-[10px] font-black uppercase tracking-wider text-amber-400">Inscription : ${escapeHtml(formatFee(t.entry_fee_cents))}</p>
           ${t.payment_instructions ? `<p class="mt-1 whitespace-pre-line text-[11px] leading-relaxed text-gray-300">${escapeHtml(t.payment_instructions)}</p>` : ''}
-          ${!paymentOpen(t) ? `<div class="mt-2">${paymentClosedNote()}</div>` : externalLink(t.payment_url) ? `<a href="${externalLink(t.payment_url)}" target="_blank" rel="noopener" class="mt-2 inline-block rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black text-black transition hover:bg-amber-400">Régler mon inscription</a>` : ''}
+          ${!paymentOpen(t) ? `<div class="mt-2">${paymentClosedNote()}</div>` : `<div class="mt-2 flex flex-wrap gap-2">${externalLink(t.ticket_url_player) ? ticketButton(t.id, 'player', 'Je prends mon billet') : ''}${t.mode === 'team' && externalLink(t.ticket_url_team) ? ticketButton(t.id, 'team', `Je prends un pass équipe (je paie pour les ${Number(t.team_max) || 5} joueurs de mon équipe)`) : ''}</div>`}
         </div>` : ''}
 
       <div class="flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-4">
@@ -3002,10 +3015,10 @@ async function loadMember() {
       .select('id,tournament_id,name,tag,logo_url,captain_id,invite_code,created_at,nvg_tournament_team_members(user_id,role,nvg_users(name,rank)),nvg_tournaments(name,mode,team_min,team_max,status)')
       .order('created_at', { ascending: false }),
     supabaseClient.from('nvg_tournament_registrations')
-      .select('id,tournament_id,team_id,user_id,status,platform_id,payment_status,payment_reference,paid_at,created_at,nvg_tournaments(name,mode,team_min,team_max,status,entry_fee_cents,payment_url,payment_instructions),nvg_tournament_teams(name)')
+      .select('id,tournament_id,team_id,user_id,status,platform_id,payment_status,payment_reference,paid_at,created_at,nvg_tournaments(name,mode,team_min,team_max,status,entry_fee_cents,payment_instructions),nvg_tournament_teams(name)')
       .order('created_at', { ascending: false }),
     supabaseClient.from('nvg_tournament_players')
-      .select('tournament_id,platform_id,joined_at')
+      .select('tournament_id,platform_id,joined_at,payment_status')
       .eq('user_id', currentUser.id)
   ]);
   // Les admins voient toutes les équipes et inscriptions : on ne garde que celles
@@ -3075,6 +3088,7 @@ function renderMyTeams() {
             }).join('')}
           </ul>
           ${payments.size ? `<p class="mt-1.5 text-[10px] text-gray-500">🎟️ ${paidCount}/${members.length} billet(s) pris</p>` : ''}
+          <div class="mt-2">${paymentActions(team.tournament_id)}</div>
         </div>
         ${isCaptain ? `
           <div class="flex flex-wrap items-center gap-2">
@@ -3256,7 +3270,6 @@ function renderManage() {
         <span class="rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-wider ${confirmed ? 'border-emerald-500/40 text-emerald-400' : 'border-amber-500/40 text-amber-300'}">${confirmed ? 'Inscription confirmée' : 'En attente de validation'}</span>
         ${paymentBadge(reg.payment_status)}
       </div>
-      ${registrationPaymentBlock(reg)}
       ${!team || isCaptain ? `<button onclick="cancelRegistration('${reg.id}')" class="rounded-lg border border-red-600/40 bg-red-600/20 px-3 py-2 text-[10px] font-bold text-red-400 transition hover:bg-red-600 hover:text-white">Annuler mon inscription</button>` : ''}`;
   } else if (isTeam && team && isCaptain) {
     const complete = members.length >= teamMin;
@@ -3276,7 +3289,7 @@ function renderManage() {
   } else {
     regBody = '<p class="text-xs text-gray-400">Pas encore inscrit : crée ou rejoins une équipe ci-dessus.</p>';
   }
-  sections.push(manageSection(isTeam ? '4 · Inscription et paiement' : '2 · Inscription et paiement', regBody));
+  sections.push(manageSection(isTeam ? '4 · Inscription et paiement' : '2 · Inscription et paiement', `${regBody}${paymentActions(t.id)}`));
 
   box.innerHTML = `
     <div class="flex items-start gap-3">
@@ -3424,6 +3437,7 @@ function renderMyRegistrations() {
             ${team ? '' : `<button onclick="leaveEvent('${p.tournament_id}')" class="text-[10px] font-bold text-red-400 hover:text-red-300">Quitter l’évènement</button>`}
           </div>
         </div>
+        ${paymentActions(p.tournament_id)}
       </div>`;
   }).join('');
   box.innerHTML = participationCards + visible.map((reg) => {
@@ -3446,7 +3460,7 @@ function renderMyRegistrations() {
             <button onclick="cancelRegistration('${reg.id}')" class="text-[10px] font-bold text-red-400 hover:text-red-300">Annuler</button>
           </div>
         </div>
-        <div class="flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-2">${paymentBadge(reg.payment_status)}${registrationPaymentBlock(reg)}</div>
+        <div class="flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-2">${paymentBadge(reg.payment_status)}${paymentActions(reg.tournament_id)}</div>
       </div>`;
   }).join('');
 }
@@ -4560,7 +4574,8 @@ function editTournament(id) {
   $('editBanner').value = t.banner_url || '';
   $('editLogo').value = t.logo_url || '';
   $('editToornament').value = t.toornament_url || '';
-  $('editPaymentUrl').value = t.payment_url || '';
+  $('editTicketPlayer').value = t.ticket_url_player || '';
+  $('editTicketTeam').value = t.ticket_url_team || '';
   $('editPaymentInstructions').value = t.payment_instructions || '';
   $('editPublished').checked = !!t.published;
   syncEditTournamentFormat(true);
@@ -4771,7 +4786,8 @@ async function saveTournament() {
     logo_url: safeUrl($('editLogo').value) || null,
     toornament_url: toornamentUrl || null,
     toornament_id: toornamentIdFromUrl(toornamentUrl),
-    payment_url: safeUrl($('editPaymentUrl').value) || null,
+    ticket_url_player: safeUrl($('editTicketPlayer').value) || null,
+    ticket_url_team: safeUrl($('editTicketTeam').value) || null,
     payment_instructions: $('editPaymentInstructions').value.trim() || null,
     published: complete ? $('editPublished').checked : false
   };
@@ -5154,12 +5170,13 @@ async function createTournament() {
       logo_url: safeUrl($('tourLogo')?.value) || null,
       toornament_url: toornamentUrl || null,
       toornament_id: toornamentIdFromUrl(toornamentUrl),
-      payment_url: safeUrl($('tourPaymentUrl').value) || null,
+      ticket_url_player: safeUrl($('tourTicketPlayer').value) || null,
+      ticket_url_team: safeUrl($('tourTicketTeam').value) || null,
       payment_instructions: $('tourPaymentInstructions').value.trim() || null
     }).select('id').single();
     if (error) throw new Error(error.message);
     ['tourName', 'tourBanner', 'tourToornament', 'tourPrizeFirst', 'tourPrizeSecond', 'tourPrizeThird',
-      'tourFee', 'tourPaymentUrl', 'tourPaymentInstructions', 'tourMax', 'tourEnd'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
+      'tourFee', 'tourTicketPlayer', 'tourTicketTeam', 'tourPaymentInstructions', 'tourMax', 'tourEnd'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
     if (bo9 || nineWorlds) {
       if ($('tourFormatType')) $('tourFormatType').value = 'single';
       document.querySelectorAll('.bo9-game').forEach((select) => { select.value = ''; });
