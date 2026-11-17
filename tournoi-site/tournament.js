@@ -3617,6 +3617,13 @@ function syncBo9Slots() {
     [...qualifiers.options].forEach((opt) => { opt.disabled = Number(opt.value) > size; });
     if (Number(qualifiers.value) > size) qualifiers.value = String(size);
   }
+  const hint = $('tourBo9SlotsHint');
+  if (hint) {
+    const qualified = pools * (Number(qualifiers?.value) || 2);
+    const bracketSize = nextPowerOfTwo(qualified);
+    hint.textContent = `${pools * size} places (${pools} poules de ${size}) · ${qualified} qualifiés → tableau de ${bracketSize}`
+      + (bracketSize > qualified ? ' (exemptions)' : '');
+  }
 }
 
 const STANDARD_FORMAT_LABELS = {
@@ -3664,9 +3671,18 @@ function syncStandardSlots() {
   }
   const hint = $('tourStdSlotsHint');
   if (hint) {
-    hint.textContent = `${pools * size} places (${pools} poules de ${size}) · tableau à ${bracketTeams} qualifiés`
+    const bracketSize = nextPowerOfTwo(bracketTeams);
+    hint.textContent = `${pools * size} places (${pools} poules de ${size}) · ${bracketTeams} qualifiés → tableau de ${bracketSize}`
+      + (bracketSize > bracketTeams ? ' (exemptions)' : '')
       + (powerOfTwo ? '' : ' · double élimination indisponible (tableau non puissance de 2).');
   }
+}
+
+// Taille de tableau immédiatement supérieure (puissance de 2, minimum 2).
+function nextPowerOfTwo(value) {
+  let size = 2;
+  while (size < value) size *= 2;
+  return size;
 }
 
 function toggleTournamentFormat() {
@@ -4328,6 +4344,7 @@ function editTournament(id) {
   $('editTeamSize').value = String(bo9 ? 5 : size);
   $('editTeamSize').disabled = bo9;
   $('editTeamSize').title = bo9 ? 'Format BO9 : équipes de 5 joueurs' : '';
+  $('editFormat').value = ['online', 'lan', 'both'].includes(t.format) ? t.format : 'online';
   $('editMax').value = t.max_participants || '';
   $('editFee').value = Number(t.entry_fee_cents) > 0 ? (Number(t.entry_fee_cents) / 100).toFixed(2) : '';
   $('editPrizeFirst').value = t.prize_first || t.prize || '';
@@ -4414,6 +4431,7 @@ async function saveTournament() {
   const patch = {
     ...formatPatch,
     name,
+    format: ['online', 'lan', 'both'].includes($('editFormat').value) ? $('editFormat').value : 'online',
     mode: cfg ? 'team' : (size === 1 ? 'solo' : 'team'),
     team_min: size,
     team_max: size,

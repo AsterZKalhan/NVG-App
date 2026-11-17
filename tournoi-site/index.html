@@ -452,7 +452,10 @@
                   <select id="tourStdQualifiers" onchange="syncStandardSlots()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
                     <option value="1">1 qualifié</option>
                     <option value="2" selected>2 qualifiés</option>
+                    <option value="3">3 qualifiés</option>
                     <option value="4">4 qualifiés</option>
+                    <option value="5">5 qualifiés</option>
+                    <option value="6">6 qualifiés</option>
                   </select>
                 </div>
                 <div id="tourStdRoundsWrap" class="hidden">
@@ -522,12 +525,17 @@
                 </label>
                 <label class="block">
                   <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Qualifiés par poule</span>
-                  <select id="tourBo9Qualifiers" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+                  <select id="tourBo9Qualifiers" onchange="syncBo9Slots()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
                     <option value="1">1 équipe</option>
                     <option value="2" selected>2 équipes</option>
+                    <option value="3">3 équipes</option>
+                    <option value="4">4 équipes</option>
+                    <option value="5">5 équipes</option>
+                    <option value="6">6 équipes</option>
                   </select>
                 </label>
               </div>
+              <span id="tourBo9SlotsHint" class="block text-[9px] text-gray-500"></span>
               <div class="space-y-3">
                 <div>
                   <p class="mb-1.5 text-[10px] font-black uppercase tracking-wider text-amber-400">🛡️ Collectif — 5v5</p>
@@ -669,6 +677,14 @@
               <option value="4">Équipe de 4 joueurs</option>
               <option value="5">Équipe de 5 joueurs</option>
               <option value="6">Équipe de 6 joueurs</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Type de tournoi</span>
+            <select id="editFormat" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+              <option value="online">En ligne</option>
+              <option value="lan">LAN</option>
+              <option value="both">En ligne et LAN</option>
             </select>
           </label>
           <label class="block">
