@@ -2981,7 +2981,7 @@ function openSignup(tournamentId) {
     return;
   }
   const panel = $('signupPanel');
-  panel.classList.remove('hidden');
+  openSignupModal();
   panel.innerHTML = `
     ${signupHeader(t)}
     <p class="text-xs text-gray-300">Tu viens jouer ou accompagner un joueur ?</p>
@@ -3038,8 +3038,18 @@ function openPlayerSignup(tournamentId) {
   panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+function openSignupModal() {
+  const modal = $('signupModal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  document.body.classList.add('overflow-hidden');
+}
+
 function closeSignup() {
-  $('signupPanel').classList.add('hidden');
+  const modal = $('signupModal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+  document.body.classList.remove('overflow-hidden');
   $('signupPanel').innerHTML = '';
 }
 

@@ -129,7 +129,6 @@
         <div id="calendarList" class="mt-4 space-y-2"></div>
       </div>
       <div id="tournamentsList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-      <div id="signupPanel" class="hidden bg-[#121722] border border-amber-500/40 rounded-2xl p-6 space-y-4"></div>
     </section>
 
     <!-- MON ESPACE -->
@@ -950,6 +949,12 @@
           <button onclick="closeManage()" class="px-2 py-1 text-gray-400 hover:text-white text-sm" aria-label="Fermer">✕</button>
         </div>
         <div id="manageModalBody" class="overflow-y-auto p-5 space-y-4"></div>
+      </div>
+    </div>
+    <div id="signupModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeSignup()"></div>
+      <div class="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-amber-500/40 bg-[#0b0f17] shadow-2xl">
+        <div id="signupPanel" class="overflow-y-auto p-5 space-y-4"></div>
       </div>
     </div>
     <div id="tournamentModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
