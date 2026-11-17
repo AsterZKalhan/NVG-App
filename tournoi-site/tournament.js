@@ -4607,7 +4607,6 @@ function editTournament(id) {
   $('editTicketTeam').value = t.ticket_url_team || '';
   $('editTicketCompanion').value = t.ticket_url_companion || '';
   $('editPaymentInstructions').value = t.payment_instructions || '';
-  $('editPublished').checked = !!t.published;
   syncEditTournamentFormat(true);
   const panel = $('adminEdit');
   panel.classList.remove('hidden');
@@ -4789,9 +4788,11 @@ async function saveTournament() {
     maxParticipants = maxRaw ? parseInt(maxRaw, 10) : null;
   }
 
-  if (targetType === 'bo9' && !complete && $('editPublished').checked) {
+  const forcedDraft = targetType === 'bo9' && !complete;
+  if (forcedDraft && $('editStatus').value !== 'draft') {
     notify('Tournoi laissé en brouillon : choisis les 9 jeux avant de le publier.');
   }
+  const status = forcedDraft ? 'draft' : $('editStatus').value;
   const bannerUrl = safeUrl($('editBanner').value);
   const toornamentUrl = safeUrl($('editToornament').value);
   const patch = {
@@ -4802,7 +4803,7 @@ async function saveTournament() {
     mode,
     team_min: size,
     team_max: size,
-    status: $('editStatus').value,
+    status,
     max_participants: maxParticipants,
     entry_fee_cents: eurosToCents($('editFee').value),
     prize_first: $('editPrizeFirst').value.trim() || null,
@@ -4820,7 +4821,7 @@ async function saveTournament() {
     ticket_url_team: safeUrl($('editTicketTeam').value) || null,
     ticket_url_companion: safeUrl($('editTicketCompanion').value) || null,
     payment_instructions: $('editPaymentInstructions').value.trim() || null,
-    published: complete ? $('editPublished').checked : false
+    published: status !== 'draft'
   };
   try {
     const { error } = await supabaseClient.from('nvg_tournaments').update(patch).eq('id', editedId);
@@ -5133,7 +5134,7 @@ async function createTournament() {
   let mode = 'solo';
   let teamSize = parseInt($('tourTeamSize').value, 10) || 1;
   let maxParticipants = parseInt($('tourMax').value, 10) || null;
-  let published = $('tourPublished').checked;
+  let status = $('tourStatus').value;
   if (bo9) {
     formatConfig = bo9FormConfig();
     if (!formatConfig) return;
@@ -5142,7 +5143,7 @@ async function createTournament() {
     teamSize = 5;
     maxParticipants = Number(formatConfig.pool_count) * Number(formatConfig.pool_size);
     if (!formatConfig.complete) {
-      published = false;
+      status = 'draft';
       notify('Tournoi enregistré en brouillon : choisis les 9 jeux avant de le publier.');
     }
   } else {
@@ -5195,8 +5196,8 @@ async function createTournament() {
       starts_at: startValue ? new Date(startValue).toISOString() : null,
       ends_at: endValue ? new Date(endValue).toISOString() : null,
       registration_closes_at: $('tourClose').value ? new Date($('tourClose').value).toISOString() : null,
-      status: $('tourStatus').value,
-      published,
+      status,
+      published: status !== 'draft',
       banner_url: bannerUrl || null,
       logo_url: safeUrl($('tourLogo')?.value) || null,
       toornament_url: toornamentUrl || null,

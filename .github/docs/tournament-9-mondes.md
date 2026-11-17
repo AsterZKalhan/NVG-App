@@ -463,9 +463,11 @@ Détail des menus **Nouveau tournoi** et **Gestion des tournois** :
   **🗑️ supprimer définitivement l'inscription** (après confirmation ; l'équipe
   éventuelle n'est pas supprimée et peut être réinscrite).
 
-Créer un tournoi en `draft` non publié permet de préparer la fiche avant
-ouverture. Pour rendre les inscriptions possibles : statut `open` **et**
-`published` coché.
+Il n'y a plus de case « Publier » : un tournoi est publié dès que son statut
+n'est pas `draft`. Le statut `draft` (Brouillon) le masque du site et de l'app ;
+il sert à préparer la fiche avant ouverture. Pour rendre les inscriptions
+possibles : statut `open`. Un tournoi BO9 dont les 9 jeux ne sont pas choisis
+est enregistré en brouillon.
 
 ## Visuels des jeux (bucket `games-img`)
 
