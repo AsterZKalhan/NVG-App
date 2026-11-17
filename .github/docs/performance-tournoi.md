@@ -49,9 +49,8 @@ et 2 000 participations. Il est déclenché à chaque action admin.
 - **Fait** : moins de données au démarrage. Les matchs sont lus avec la liste des colonnes
   utiles (au lieu de `*`), et l'onglet tournoi de l'application ne demande que les matchs des
   tournois publiés (`.in('tournament_id', …)`).
-- **Reste** : l'application charge encore le compilateur Tailwind du CDN (à précompiler comme
-  le site du tournoi), réduction des listes admin (pagination ou recherche serveur), rendu
-  ciblé après action.
+- **Reste** : compression gzip côté hébergement, réduction des listes admin (pagination ou
+  recherche serveur), rendu ciblé après action.
 
 ## Mesures en production (17 novembre 2026)
 
@@ -60,7 +59,7 @@ Relevé Chrome (cache vidé, réseau réel), en Ko transférés :
 | Page | Total | Scripts | CSS | Images | Requêtes |
 |---|---|---|---|---|---|
 | Site du tournoi | 352 | 245 | 26 | 40 | 19 |
-| Application | 540 → ~385 | 148 | 1 | 307 → ~150 | 30 |
+| Application | 540 → 411 | 148 | 1 → 28 | 307 → 185 | 30 |
 
 - **Hébergement sans compression** : le serveur (Apache) envoie `tournament.js` brut
   (197 Ko). Avec gzip, le même fichier ferait environ 50 Ko. C'est le plus gros gain
@@ -68,9 +67,9 @@ Relevé Chrome (cache vidé, réseau réel), en Ko transférés :
   `.htaccess` avec `mod_deflate`) et non dans le dépôt.
 - **Application** : `logo-nvg.png` était affiché à 200 px maximum mais servi en 1983×1692
   (188 Ko) ; ramené à 400 px (67 Ko). `favicon.png` (512 px, 59 Ko) ramené à 180 px (25 Ko).
-  Ces deux images représentaient près de la moitié des octets de l'application.
-- **Tailwind de l'application** : encore chargé depuis le CDN et compilé dans le navigateur.
-  À précompiler comme le site du tournoi (étape suivante, avec vérification visuelle).
+- **Application** : le compilateur Tailwind du CDN (≈ 398 Ko, non compté dans la mesure
+  ci-dessus car bloqué par le poste de test) est remplacé par `tailwind.css` compilé
+  (28 Ko). Il n'y a plus de compilation CSS dans le navigateur.
 
 ## Pistes, par gain attendu
 
