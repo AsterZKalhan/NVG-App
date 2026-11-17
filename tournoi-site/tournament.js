@@ -4755,7 +4755,8 @@ function adminTournamentStats(t) {
 }
 
 let adminSelectedTournamentId = localStorage.getItem('nvg_admin_tournament') || null;
-let adminTab = 'manage';
+let adminTab = localStorage.getItem('nvg_admin_subtab') || 'manage';
+let adminTabRestored = false;
 
 const ADMIN_TABS = [
   { key: 'manage', label: '⚙️ Gestion tournoi' },
@@ -4809,11 +4810,12 @@ function applyAdminView() {
   });
 }
 
-function selectAdminTab(name) {
+function selectAdminTab(name, options = {}) {
   const t = tournamentById(adminSelectedTournamentId);
   if (!t) return;
   adminTab = adminTabsFor(t).some((tab) => tab.key === name) ? name : 'manage';
-  $('adminWorkspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  localStorage.setItem('nvg_admin_subtab', adminTab);
+  if (options.scroll !== false) $('adminWorkspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   if (adminTab === 'players' || adminTab === 'teams') {
     viewingTeamsTournamentId = t.id;
     renderAdminTeams();
@@ -4860,6 +4862,7 @@ function renderAdminTournaments() {
   if (adminSelectedTournamentId) localStorage.setItem('nvg_admin_tournament', adminSelectedTournamentId);
   const current = tournamentById(adminSelectedTournamentId);
   if (!current || !adminTabsFor(current).some((tab) => tab.key === adminTab)) adminTab = 'manage';
+  localStorage.setItem('nvg_admin_subtab', adminTab);
   if (nav) {
     nav.innerHTML = rows.length
       ? rows.map((t) => `<button onclick="selectAdminTournament('${t.id}')" class="w-full rounded-lg border px-3 py-2 text-left transition ${t.id === adminSelectedTournamentId ? 'border-amber-500/60 bg-amber-500/10' : 'border-[#1f293d] bg-[#07090e] hover:bg-white/5'}">
@@ -4907,6 +4910,11 @@ function renderAdminTournaments() {
   ensureAdminWorkspace();
   renderAdminTabs();
   applyAdminView();
+  // Au premier affichage, rouvre l'onglet mémorisé (ses données sont alors chargées).
+  if (!adminTabRestored) {
+    adminTabRestored = true;
+    if (adminTab !== 'manage') selectAdminTab(adminTab, { scroll: false });
+  }
 }
 
 // --- Admin : équipes et joueurs d'un tournoi en équipe ---
