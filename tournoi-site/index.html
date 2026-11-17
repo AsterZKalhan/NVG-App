@@ -680,6 +680,19 @@
             <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Nom du tournoi</span>
             <input id="editName" placeholder="Nom du tournoi" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
           </label>
+          <label class="sm:col-span-2 block">
+            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Format du tournoi</span>
+            <select id="editTournamentType" onchange="syncEditTournamentFormat()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+              <option value="single">Un jeu — format standard</option>
+              <option value="bo9">Décathlon — 9 jeux avec points (BO9)</option>
+              <option value="nine_worlds">Tournoi des 9 Mondes — un jeu par tour</option>
+            </select>
+            <span id="editFormatWarning" class="mt-1 hidden block text-[10px] text-amber-400">⚠️ Changer de format effacera tous les matchs existants lors de l’enregistrement.</span>
+          </label>
+          <label id="editGameWrap" class="hidden block">
+            <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Jeu du tournoi</span>
+            <select id="editGame" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white"></select>
+          </label>
           <label class="block">
             <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Format de jeu</span>
             <select id="editTeamSize" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">

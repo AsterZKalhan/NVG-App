@@ -112,6 +112,15 @@ Le formulaire **➕ Nouveau tournoi** commence par un menu **Format du tournoi**
   Un tournoi standard sans `game_id` mais avec des `round_games` (le ZZ admin)
   est reconnu comme Tournoi des 9 Mondes.
 
+  Ce choix n'est plus figé à la création : **✏️ Modifier le tournoi** propose
+  le même sélecteur de format. Changer de format demande confirmation et efface
+  tous les matchs existants du tournoi (poules, tableau et scores) avant de
+  reconstruire la configuration. Le format standard réutilise le jeu choisi
+  dans le sélecteur « Jeu du tournoi » ; le passage au Décathlon propose les
+  9 jeux à renseigner, et le Tournoi des 9 Mondes reprend ses réglages de
+  poules et ses jeux par tour. Sans changement de format, la configuration est
+  conservée telle quelle.
+
 ### Les 9 jeux et le barème
 
 Les 9 jeux sont choisis à la création, répartis en trois catégories de trois
