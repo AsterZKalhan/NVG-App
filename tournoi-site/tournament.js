@@ -1072,6 +1072,7 @@ function bo9PoolStandings(groupName, cfg, matches) {
 function bo9PoolTable(groupName, cfg, matches) {
   const standings = bo9PoolStandings(groupName, cfg, matches);
   const qualifiers = Number(cfg?.qualifiers_per_pool) || 2;
+  const expectedRounds = poolExpectedRounds(matches.filter((m) => m.phase === 'pool' && m.group_name === groupName));
   return `
     <div class="overflow-hidden rounded-xl border border-[#1f293d] bg-[#07090e]">
       <p class="border-b border-[#1f293d] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-amber-300">Poule ${escapeHtml(groupName)}</p>
@@ -1093,7 +1094,7 @@ function bo9PoolTable(groupName, cfg, matches) {
           ${standings.map((r, i) => `<tr class="border-t border-[#1f293d]">
             <td class="px-2 py-1 text-gray-500">${i + 1}</td>
             <td class="max-w-[9rem] truncate px-2 py-1 font-bold text-gray-200">${escapeHtml(teamLabelById(r.id))}</td>
-            <td class="px-1 py-1 text-center text-gray-400">${r.played}</td>
+            <td class="px-1 py-1 text-center ${expectedRounds.get(r.id) > 0 && r.played >= expectedRounds.get(r.id) ? 'font-black text-blue-400' : 'text-gray-400'}">${r.played}</td>
             <td class="px-1 py-1 text-center text-gray-400">${r.wins}</td>
             <td class="px-1 py-1 text-center text-gray-400">${r.draws}</td>
             <td class="px-1 py-1 text-center text-gray-400">${r.losses}</td>
@@ -2201,14 +2202,24 @@ function standardStandings(matches) {
     || y.scored - x.scored);
 }
 
+// Nombre de matchs de poule prévus pour chaque équipe. Une équipe a fini ses
+// rounds dès qu'elle a joué tous les matchs où elle est engagée.
+function poolExpectedRounds(poolMatches) {
+  const expected = new Map();
+  poolMatches.forEach((m) => {
+    [m.team_a, m.team_b].forEach((id) => {
+      if (id) expected.set(id, (expected.get(id) || 0) + 1);
+    });
+  });
+  return expected;
+}
+
 function standardStandingsTable(matches, qualifiersPerPool) {
   const rows = standardStandings(matches);
   if (!rows.length) return '';
   // Points des qualifiés en vert, des autres en rouge (rang dans le classement).
   const qualifiers = Number(qualifiersPerPool) || 2;
-  // Poule terminée (tous ses matchs joués) : le nombre de rounds passe en bleu.
-  const pool = matches.filter((m) => m.phase === 'pool');
-  const poolDone = pool.length > 0 && pool.every((m) => m.status === 'finished');
+  const expectedRounds = poolExpectedRounds(matches.filter((m) => m.phase === 'pool'));
   return `
     <div class="overflow-hidden rounded-xl border border-[#1f293d] bg-[#07090e]">
       <table class="text-[10px]" style="width:100%;table-layout:fixed">
@@ -2227,7 +2238,7 @@ function standardStandingsTable(matches, qualifiersPerPool) {
         <tbody>
           ${rows.map((r, i) => `<tr class="border-t border-[#1f293d]">
             <td class="truncate px-2 py-1 font-bold text-gray-200">${escapeHtml(teamLabelById(r.id))}</td>
-            <td class="px-1 py-1 text-center ${poolDone ? 'font-black text-blue-400' : 'text-gray-400'}">${r.played}</td>
+            <td class="px-1 py-1 text-center ${expectedRounds.get(r.id) > 0 && r.played >= expectedRounds.get(r.id) ? 'font-black text-blue-400' : 'text-gray-400'}">${r.played}</td>
             <td class="px-1 py-1 text-center text-gray-400">${r.wins}</td>
             <td class="px-1 py-1 text-center text-gray-400">${r.draws}</td>
             <td class="px-1 py-1 text-center text-gray-400">${r.losses}</td>
