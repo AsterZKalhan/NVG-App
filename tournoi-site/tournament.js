@@ -558,7 +558,7 @@ async function loadPublic() {
     supabaseClient.from('nvg_tournament_games').select('*').order('name'),
     supabaseClient.from('nvg_tournaments').select('*').order('starts_at', { ascending: true, nullsFirst: false }),
     supabaseClient.from('nvg_tournament_registrations_public').select('tournament_id,status'),
-    supabaseClient.from('nvg_tournament_teams_public').select('id,tournament_id,name,tag,member_count'),
+    supabaseClient.from('nvg_tournament_teams_public').select('id,tournament_id,name,tag,logo_url,member_count'),
     supabaseClient.from('nvg_tournament_matches').select(MATCH_COLUMNS).order('created_at', { ascending: true })
   ]);
   games = g.data || [];
@@ -923,6 +923,13 @@ function teamLabelById(id) {
   if (!id) return 'À déterminer';
   const tag = teamTagById(id);
   return tag ? `${teamNameById(id)} [${tag}]` : teamNameById(id);
+}
+
+// Logo d'une équipe, affiché juste avant son nom dans les arbres et les cartes de match.
+function teamLogoHtml(id, sizeClass = 'h-4 w-4') {
+  if (!id) return '';
+  const logo = safeUrl(publicTeams.find((x) => x.id === id)?.logo_url) || './Logos/no-logo.jpeg';
+  return `<img src="${logo}" alt="" onerror="this.onerror=null;this.src='./Logos/no-logo.jpeg'" class="${sizeClass} shrink-0 rounded object-cover">`;
 }
 
 // Format d'un jeu dans le BO9, affiché sous son nom.
@@ -2316,8 +2323,8 @@ function standardPublicMatchCard(m, labelText = '', showGame = true) {
       ${showGame ? standardRoundGameTag(m) : ''}
       <div class="mt-0.5 flex items-center justify-between gap-2">
         <div class="min-w-0 space-y-0.5">
-          <p class="truncate text-[11px] font-bold ${winnerA ? 'text-emerald-300' : 'text-gray-200'}">${escapeHtml(teamLabelById(m.team_a))}</p>
-          <p class="truncate text-[11px] font-bold ${winnerB ? 'text-emerald-300' : 'text-gray-200'}">${escapeHtml(teamLabelById(m.team_b))}</p>
+          <p class="flex min-w-0 items-center gap-1.5 text-[11px] font-bold ${winnerA ? 'text-emerald-300' : 'text-gray-200'}">${teamLogoHtml(m.team_a)}<span class="truncate">${escapeHtml(teamLabelById(m.team_a))}</span></p>
+          <p class="flex min-w-0 items-center gap-1.5 text-[11px] font-bold ${winnerB ? 'text-emerald-300' : 'text-gray-200'}">${teamLogoHtml(m.team_b)}<span class="truncate">${escapeHtml(teamLabelById(m.team_b))}</span></p>
         </div>
         <p class="shrink-0 text-sm font-black ${finished ? 'text-white' : 'text-gray-500'}">${exempt && !m.team_a && !m.team_b ? '' : standardMatchScore(m)}</p>
       </div>
@@ -2364,7 +2371,7 @@ const TREE_LINE = '#334155';
 function standardTreeCard(m) {
   const finished = m.status === 'finished';
   const row = (team, score, winner) => `<div class="flex items-center justify-between gap-2 px-2 ${winner ? 'font-black text-emerald-300' : 'text-gray-300'}" style="height:${TREE_CARD_PX / 2 - 1}px">
-    <span class="truncate text-[10px]">${escapeHtml(team ? teamLabelById(team) : (m.team_a || m.team_b ? 'Exempt' : 'À déterminer'))}</span>
+    <span class="flex min-w-0 items-center gap-1.5 text-[10px]">${teamLogoHtml(team, 'h-3.5 w-3.5')}<span class="truncate">${escapeHtml(team ? teamLabelById(team) : (m.team_a || m.team_b ? 'Exempt' : 'À déterminer'))}</span></span>
     <span class="shrink-0 text-[10px] font-black">${finished && team ? formatPoints(score) : ''}</span>
   </div>`;
   const winA = finished && m.winner_team && m.winner_team === m.team_a;
@@ -2608,11 +2615,11 @@ function adminStandardMatchCard(m, labelText = '') {
     <div class="rounded-lg border border-[#1f293d] bg-[#121722] px-2.5 py-2">
       ${labelText ? `<p class="mb-1 text-[9px] font-black uppercase tracking-wider text-gray-500">${escapeHtml(labelText)}</p>` : ''}
       <div class="flex flex-wrap items-center gap-2">
-        <span class="min-w-0 flex-1 truncate text-[10px] font-bold text-gray-200">${escapeHtml(teamLabelById(m.team_a))}</span>
+        <span class="flex min-w-0 flex-1 items-center gap-1.5 text-[10px] font-bold text-gray-200">${teamLogoHtml(m.team_a, 'h-4 w-4')}<span class="truncate">${escapeHtml(teamLabelById(m.team_a))}</span></span>
         <input id="std-m-${m.id}-a" type="number" min="0" ${maxAttr} value="${finished ? formatPoints(m.points_a) : ''}" aria-label="Score équipe A" class="w-14 rounded border border-[#1f293d] bg-[#07090e] px-1.5 py-1 text-center text-[11px] text-white">
         <span class="text-gray-500">–</span>
         <input id="std-m-${m.id}-b" type="number" min="0" ${maxAttr} value="${finished ? formatPoints(m.points_b) : ''}" aria-label="Score équipe B" class="w-14 rounded border border-[#1f293d] bg-[#07090e] px-1.5 py-1 text-center text-[11px] text-white">
-        <span class="min-w-0 flex-1 truncate text-right text-[10px] font-bold text-gray-200">${escapeHtml(teamLabelById(m.team_b))}</span>
+        <span class="flex min-w-0 flex-1 items-center justify-end gap-1.5 text-right text-[10px] font-bold text-gray-200">${teamLogoHtml(m.team_b, 'h-4 w-4')}<span class="truncate">${escapeHtml(teamLabelById(m.team_b))}</span></span>
         <button onclick="saveStandardMatchResult('${m.id}')" class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-300 transition hover:bg-amber-500/20">Enregistrer</button>
       </div>
     </div>`;
