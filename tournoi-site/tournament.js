@@ -6227,8 +6227,9 @@ function applyPendingJoin() {
 }
 
 async function showProfile() {
-  $('accountName').textContent = currentUser.email || '';
-  $('memberSubtitle').textContent = currentUser.email || '';
+  // Le pseudo mémorisé reste affiché : l'e-mail n'apparaît qu'en l'absence de pseudo connu.
+  if (!$('accountName').textContent) $('accountName').textContent = currentUser.email || '';
+  if (!$('memberSubtitle').textContent) $('memberSubtitle').textContent = currentUser.email || '';
   try {
     const { data } = await supabaseClient.from('nvg_users')
       .select('name,first_name,last_name,birth_date')
