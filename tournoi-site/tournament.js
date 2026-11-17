@@ -1074,7 +1074,8 @@ function bo9PoolTable(groupName, cfg, matches) {
   return `
     <div class="overflow-hidden rounded-xl border border-[#1f293d] bg-[#07090e]">
       <p class="border-b border-[#1f293d] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-amber-300">Poule ${escapeHtml(groupName)}</p>
-      <table class="w-full text-[10px]">
+      <table class="w-full table-fixed text-[10px]">
+        <colgroup><col class="w-8"><col><col class="w-9"><col class="w-9"><col class="w-9"><col class="w-9"><col class="w-12"><col class="w-14"></colgroup>
         <thead class="text-gray-500">
           <tr>
             <th class="px-2 py-1 text-left font-bold">#</th>
@@ -2204,7 +2205,8 @@ function standardStandingsTable(matches) {
   if (!rows.length) return '';
   return `
     <div class="overflow-hidden rounded-xl border border-[#1f293d] bg-[#07090e]">
-      <table class="w-full text-[10px]">
+      <table class="w-full table-fixed text-[10px]">
+        <colgroup><col><col class="w-9"><col class="w-9"><col class="w-9"><col class="w-9"><col class="w-12"><col class="w-14"></colgroup>
         <thead class="bg-white/5 text-gray-400">
           <tr>
             <th class="px-2 py-1 text-left font-black">Équipe</th>
