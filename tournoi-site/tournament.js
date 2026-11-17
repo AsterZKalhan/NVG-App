@@ -2572,9 +2572,52 @@ async function loadFicheRoster(tournamentId) {
     + (rows.length ? sortTeamsForDisplay(rows, (r) => r.status, (r) => r.name).map((r) => rosterCard(t, r)).join('') : '<p class="text-xs text-gray-500">Aucune inscription pour le moment.</p>');
 }
 
+// Squelette d'un tournoi standard sans matchs : poules et tableau vides, en attendant
+// les équipes. Les places restent « À déterminer » jusqu'à la génération des matchs.
+function standardSkeletonHtml(t) {
+  const cfg = t?.format_config || {};
+  const format = standardFormat(t);
+  if (!['single_elim', 'double_elim', 'groups_playoffs'].includes(format)) return '';
+  const letters = 'ABCDEFGH';
+  let html = '';
+  if (format === 'groups_playoffs') {
+    const pools = Number(cfg.pool_count) || 2;
+    const size = Number(cfg.pool_size) || 4;
+    html += `<div class="space-y-2">
+      <h3 class="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">🏟️ Poules</h3>
+      <div class="grid gap-2 sm:grid-cols-2">
+        ${Array.from({ length: pools }, (_, i) => `<div class="rounded-xl border border-dashed border-[#1f293d] bg-[#07090e] p-3">
+          <p class="mb-2 text-[10px] font-black uppercase tracking-wider text-gray-400">Poule ${letters[i] || i + 1} · ${size} équipe(s)</p>
+          ${Array.from({ length: size }, (_, j) => `<div class="flex items-center gap-2 border-t border-[#1f293d] py-1.5 text-[10px] text-gray-600"><span class="w-4 font-black">${j + 1}</span><span>À déterminer</span></div>`).join('')}
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+  const rounds = Math.log2(standardTreeSize(t));
+  const phase = format === 'double_elim' || cfg.tree === 'double' ? 'winners' : 'bracket';
+  const skeleton = [];
+  for (let r = 1; r <= rounds; r += 1) {
+    const count = 2 ** (rounds - r);
+    for (let p = 1; p <= count; p += 1) {
+      skeleton.push({ id: `sk-${phase}-${r}-${p}`, tournament_id: t.id, phase, round: r, position: p, team_a: null, team_b: null, status: 'scheduled', points_a: null, points_b: null, winner_team: null, group_name: null, label: '' });
+    }
+  }
+  html += `<div class="space-y-2">
+    <h3 class="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">🏆 Élimination</h3>
+    ${standardBracketPublicHtml(skeleton)}
+  </div>`;
+  return html;
+}
+
 function standardCompetitionBlock(t) {
   const matches = tournamentMatches.filter((m) => m.tournament_id === t.id);
-  if (!matches.length) return '';
+  if (!matches.length) {
+    const skeleton = standardSkeletonHtml(t);
+    return skeleton ? `<div class="space-y-3">
+      <p class="text-[10px] text-gray-500">Poules et tableau prévus : les équipes seront placées dès leur confirmation.</p>
+      ${skeleton}
+    </div>` : '';
+  }
   const format = standardFormat(t);
   const pools = matches.filter((m) => m.phase === 'pool');
   const bracket = matches.filter((m) => m.phase !== 'pool');
@@ -2987,7 +3030,7 @@ function renderStandardMatchPanel(t) {
   `;
   const gamesForm = format === 'groups_playoffs' ? standardRoundGamesForm(t) : '';
   if (!matches.length) {
-    $('adminMatchBody').innerHTML = `${gamesForm}<p class="rounded-xl border border-[#1f293d] bg-[#07090e] p-3 text-xs text-gray-400">Aucun match. Génère les matchs dès que les équipes sont confirmées.</p>`;
+    $('adminMatchBody').innerHTML = `${gamesForm}${standardSkeletonHtml(t)}<p class="rounded-xl border border-[#1f293d] bg-[#07090e] p-3 text-xs text-gray-400">Aucun match. Génère les matchs dès que les équipes sont confirmées.</p>`;
   } else {
     const pools = matches.filter((m) => m.phase === 'pool')
       .sort((a, b) => a.round - b.round || standardGroupOrder(a.group_name, b.group_name) || a.position - b.position);
