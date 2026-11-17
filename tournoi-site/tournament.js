@@ -686,17 +686,39 @@ function paymentActions(tournamentId) {
   const t = tournamentById(tournamentId);
   if (!t || !(Number(t.entry_fee_cents) > 0)) return '';
   const team = t.mode === 'team' ? myTeams.find((x) => x.tournament_id === t.id) : null;
-  const playerAwaiting = ownTicketStatus(t) === 'awaiting';
-  const teamAwaiting = Boolean(team && team.captain_id === currentUser?.id && (() => {
+  const own = ownTicketStatus(t);
+  const paidNote = own === 'paid'
+    ? '<p class="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[11px] font-black text-emerald-300">✅ Vous avez déjà réglé votre inscription, See U at LT9M</p>'
+    : '';
+  const playerAwaiting = own === 'awaiting';
+  // Pass équipe : tant qu'un joueur de l'équipe n'a pas réglé, un membre peut le prendre pour tout le groupe.
+  const teamAwaiting = Boolean(team && (() => {
     const payments = teamPayments.get(team.id);
     return !payments || !payments.size || [...payments.values()].some((p) => p.payment_status === 'awaiting');
   })());
-  if (!playerAwaiting && !teamAwaiting) return '';
-  if (!paymentOpen(t)) return paymentClosedNote();
+  if (!playerAwaiting && !teamAwaiting) return paidNote;
+  if (!paymentOpen(t)) return `${paidNote}${paymentClosedNote()}`;
   const buttons = [];
   if (playerAwaiting) buttons.push(ticketButton(t.id, 'player', 'Je prends mon billet'));
   if (teamAwaiting) buttons.push(ticketButton(t.id, 'team', `Je prends un pass équipe (je paie pour les ${Number(t.team_max) || 5} joueurs de mon équipe)`));
-  return `<div class="flex flex-wrap items-center gap-2">${buttons.join('')}</div>`;
+  return `${paidNote}<div class="flex flex-wrap items-center gap-2">${buttons.join('')}</div>`;
+}
+
+// Référence renvoyée par la billetterie au retour de paiement (paramètre nvg_ref).
+function ticketReference(t, kind) {
+  if (kind === 'companion') return null;
+  if (kind === 'team') {
+    const team = myTeams.find((x) => x.tournament_id === t.id);
+    return team ? `team:${team.id}` : null;
+  }
+  return currentUser ? `player:${t.id}:${currentUser.id}` : null;
+}
+
+function withTicketReference(url, ref) {
+  if (!ref) return url;
+  const link = new URL(url);
+  link.searchParams.set('nvg_ref', ref);
+  return link.href;
 }
 
 function openTicket(tournamentId, kind) {
@@ -706,9 +728,9 @@ function openTicket(tournamentId, kind) {
     return;
   }
   const ticketUrl = kind === 'team' ? t.ticket_url_team : kind === 'companion' ? t.ticket_url_companion : t.ticket_url_player;
-  const url = externalLink(ticketUrl);
+  const url = safeUrl(ticketUrl);
   if (url) {
-    window.open(url, '_blank', 'noopener');
+    window.open(withTicketReference(url, ticketReference(t, kind)), '_blank', 'noopener');
     notify('Billetterie ouverte dans un nouvel onglet.');
     return;
   }
