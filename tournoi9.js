@@ -40,13 +40,21 @@ function t9TeamName(id) {
   return team ? `${team.name}${team.tag ? ` [${team.tag}]` : ''}` : 'Équipe';
 }
 
+// Logo de l'équipe, affiché juste avant son nom (logo par défaut sinon).
+function t9TeamLogo(id, sizeClass = 'h-4 w-4') {
+  if (!id) return '';
+  const logo = t9Teams.get(id)?.logo_url;
+  const safe = logo && /^https?:\/\//.test(logo) ? logo : './Logos/no-logo.jpeg';
+  return `<img src="${t9Esc(safe)}" alt="" onerror="this.onerror=null;this.src='./Logos/no-logo.jpeg'" class="${sizeClass} shrink-0 rounded object-cover">`;
+}
+
 async function loadTournoi9() {
   const box = document.getElementById('t9Body');
   if (!box || !supabaseClient) return;
   box.innerHTML = '<p class="text-xs text-gray-400">Chargement du tournoi…</p>';
   const [tournaments, teams, games] = await Promise.all([
     supabaseClient.from('nvg_tournaments').select('id,name,status,starts_at,ends_at,format_config').eq('published', true).neq('status', 'draft').order('starts_at', { ascending: true, nullsFirst: false }),
-    supabaseClient.from('nvg_tournament_teams_public').select('id,tournament_id,name,tag'),
+    supabaseClient.from('nvg_tournament_teams_public').select('id,tournament_id,name,tag,logo_url'),
     supabaseClient.from('nvg_tournament_games').select('id,name,logo_url')
   ]);
   const ids = (tournaments.data || []).map((t) => t.id);
@@ -94,20 +102,36 @@ function t9Standings(matches) {
     || (y.scored - y.conceded) - (x.scored - x.conceded) || y.scored - x.scored);
 }
 
-function t9Table(matches) {
+// Nombre de matchs de poule prévus pour chaque équipe (ses rounds de poule).
+function t9ExpectedRounds(poolMatches) {
+  const expected = new Map();
+  poolMatches.forEach((m) => {
+    [m.team_a, m.team_b].forEach((id) => {
+      if (id) expected.set(id, (expected.get(id) || 0) + 1);
+    });
+  });
+  return expected;
+}
+
+// Classement d'une poule. Points verts pour les qualifiés, rouges pour les autres ;
+// le nombre de rounds passe en bleu dès que l'équipe a joué tous ses matchs de poule.
+function t9Table(matches, t) {
   const rows = t9Standings(matches);
+  const qualifiers = Number(t?.format_config?.qualifiers_per_pool) || 2;
+  const expected = t9ExpectedRounds(matches);
   return `<div class="overflow-x-auto rounded-xl border border-[#1f293d] bg-[#07090e]">
-    <table class="w-full text-[11px]">
+    <table class="text-[11px]" style="width:100%;table-layout:fixed">
+      <colgroup><col><col style="width:64px"><col style="width:36px"><col style="width:36px"><col style="width:36px"><col style="width:52px"><col style="width:60px"></colgroup>
       <thead class="bg-white/5 text-gray-400">
-        <tr><th class="px-2 py-1 text-left font-black">Équipe</th><th class="px-1 py-1 text-center font-black">J</th><th class="px-1 py-1 text-center font-black">V</th><th class="px-1 py-1 text-center font-black">N</th><th class="px-1 py-1 text-center font-black">D</th><th class="px-2 py-1 text-center font-black">Pts</th><th class="px-2 py-1 text-right font-black">Diff.</th></tr>
+        <tr><th class="px-2 py-1 text-left font-black">Équipe</th><th class="px-2 py-1 text-center font-black">Round</th><th class="px-1 py-1 text-center font-black">V</th><th class="px-1 py-1 text-center font-black">N</th><th class="px-1 py-1 text-center font-black">D</th><th class="px-2 py-1 text-center font-black">Pts</th><th class="px-2 py-1 text-right font-black">Diff.</th></tr>
       </thead>
-      <tbody>${rows.map((r) => `<tr class="border-t border-[#1f293d]">
+      <tbody>${rows.map((r, i) => `<tr class="border-t border-[#1f293d]">
         <td class="truncate px-2 py-1 font-bold text-gray-200">${t9Esc(t9TeamName(r.id))}</td>
-        <td class="px-1 py-1 text-center text-gray-400">${r.played}</td>
+        <td class="px-1 py-1 text-center ${expected.get(r.id) > 0 && r.played >= expected.get(r.id) ? 'font-black text-blue-400' : 'text-gray-400'}">${r.played}</td>
         <td class="px-1 py-1 text-center text-gray-400">${r.wins}</td>
         <td class="px-1 py-1 text-center text-gray-400">${r.draws}</td>
         <td class="px-1 py-1 text-center text-gray-400">${r.losses}</td>
-        <td class="px-2 py-1 text-center font-black text-white">${r.points}</td>
+        <td class="px-2 py-1 text-center font-black ${i < qualifiers ? 'text-emerald-400' : 'text-red-400'}">${r.points}</td>
         <td class="px-2 py-1 text-right ${r.scored - r.conceded >= 0 ? 'text-emerald-400' : 'text-red-400'}">${r.scored - r.conceded > 0 ? '+' : ''}${t9Num(r.scored - r.conceded)}</td>
       </tr>`).join('')}</tbody>
     </table>
@@ -124,8 +148,8 @@ function t9MatchLine(m, label = '', t = null) {
     ${t ? t9GameTag(m, t) : ''}
     <div class="mt-0.5 flex items-center justify-between gap-2">
       <div class="min-w-0 space-y-0.5">
-        <p class="truncate text-[11px] font-bold ${aWin ? 'text-emerald-300' : 'text-gray-200'}">${t9Esc(t9TeamName(m.team_a))}</p>
-        <p class="truncate text-[11px] font-bold ${bWin ? 'text-emerald-300' : 'text-gray-200'}">${t9Esc(t9TeamName(m.team_b))}</p>
+        <p class="flex min-w-0 items-center gap-1.5 text-[11px] font-bold ${aWin ? 'text-emerald-300' : 'text-gray-200'}">${t9TeamLogo(m.team_a)}<span class="truncate">${t9Esc(t9TeamName(m.team_a))}</span></p>
+        <p class="flex min-w-0 items-center gap-1.5 text-[11px] font-bold ${bWin ? 'text-emerald-300' : 'text-gray-200'}">${t9TeamLogo(m.team_b)}<span class="truncate">${t9Esc(t9TeamName(m.team_b))}</span></p>
       </div>
       <p class="shrink-0 text-sm font-black ${finished ? 'text-white' : 'text-gray-500'}">${score}</p>
     </div>
@@ -213,7 +237,7 @@ function t9Tree(list, t) {
     return list.filter((m) => m.round === round).sort((a, b) => a.position - b.position).map((m, p) => {
       const finished = m.status === 'finished';
       const row = (team, score, winner) => `<div class="flex items-center justify-between gap-2 px-2 ${winner ? 'font-black text-emerald-300' : 'text-gray-300'}" style="height:${CARD / 2 - 1}px">
-        <span class="truncate text-[10px]">${t9Esc(team ? t9TeamName(team) : 'À déterminer')}</span>
+        <span class="flex min-w-0 items-center gap-1.5 text-[10px]">${team ? t9TeamLogo(team, 'h-3.5 w-3.5') : ''}<span class="truncate">${t9Esc(team ? t9TeamName(team) : 'À déterminer')}</span></span>
         <span class="shrink-0 text-[10px] font-black">${finished && team ? t9Num(score) : ''}</span>
       </div>`;
       const connectors = ri < count - 1 ? `
@@ -264,7 +288,7 @@ function renderTournoi9() {
     ${groups.length ? `<div class="space-y-3">
       <h3 class="text-xs font-black uppercase tracking-wider text-white">🏟️ Classements</h3>
       <div class="grid gap-3 md:grid-cols-2">
-        ${groups.map((g) => `<div class="space-y-1.5"><p class="text-[10px] font-black uppercase tracking-wider text-gray-400">Poule ${t9Esc(g)}</p>${t9Table(pools.filter((m) => m.group_name === g))}</div>`).join('')}
+        ${groups.map((g) => `<div class="space-y-1.5"><p class="text-[10px] font-black uppercase tracking-wider text-gray-400">Poule ${t9Esc(g)}</p>${t9Table(pools.filter((m) => m.group_name === g), t)}</div>`).join('')}
       </div>
       <h3 class="text-xs font-black uppercase tracking-wider text-white">Matchs de poule</h3>
       <div class="grid gap-2 md:grid-cols-2">
