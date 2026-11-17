@@ -3288,7 +3288,7 @@ function renderMyTeams() {
           </div>` : ''}
         <div class="flex flex-wrap items-center gap-2">
           ${alreadyRegistered
-            ? `<span class="px-3 py-2 ${registration.status === 'confirmed' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-white/5 border-[#1f293d] text-gray-300'} border text-[10px] font-bold rounded-lg">${registration.status === 'confirmed' ? '✅ Présence validée' : '⏳ Équipe préinscrite'}</span><span title="Paiement de l'inscription de l'équipe">${paymentBadge(registration.payment_status)}</span>`
+            ? `<span class="px-3 py-2 ${registration.status === 'confirmed' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-white/5 border-[#1f293d] text-gray-300'} border text-[10px] font-bold rounded-lg">${registration.status === 'confirmed' ? '✅ Présence validée' : '⏳ Équipe préinscrite'}</span>${[...payments.values()].some((p) => p.payment_status === 'paid') ? '' : `<span title="Paiement de l'inscription de l'équipe">${paymentBadge(registration.payment_status)}</span>`}`
             : isCaptain
               ? `<button onclick="registerTeam('${team.id}')" ${enough ? '' : 'disabled'} class="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-[10px] rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed">Inscrire l'équipe${enough ? '' : ' (incomplète)'}</button>`
               : '<span class="px-3 py-2 bg-white/5 border border-[#1f293d] text-gray-500 text-[10px] font-bold rounded-lg">En attente du capitaine</span>'}
@@ -4625,6 +4625,17 @@ async function setPlayerPayment(tournamentId, userId, status) {
   await loadAdmin();
 }
 
+// Présence d'une équipe : validée dès qu'un de ses joueurs a réglé son billet.
+function presenceBadge() {
+  return '<span class="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-emerald-400">Présence validée</span>';
+}
+
+function teamHasPaidPlayer(r) {
+  if (!r.team_id) return false;
+  const team = adminTeams.find((x) => x.id === r.team_id);
+  return (team?.nvg_tournament_team_members || []).some((m) => adminEventPlayers.some((p) => p.tournament_id === r.tournament_id && p.user_id === m.user_id && p.payment_status === 'paid'));
+}
+
 function adminRegistrationRow(r) {
   const user = r.nvg_users || {};
   const team = r.nvg_tournament_teams;
@@ -4644,7 +4655,7 @@ function adminRegistrationRow(r) {
         </div>
         <div class="flex flex-wrap items-center gap-1.5">
           <span class="rounded-full border px-2 py-1 text-[9px] font-black uppercase ${r.status === 'confirmed' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : r.status === 'cancelled' ? 'text-gray-500 border-[#1f293d] bg-white/5' : 'text-amber-400 border-amber-500/30 bg-amber-500/10'}">${escapeHtml(REG_LABELS[r.status] || r.status)}</span>
-          ${paymentBadge(payment)}
+          ${teamHasPaidPlayer(r) ? presenceBadge() : paymentBadge(payment)}
         </div>
       </div>
       ${team ? '' : `<dl class="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] sm:grid-cols-4">
