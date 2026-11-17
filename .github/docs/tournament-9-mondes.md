@@ -526,6 +526,17 @@ Les URL sont validées (`https://…` uniquement) avant enregistrement.
 - Les compteurs d'inscrits utilisent la vue publique (inscriptions en attente et
   confirmées) ; en mode équipe, l'unité affichée est l'équipe.
 
+## Formulaire de contact
+
+Le menu supérieur du site (versions desktop et mobile) propose **✉️ Contact**.
+Le bouton ouvre une modale contenant exactement le formulaire de l'application :
+identité, objet, champs de candidature streameur quand l'objet
+« Recrutement streameur » est choisi, message, vérification anti-robot et
+honeypot. Le script `tournoi-site/contact-form.js` est une copie de
+`contact-form.js` : mêmes identifiants HTML, même Edge Function
+`contact-message`, mêmes messages enregistrés dans la boîte de réception admin
+de l'app. Aucun e-mail n'est envoyé automatiquement.
+
 ## Déploiement et vérifications
 
 ```bash
@@ -546,7 +557,10 @@ git push origin main
    **📋 Voir les inscriptions**, confirmation d'une inscription et marquage du
    paiement ;
 6. navigation : boutons Précédent/Suivant du navigateur entre les onglets et les
-   fiches, lien direct `?tab=…` / `?tournament=…`.
+   fiches, lien direct `?tab=…` / `?tournament=…` ;
+7. menu **✉️ Contact** : modale ouverte depuis le menu desktop et mobile,
+   question anti-robot chargée, bascule candidature streameur, envoi reçu dans
+   la boîte de réception admin de l'application.
 
 ## Limites connues
 

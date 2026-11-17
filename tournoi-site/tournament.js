@@ -3073,6 +3073,25 @@ function manageSection(title, body) {
 
 const MANAGE_INPUT_CLASS = 'w-full bg-[#0b0f17] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white';
 
+function openContactModal() {
+  const modal = $('contactModal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  document.body.classList.add('overflow-hidden');
+  const first = $('contactFirstName');
+  if (first) first.focus();
+}
+
+function closeContactModal() {
+  const modal = $('contactModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+  document.body.classList.remove('overflow-hidden');
+}
+
 function openManage(tournamentId) {
   if (!currentUser) {
     notify('Connecte-toi pour gérer ta participation.', true);

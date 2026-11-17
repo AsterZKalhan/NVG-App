@@ -25,6 +25,12 @@
     summary::-webkit-details-marker { display: none; }
     .round-arrow { transition: transform 150ms ease; }
     details[open] > summary .round-arrow { transform: rotate(90deg); }
+    /* Formulaire de contact : meme script que l'application. */
+    .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+    .req { color: #f87171; }
+    .status { display: none; margin-top: 4px; border-radius: 10px; padding: 10px 12px; font-size: 11px; }
+    .status.error { display: block; background: rgba(220,38,38,.1); border: 1px solid rgba(220,38,38,.35); color: #fca5a5; }
+    .status.info { display: block; background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.3); color: #fcd34d; }
   </style>
 </head>
 <body class="app-bg min-h-screen text-gray-200 antialiased">
@@ -41,6 +47,7 @@
         <nav class="hidden md:flex items-center gap-1">
           <button data-tab="home" class="tab-btn px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-gray-300 hover:text-white transition">Accueil</button>
           <button data-tab="tournaments" class="tab-btn px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-gray-300 hover:text-white transition">Tournois</button>
+          <button onclick="openContactModal()" class="px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-gray-300 hover:text-white transition">✉️ Contact</button>
           <button data-tab="account" class="tab-btn px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-gray-300 hover:text-white transition">Mon espace</button>
           <button id="navAdmin" data-tab="admin" class="tab-btn hidden px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-gray-300 hover:text-white transition">Admin</button>
         </nav>
@@ -53,6 +60,7 @@
     <nav class="md:hidden flex items-center gap-1 px-3 pb-3 overflow-x-auto">
       <button data-tab="home" class="tab-btn px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-gray-300">Accueil</button>
       <button data-tab="tournaments" class="tab-btn px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-gray-300">Tournois</button>
+      <button onclick="openContactModal()" class="px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-gray-300">✉️ Contact</button>
       <button data-tab="account" class="tab-btn px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-gray-300">Mon espace</button>
       <button id="navAdminMobile" data-tab="admin" class="tab-btn hidden px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-gray-300">Admin</button>
     </nav>
@@ -902,6 +910,106 @@
         <div id="tournamentModalBody" class="overflow-y-auto"></div>
       </div>
     </div>
+
+    <!-- FORMULAIRE DE CONTACT (meme script que l'application) -->
+    <div id="contactModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeContactModal()"></div>
+      <div class="relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[#1f293d] bg-[#0b0f17] shadow-2xl">
+        <div class="flex items-center justify-between gap-3 border-b border-[#1f293d] px-5 py-3">
+          <p class="text-[10px] font-black uppercase tracking-[0.18em] text-amber-400">✉️ Contacter l'équipe NVG</p>
+          <button onclick="closeContactModal()" class="px-2 py-1 text-gray-400 hover:text-white text-sm" aria-label="Fermer">✕</button>
+        </div>
+        <div class="overflow-y-auto p-5 space-y-4">
+          <p class="text-xs text-gray-400">Une question, une suggestion ou envie de rejoindre l'aventure NVG ? Ton message est transmis directement aux administrateurs de l'association. Aucun e-mail n'est envoyé automatiquement.</p>
+          <form id="contactForm" novalidate class="space-y-3">
+            <div class="hp" aria-hidden="true">
+              <label for="contactWebsite">Ne pas remplir ce champ</label>
+              <input type="text" id="contactWebsite" name="nvg_hp" tabindex="-1" autocomplete="off">
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label class="block">
+                <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Prénom <span class="req">*</span></span>
+                <input type="text" id="contactFirstName" name="first_name" maxlength="80" autocomplete="given-name" required class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+              </label>
+              <label class="block">
+                <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Nom <span class="req">*</span></span>
+                <input type="text" id="contactLastName" name="last_name" maxlength="80" autocomplete="family-name" required class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+              </label>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label class="block">
+                <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Pseudo (facultatif)</span>
+                <input type="text" id="contactPseudo" name="pseudo" maxlength="60" autocomplete="nickname" placeholder="Ton pseudo en ligne" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+              </label>
+              <label class="block">
+                <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">E-mail de contact <span class="req">*</span></span>
+                <input type="email" id="contactEmail" name="email" maxlength="254" autocomplete="email" placeholder="nom@exemple.com" required class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+              </label>
+            </div>
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Objet de la demande <span class="req">*</span></span>
+              <select id="contactSubject" name="subject" required class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+                <option value="">— Choisir un objet —</option>
+                <option value="Demande d'information">Demande d'information</option>
+                <option value="Recrutement streameur">Recrutement streameur</option>
+                <option value="Prise de contact">Prise de contact</option>
+                <option value="Suggestion">Suggestion</option>
+              </select>
+            </label>
+            <div id="recruitFields" style="display:none" class="space-y-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+              <p class="text-[10px] font-black uppercase tracking-wider text-amber-300">Candidature streameur</p>
+              <label class="block">
+                <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Chaîne Twitch <span class="req">*</span></span>
+                <input type="text" id="contactTwitch" name="twitch_channel" maxlength="100" autocomplete="off" placeholder="https://twitch.tv/tonpseudo ou tonpseudo" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+              </label>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label class="block">
+                  <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Instagram (facultatif)</span>
+                  <input type="text" id="contactInstagram" name="instagram" maxlength="300" autocomplete="off" placeholder="@toncompte ou lien" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+                </label>
+                <label class="block">
+                  <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">X / Twitter (facultatif)</span>
+                  <input type="text" id="contactX" name="x_account" maxlength="300" autocomplete="off" placeholder="@toncompte ou lien" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+                </label>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label class="block">
+                  <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Discord (facultatif)</span>
+                  <input type="text" id="contactDiscord" name="discord" maxlength="300" autocomplete="off" placeholder="Pseudo ou invitation Discord" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+                </label>
+                <label class="block">
+                  <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">YouTube (facultatif)</span>
+                  <input type="text" id="contactYoutube" name="youtube" maxlength="300" autocomplete="off" placeholder="@tachaine ou lien" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+                </label>
+              </div>
+            </div>
+            <label class="block">
+              <span id="contactMessageLabel" class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Message <span class="req">*</span></span>
+              <textarea id="contactMessage" name="message" maxlength="50000" placeholder="Écris ton message ici…" required rows="4" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none"></textarea>
+              <span id="contactMessageHint" class="mt-1 block text-[10px] text-gray-500">Aucune limite de caractères (dans la limite de 50 000).</span>
+            </label>
+            <div>
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Vérification anti-robot <span class="req">*</span></span>
+              <div class="flex items-end gap-2 rounded-xl border border-[#1f293d] bg-[#07090e] p-3">
+                <div class="min-w-0 flex-1">
+                  <div id="contactCaptchaQuestion" class="text-xs font-bold text-white">Chargement de la question…</div>
+                  <input type="number" id="contactCaptchaAnswer" inputmode="numeric" autocomplete="off" placeholder="Ta réponse" aria-label="Réponse à la vérification anti-robot" class="mt-1 w-full bg-[#0b0f17] border border-[#1f293d] rounded-lg px-2 py-1.5 text-xs text-white focus:border-red-600 focus:outline-none">
+                </div>
+                <button type="button" id="contactCaptchaRefresh" title="Changer de question" class="shrink-0 rounded-lg border border-[#1f293d] px-2 py-1.5 text-[10px] font-bold text-gray-400 hover:text-white">↻ Nouvelle question</button>
+              </div>
+            </div>
+            <button type="submit" id="contactSubmit" class="w-full rounded-xl bg-red-600 px-4 py-3 text-xs font-black uppercase tracking-wider text-white transition hover:bg-red-500 disabled:opacity-60">Envoyer le message</button>
+            <div id="contactStatus" class="status" role="status" aria-live="polite"></div>
+          </form>
+          <div id="contactSuccess" style="display:none" class="space-y-3 py-4 text-center">
+            <div class="text-4xl">✅</div>
+            <p class="text-base font-black uppercase tracking-wider text-white">Message envoyé</p>
+            <p class="text-xs text-gray-400">Merci ! Ton message a bien été transmis aux administrateurs de Normandy Viking Gaming.<br>Une réponse te sera apportée à l'adresse indiquée.</p>
+            <button onclick="closeContactModal()" class="rounded-xl bg-red-600 px-5 py-2.5 text-xs font-black uppercase text-white transition hover:bg-red-500">Retour au site</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <footer class="max-w-6xl mx-auto px-4 pb-8 pt-2 text-center space-y-2">
@@ -918,5 +1026,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0" defer></script>
   <script src="auth-shared.js" defer></script>
   <script src="tournament.js" defer></script>
+  <script src="contact-form.js" defer></script>
 </body>
 </html>
