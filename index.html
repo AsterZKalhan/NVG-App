@@ -711,7 +711,16 @@
 		    <button type="button" id="notifPermBtn" onclick="askForNotifications()" class="w-full py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-black font-bold text-xs uppercase transition border border-amber-500/30">
 		  	  🔔 Activer les notifications
 		    </button>
+		    <button type="button" id="notifOffBtn" onclick="disableNotifications()" class="hidden w-full py-2.5 rounded-xl bg-white/5 hover:bg-red-600 text-gray-300 hover:text-white font-bold text-xs uppercase transition border border-[#1f293d]">
+		  	  🔕 Désactiver les notifications sur cet appareil
+		    </button>
 		  </div>
+          <div class="space-y-2 border-t border-[#1f293d] pt-4">
+            <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Mes données</label>
+            <button type="button" onclick="exportMyData()" class="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-200 font-bold text-xs uppercase transition border border-[#1f293d]">
+              📦 Télécharger mes données (JSON)
+            </button>
+          </div>
           <button onclick="saveAccountChanges()" class="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider shadow-lg transition">
             Enregistrer les modifications 💾
           </button>

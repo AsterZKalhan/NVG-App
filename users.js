@@ -589,6 +589,7 @@ function updateNotifButton() {
     btn.disabled = true;
     btn.className = `${base} bg-emerald-500/15 text-emerald-400 border-emerald-500/30`;
     btn.innerHTML = '✅ Notifications autorisées';
+    syncPushSubscriptionState();
   } else if (permission === 'denied') {
     btn.disabled = true;
     btn.className = `${base} bg-red-600/15 text-red-400 border-red-600/30`;
@@ -598,6 +599,77 @@ function updateNotifButton() {
     btn.className = `${base} bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-black border-amber-500/30`;
     btn.innerHTML = '🔔 Activer les notifications';
   }
+}
+
+// Abonnement actif sur cet appareil ? Sinon, le bouton propose de le réactiver.
+async function syncPushSubscriptionState() {
+  const off = document.getElementById('notifOffBtn');
+  const btn = document.getElementById('notifPermBtn');
+  const registration = await navigator.serviceWorker.getRegistration();
+  const subscription = registration ? await registration.pushManager.getSubscription() : null;
+  if (off) off.classList.toggle('hidden', !subscription);
+  if (btn && !subscription && Notification.permission === 'granted') {
+    btn.disabled = false;
+    btn.className = 'w-full py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-black font-bold text-xs uppercase transition border border-amber-500/30';
+    btn.innerHTML = '🔔 Réactiver les notifications';
+  }
+}
+
+// Retrait du consentement aux notifications : supprime l'abonnement de cet appareil
+// et de nvg_subscriptions.
+async function disableNotifications() {
+  if (!window.confirm('Désactiver les notifications push sur cet appareil ?')) return;
+  try {
+    const registration = await navigator.serviceWorker.getRegistration();
+    const subscription = registration ? await registration.pushManager.getSubscription() : null;
+    if (subscription) {
+      if (currentUser) {
+        await supabaseClient.from('nvg_subscriptions').delete()
+          .eq('user_id', currentUser.id)
+          .filter('subscription->>endpoint', 'eq', subscription.endpoint);
+      }
+      await subscription.unsubscribe();
+    }
+    alert('Notifications désactivées sur cet appareil.');
+  } catch (err) {
+    console.error('Désactivation push impossible :', err);
+    alert('❌ Impossible de désactiver les notifications : ' + err.message);
+  }
+  updateNotifButton();
+}
+
+// Portabilité et accès (RGPD) : téléchargement des données du compte au format JSON.
+// Chaque requête passe par les règles de sécurité : seules les lignes du compte connecté sont lues.
+async function exportMyData() {
+  if (!currentUser || !supabaseClient) return;
+  const uid = currentUser.id;
+  const safe = (row) => Object.fromEntries(Object.entries(row).filter(([key]) => !/token|secret|password|key/i.test(key)));
+  const rowsOf = async (table) => {
+    const { data, error } = await supabaseClient.from(table).select('*').eq('user_id', uid);
+    if (error) return { error: error.message };
+    return (data || []).map(safe);
+  };
+  const [profile, registrations, players, teamMemberships] = await Promise.all([
+    supabaseClient.from('nvg_users').select('*').eq('id', uid).maybeSingle(),
+    rowsOf('nvg_tournament_registrations'),
+    rowsOf('nvg_tournament_players'),
+    rowsOf('nvg_tournament_team_members')
+  ]);
+  const payload = {
+    exported_at: new Date().toISOString(),
+    account: profile.data ? safe(profile.data) : null,
+    tournament_registrations: registrations,
+    tournament_players: players,
+    tournament_team_memberships: teamMemberships
+  };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `nvg-mes-donnees-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function showNotifPrompt() {
