@@ -2159,7 +2159,7 @@ function standardStandingsTable(matches) {
 
 // Filtres des matchs de poule : par poule et par journée.
 function standardPoolFilters(scopeId, matches) {
-  const groups = [...new Set(matches.map((m) => m.group_name).filter(Boolean))].sort();
+  const groups = [...new Set(matches.map((m) => m.group_name).filter(Boolean))].sort(standardGroupOrder);
   const rounds = [...new Set(matches.map((m) => m.round))].sort((a, b) => a - b);
   const select = 'rounded-lg border border-[#1f293d] bg-[#07090e] px-2 py-1.5 text-[10px] font-bold text-white';
   return `<div class="flex flex-wrap items-center gap-2">
@@ -2174,6 +2174,38 @@ function standardPoolFilters(scopeId, matches) {
   </div>`;
 }
 
+// Ordre des poules : A, B, C… puis 1, 2, 3… (numérique).
+function standardGroupOrder(a, b) {
+  return String(a || '').localeCompare(String(b || ''), 'fr', { numeric: true });
+}
+
+// Matchs de poule regroupés par round, en dépliants, poules dans l'ordre.
+function standardPoolRoundsHtml(scopeId, pools, renderCard) {
+  const rounds = [...new Set(pools.map((m) => m.round))].sort((a, b) => a - b);
+  const current = rounds.find((r) => pools.some((m) => m.round === r && m.status !== 'finished'))
+    ?? rounds[rounds.length - 1];
+  // Conserve les dépliants ouverts lors d'un rafraîchissement (saisie d'un score).
+  const previous = [...document.querySelectorAll(`#${scopeId} details[data-round]`)];
+  const hadPrevious = previous.length > 0;
+  const openRounds = new Set(previous.filter((d) => d.open).map((d) => Number(d.dataset.round)));
+  return rounds.map((round) => {
+    const list = pools.filter((m) => m.round === round)
+      .sort((a, b) => standardGroupOrder(a.group_name, b.group_name) || a.position - b.position);
+    const groups = [...new Set(list.map((m) => m.group_name).filter(Boolean))].sort(standardGroupOrder);
+    const done = list.filter((m) => m.status === 'finished').length;
+    const open = hadPrevious ? openRounds.has(round) : round === current;
+    return `<details data-round="${round}" ${open ? 'open' : ''} class="group overflow-hidden rounded-xl border border-[#1f293d] bg-[#07090e]">
+      <summary class="flex cursor-pointer list-none items-center gap-2 px-2.5 py-2 text-[10px] font-black uppercase tracking-wider text-gray-300 transition hover:text-white">
+        <span class="text-amber-400 transition group-open:rotate-90">▶</span>
+        <span>Round ${round}</span>
+        <span class="rounded border border-[#2a3750] px-1.5 py-0.5 text-[9px] font-bold text-gray-400">${done}/${list.length}</span>
+        ${groups.length ? `<span class="min-w-0 flex-1 truncate text-[9px] font-bold normal-case tracking-normal text-gray-500">${groups.length > 1 ? `Poules ${groups.map(escapeHtml).join(', ')}` : `Poule ${escapeHtml(groups[0])}`}</span>` : ''}
+      </summary>
+      <div class="space-y-1.5 border-t border-[#1f293d] p-2">${list.map((m) => `<div data-pool-item data-group="${escapeHtml(m.group_name || '')}" data-round="${m.round}">${renderCard(m)}</div>`).join('')}</div>
+    </details>`;
+  }).join('');
+}
+
 function filterStandardPools(scopeId) {
   const root = document.getElementById(scopeId);
   if (!root) return;
@@ -2182,6 +2214,12 @@ function filterStandardPools(scopeId) {
   root.querySelectorAll('[data-pool-item]').forEach((el) => {
     const visible = (group === 'all' || el.dataset.group === group) && (round === 'all' || el.dataset.round === round);
     el.style.display = visible ? '' : 'none';
+  });
+  // Un dépliant vide (filtre) disparaît ; un round filtré s'ouvre.
+  root.querySelectorAll('details[data-round]').forEach((details) => {
+    const hasVisible = [...details.querySelectorAll('[data-pool-item]')].some((el) => el.style.display !== 'none');
+    details.style.display = hasVisible ? '' : 'none';
+    if (hasVisible && round !== 'all') details.open = true;
   });
 }
 
@@ -2356,7 +2394,7 @@ function standardCompetitionBlock(t) {
         <div id="stdPoolsPublic" class="mt-2 space-y-2">
           ${standardPoolFilters('stdPoolsPublic', pools)}
           <div class="grid gap-2 sm:grid-cols-2">
-            ${pools.sort((a, b) => a.round - b.round || a.position - b.position).map((m) => `<div data-pool-item data-group="${escapeHtml(m.group_name || '')}" data-round="${m.round}">${standardPublicMatchCard(m, `${m.label || 'Match'} · Round ${m.round}`)}</div>`).join('')}
+            ${pools.sort((a, b) => a.round - b.round || standardGroupOrder(a.group_name, b.group_name) || a.position - b.position).map((m) => `<div data-pool-item data-group="${escapeHtml(m.group_name || '')}" data-round="${m.round}">${standardPublicMatchCard(m, `${m.label || 'Match'} · Round ${m.round}`)}</div>`).join('')}
           </div>
         </div>
       </div>` : ''}
@@ -2698,7 +2736,8 @@ function renderStandardMatchPanel(t) {
   if (!matches.length) {
     $('adminMatchBody').innerHTML = `${gamesForm}<p class="rounded-xl border border-[#1f293d] bg-[#07090e] p-3 text-xs text-gray-400">Aucun match. Génère les matchs dès que les équipes sont confirmées.</p>`;
   } else {
-    const pools = matches.filter((m) => m.phase === 'pool').sort((a, b) => a.round - b.round || a.position - b.position);
+    const pools = matches.filter((m) => m.phase === 'pool')
+      .sort((a, b) => a.round - b.round || standardGroupOrder(a.group_name, b.group_name) || a.position - b.position);
     const bracket = matches.filter((m) => m.phase !== 'pool');
     $('adminMatchBody').innerHTML = `
       ${gamesForm}
@@ -2707,7 +2746,7 @@ function renderStandardMatchPanel(t) {
         ${standardStandingsBlocks(matches)}
         <div id="stdPoolsAdmin" class="space-y-2">
           ${standardPoolFilters('stdPoolsAdmin', pools)}
-          <div class="space-y-1.5">${pools.map((m) => `<div data-pool-item data-group="${escapeHtml(m.group_name || '')}" data-round="${m.round}">${adminStandardMatchCard(m, `${m.label || 'Match'} · Round ${m.round}`)}</div>`).join('')}</div>
+          ${standardPoolRoundsHtml('stdPoolsAdmin', pools, (m) => adminStandardMatchCard(m, m.label || (m.group_name ? `Poule ${m.group_name}` : 'Match')))}
         </div>
       </div>` : ''}
       ${bracket.length ? `<div class="space-y-2">
