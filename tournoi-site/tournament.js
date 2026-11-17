@@ -611,8 +611,11 @@ function formatDay(value) {
 }
 
 function dateRange(t) {
-  if (t.starts_at && t.ends_at) return `${formatDay(t.starts_at)} – ${formatDay(t.ends_at)}`;
-  if (t.starts_at) return formatDay(t.starts_at);
+  const start = t.starts_at ? formatDay(t.starts_at) : '';
+  const end = t.ends_at ? formatDay(t.ends_at) : '';
+  if (start && end) return `Début : ${start} · Fin : ${end}`;
+  if (start) return `Début : ${start}`;
+  if (end) return `Fin : ${end}`;
   return 'Dates à confirmer';
 }
 
@@ -4499,6 +4502,7 @@ function editTournament(id) {
   $('editPrizeSecond').value = t.prize_second || '';
   $('editPrizeThird').value = t.prize_third || '';
   $('editStart').value = toLocalInput(t.starts_at);
+  $('editEnd').value = toLocalInput(t.ends_at);
   $('editClose').value = toLocalInput(t.registration_closes_at);
   $('editDesc').value = t.description || '';
   $('editBanner').value = t.banner_url || '';
@@ -4609,6 +4613,12 @@ async function saveTournament() {
   const editedId = editingTournamentId;
   const name = $('editName').value.trim();
   if (!name) { notify('Le nom du tournoi est obligatoire.', true); return; }
+  const startValue = $('editStart').value;
+  const endValue = $('editEnd').value;
+  if (startValue && endValue && endValue < startValue) {
+    notify('La date de fin doit être postérieure à la date de début.', true);
+    return;
+  }
   const maxRaw = $('editMax').value.trim();
   const edited = tournamentById(editedId);
   if (!edited) return;
@@ -4701,7 +4711,8 @@ async function saveTournament() {
     prize_first: $('editPrizeFirst').value.trim() || null,
     prize_second: $('editPrizeSecond').value.trim() || null,
     prize_third: $('editPrizeThird').value.trim() || null,
-    starts_at: $('editStart').value ? new Date($('editStart').value).toISOString() : null,
+    starts_at: startValue ? new Date(startValue).toISOString() : null,
+    ends_at: endValue ? new Date(endValue).toISOString() : null,
     registration_closes_at: $('editClose').value ? new Date($('editClose').value).toISOString() : null,
     description: $('editDesc').value.trim() || null,
     banner_url: bannerUrl || null,
@@ -5009,6 +5020,12 @@ async function saveGame() {
 async function createTournament() {
   const name = $('tourName').value.trim();
   if (!name) { notify('Saisis un nom de tournoi.', true); return; }
+  const startValue = $('tourStart').value;
+  const endValue = $('tourEnd').value;
+  if (startValue && endValue && endValue < startValue) {
+    notify('La date de fin doit être postérieure à la date de début.', true);
+    return;
+  }
   const tournamentType = $('tourFormatType')?.value || 'single';
   const bo9 = tournamentType === 'bo9';
   const nineWorlds = tournamentType === 'nine_worlds';
@@ -5076,7 +5093,8 @@ async function createTournament() {
       prize_first: $('tourPrizeFirst').value.trim() || null,
       prize_second: $('tourPrizeSecond').value.trim() || null,
       prize_third: $('tourPrizeThird').value.trim() || null,
-      starts_at: $('tourStart').value ? new Date($('tourStart').value).toISOString() : null,
+      starts_at: startValue ? new Date(startValue).toISOString() : null,
+      ends_at: endValue ? new Date(endValue).toISOString() : null,
       registration_closes_at: $('tourClose').value ? new Date($('tourClose').value).toISOString() : null,
       status: $('tourStatus').value,
       published,
@@ -5089,7 +5107,7 @@ async function createTournament() {
     }).select('id').single();
     if (error) throw new Error(error.message);
     ['tourName', 'tourBanner', 'tourToornament', 'tourPrizeFirst', 'tourPrizeSecond', 'tourPrizeThird',
-      'tourFee', 'tourPaymentUrl', 'tourPaymentInstructions', 'tourMax'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
+      'tourFee', 'tourPaymentUrl', 'tourPaymentInstructions', 'tourMax', 'tourEnd'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
     if (bo9 || nineWorlds) {
       if ($('tourFormatType')) $('tourFormatType').value = 'single';
       document.querySelectorAll('.bo9-game').forEach((select) => { select.value = ''; });

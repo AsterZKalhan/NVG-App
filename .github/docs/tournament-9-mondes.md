@@ -112,6 +112,11 @@ Le formulaire **➕ Nouveau tournoi** commence par un menu **Format du tournoi**
   Un tournoi standard sans `game_id` mais avec des `round_games` (le ZZ admin)
   est reconnu comme Tournoi des 9 Mondes.
 
+  La fiche publique affiche les dates de l'événement sous la forme
+  « Début : … · Fin : … » ; les deux dates se renseignent à la création comme
+  dans **✏️ Modifier le tournoi** (la fin doit être postérieure au début).
+  La vue Tournoi des 9 Mondes de l'application affiche la même plage de dates.
+
   Ce choix n'est plus figé à la création : **✏️ Modifier le tournoi** propose
   le même sélecteur de format. Changer de format demande confirmation et efface
   tous les matchs existants du tournoi (poules, tableau et scores) avant de

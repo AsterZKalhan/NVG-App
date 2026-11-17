@@ -19,6 +19,21 @@ function t9Num(value) {
   return n.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
 }
 
+function t9Day(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function t9DateRange(t) {
+  const start = t9Day(t.starts_at);
+  const end = t9Day(t.ends_at);
+  if (start && end) return `Début : ${start} · Fin : ${end}`;
+  if (start) return `Début : ${start}`;
+  if (end) return `Fin : ${end}`;
+  return 'Dates à confirmer';
+}
+
 function t9TeamName(id) {
   if (!id) return 'À déterminer';
   const team = t9Teams.get(id);
@@ -30,7 +45,7 @@ async function loadTournoi9() {
   if (!box || !supabaseClient) return;
   box.innerHTML = '<p class="text-xs text-gray-400">Chargement du tournoi…</p>';
   const [tournaments, teams, games] = await Promise.all([
-    supabaseClient.from('nvg_tournaments').select('id,name,status,starts_at,format_config').eq('published', true).neq('status', 'draft').order('starts_at', { ascending: true, nullsFirst: false }),
+    supabaseClient.from('nvg_tournaments').select('id,name,status,starts_at,ends_at,format_config').eq('published', true).neq('status', 'draft').order('starts_at', { ascending: true, nullsFirst: false }),
     supabaseClient.from('nvg_tournament_teams_public').select('id,tournament_id,name,tag'),
     supabaseClient.from('nvg_tournament_games').select('id,name,logo_url')
   ]);
@@ -244,6 +259,7 @@ function renderTournoi9() {
       </select>
       <a href="${T9_SITE_URL}" target="_blank" rel="noopener" class="rounded-lg bg-amber-500 px-3 py-2 text-[11px] font-black text-black transition hover:bg-amber-400">Voir le site du tournoi</a>
     </div>
+    <p class="text-[11px] text-gray-400">📅 ${t9Esc(t9DateRange(t))}</p>
     ${!matches.length ? '<p class="text-xs text-gray-400">Les matchs ne sont pas encore publiés pour ce tournoi.</p>' : ''}
     ${groups.length ? `<div class="space-y-3">
       <h3 class="text-xs font-black uppercase tracking-wider text-white">🏟️ Classements</h3>
