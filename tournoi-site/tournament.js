@@ -1633,8 +1633,7 @@ async function resetMatchResult(matchId) {
   const oldWinner = match.winner_team || null;
   const oldLoser = oldWinner ? (oldWinner === match.team_a ? match.team_b : match.team_a) : null;
   const now = new Date().toISOString();
-  const patch = { points_a: null, points_b: null, winner_team: null, status: 'scheduled', games: null, updated_at: now };
-  if (isBo9(t)) { patch.captain_card = null; patch.mercy = false; }
+  const patch = { points_a: 0, points_b: 0, winner_team: null, status: 'scheduled', games: [], mercy: false, captain_card: {}, updated_at: now };
   const { error } = await supabaseClient.from('nvg_tournament_matches').update(patch).eq('id', matchId);
   if (error) { notify('Erreur : ' + error.message, true); return; }
   const unplace = async (target, slot, teamId) => {
