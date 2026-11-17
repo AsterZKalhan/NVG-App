@@ -19,6 +19,8 @@ let tournaments = [];
 let publicRegs = [];
 let publicTeams = [];
 let tournamentMatches = [];
+// Colonnes utiles des matchs : évite de télécharger les champs inutilisés à chaque visite.
+const MATCH_COLUMNS = 'id,tournament_id,phase,round,position,group_name,label,team_a,team_b,status,games,pick_order,captain_card,points_a,points_b,winner_team,mercy,next_match_id,next_slot,loser_next_match_id,loser_next_slot,created_at';
 let myTeams = [];
 let myRegistrations = [];
 let myParticipations = [];
@@ -526,7 +528,7 @@ async function loadPublic() {
     supabaseClient.from('nvg_tournaments').select('*').order('starts_at', { ascending: true, nullsFirst: false }),
     supabaseClient.from('nvg_tournament_registrations_public').select('tournament_id,status'),
     supabaseClient.from('nvg_tournament_teams_public').select('id,tournament_id,name,tag,member_count'),
-    supabaseClient.from('nvg_tournament_matches').select('*').order('created_at', { ascending: true })
+    supabaseClient.from('nvg_tournament_matches').select(MATCH_COLUMNS).order('created_at', { ascending: true })
   ]);
   games = g.data || [];
   tournaments = t.data || [];
@@ -1118,7 +1120,7 @@ function adminTeamsFor(tournamentId) {
 async function loadMatchesOnly() {
   const { data, error } = await supabaseClient
     .from('nvg_tournament_matches')
-    .select('*')
+    .select(MATCH_COLUMNS)
     .order('created_at', { ascending: true });
   if (!error) tournamentMatches = data || [];
   return tournamentMatches;

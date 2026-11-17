@@ -22,6 +22,13 @@ jobs:
       - name: Compiler le CSS (Tailwind)
         run: npx --yes tailwindcss@3.4.17 -c tournoi-site/tailwind.config.js -i tournoi-site/src/tailwind.css -o tournoi-site/tailwind.css --minify
 
+      - name: Minifier les scripts du site
+        run: |
+          npm install -g terser@5
+          terser tournoi-site/tournament.js -c -m --comments false -o tournoi-site/tournament.js.tmp
+          mv tournoi-site/tournament.js.tmp tournoi-site/tournament.js
+          node --check tournoi-site/tournament.js
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

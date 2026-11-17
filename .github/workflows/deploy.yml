@@ -11,6 +11,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Minifier les scripts
+        run: |
+          npm install -g terser@5
+          for f in *.js; do
+            case "$f" in
+              *.min.js|sw.js) continue ;;
+            esac
+            terser "$f" -c -m --comments false -o "$f.tmp"
+            mv "$f.tmp" "$f"
+            node --check "$f"
+          done
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

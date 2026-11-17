@@ -3,6 +3,7 @@
 
 const T9_SITE_URL = 'https://letournoides9mondes.nvg-tv.com/';
 const T9_STATUS = { draft: 'Brouillon', open: 'Inscriptions ouvertes', closed: 'Inscriptions fermées', running: 'En cours', finished: 'Terminé', cancelled: 'Annulé' };
+const T9_MATCH_COLUMNS = 'id,tournament_id,phase,round,position,group_name,label,team_a,team_b,status,points_a,points_b,winner_team,created_at';
 let t9Tournaments = [];
 let t9Matches = [];
 let t9Teams = new Map();
@@ -28,12 +29,15 @@ async function loadTournoi9() {
   const box = document.getElementById('t9Body');
   if (!box || !supabaseClient) return;
   box.innerHTML = '<p class="text-xs text-gray-400">Chargement du tournoi…</p>';
-  const [tournaments, matches, teams, games] = await Promise.all([
+  const [tournaments, teams, games] = await Promise.all([
     supabaseClient.from('nvg_tournaments').select('id,name,status,starts_at,format_config').eq('published', true).neq('status', 'draft').order('starts_at', { ascending: true, nullsFirst: false }),
-    supabaseClient.from('nvg_tournament_matches').select('*').order('created_at', { ascending: true }),
     supabaseClient.from('nvg_tournament_teams_public').select('id,tournament_id,name,tag'),
     supabaseClient.from('nvg_tournament_games').select('id,name,logo_url')
   ]);
+  const ids = (tournaments.data || []).map((t) => t.id);
+  const matches = ids.length
+    ? await supabaseClient.from('nvg_tournament_matches').select(T9_MATCH_COLUMNS).in('tournament_id', ids).order('created_at', { ascending: true })
+    : { data: [], error: null };
   if (tournaments.error || matches.error) {
     box.innerHTML = '<p class="text-xs text-red-400">Impossible de charger le tournoi pour le moment.</p>';
     return;

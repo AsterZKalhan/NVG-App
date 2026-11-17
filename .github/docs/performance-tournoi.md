@@ -7,25 +7,24 @@ par gain attendu. Les tailles sont celles des fichiers du dépôt (non compress�
 
 | Fichier | Taille | Remarque |
 |---|---|---|
-| `tournoi-site/Logos/no-logo.jpeg` | 2,7 Mo | image par défaut des équipes, beaucoup trop lourde |
-| `tournoi-site/Logos/logo-9mondes.png` | 1,8 Mo | logo principal, affiché en haut de page |
+| `tournoi-site/Logos/no-logo.jpeg` | 12 Ko | image par défaut (256 px) |
+| `tournoi-site/Logos/logo-9mondes.webp` | 28 Ko | logo principal (WebP 600 px) |
 | `tournoi-site/Logos/logo-nvg.png` | 188 Ko | repli de l'entête |
 | `tournoi-site/Logos/favicon.png` | 38 Ko | |
-| `tournoi-site/tournament.js` | 255 Ko | un seul fichier, non minifié |
+| `tournoi-site/tournament.js` | 257 Ko | source lisible ; minifié au déploiement |
 | `tournoi-site/index.html` | 65 Ko | |
 | `tournoi-site/auth-shared.js` | 4 Ko | |
 
 Scripts chargés depuis des CDN (non mesurés ici) :
-- `https://cdn.tailwindcss.com` : le compilateur Tailwind tourne **dans le navigateur**
-  à chaque chargement de page. C'est probablement le plus gros coût.
-- `https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2` : version majeure seulement,
-  donc la version réellement chargée peut changer sans prévenir.
+- `https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0` : version épinglée, chargée
+  en `defer` (plus de blocage du rendu).
 
 ## Données chargées au démarrage
 
 `loadPublic()` fait 5 requêtes à chaque chargement : jeux, tournois, inscriptions publiques,
-équipes publiques, **tous les matchs** (sans limite). Les matchs grossissent avec chaque
-tournoi, et ils sont tous chargés même si on ne regarde qu'un tournoi.
+équipes publiques, et les matchs (avec la liste des colonnes utiles). Les matchs grossissent
+avec chaque tournoi : ils sont tous chargés sur le site, alors qu'on n'en regarde qu'un. Piste
+restante : ne les charger qu'à l'ouverture d'une fiche.
 
 `loadAdmin()` ajoute jusqu'à 500 inscriptions, 1 000 comptes, 500 équipes avec leurs membres
 et 2 000 participations. Il est déclenché à chaque action admin.
@@ -39,7 +38,20 @@ et 2 000 participations. Il est déclenché à chaque action admin.
   dans `tournoi-site/tailwind.config.js`) avant l'envoi. Si la compilation échoue, rien n'est
   déployé. En local, sans Node, le site s'affiche sans style : le CSS n'existe qu'après
   compilation.
-- **Reste** : versions épinglées, minification, réduction des données chargées, rendu ciblé.
+- **Fait** : versions épinglées. Le SDK Supabase est chargé en `2.119.0` (au lieu de `@2`),
+  avec `defer` sur les scripts du site et de l'application : le téléchargement ne bloque plus
+  l'affichage. L'ordre des scripts est conservé (`defer` respecte l'ordre du document).
+- **Fait** : minification au déploiement. `terser@5` minifie `tournoi-site/tournament.js`
+  (≈ 257 Ko → ≈ 120 Ko) et tous les scripts de l'application (`*.js` à la racine, sauf
+  `sw.js`) avant l'envoi SFTP. Le dépôt garde les sources lisibles ; `node --check` valide
+  chaque fichier minifié. Les noms globaux sont conservés (pas de `--mangle toplevel`), car
+  les `onclick` des pages les appellent.
+- **Fait** : moins de données au démarrage. Les matchs sont lus avec la liste des colonnes
+  utiles (au lieu de `*`), et l'onglet tournoi de l'application ne demande que les matchs des
+  tournois publiés (`.in('tournament_id', …)`).
+- **Reste** : l'application charge encore le compilateur Tailwind du CDN (à précompiler comme
+  le site du tournoi), réduction des listes admin (pagination ou recherche serveur), rendu
+  ciblé après action.
 
 ## Pistes, par gain attendu
 
