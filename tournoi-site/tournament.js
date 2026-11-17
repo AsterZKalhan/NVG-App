@@ -585,9 +585,12 @@ function renderCalendar() {
   }
   box.innerHTML = dated.map((t) => `
     <div class="flex flex-wrap items-center justify-between gap-2 border border-[#1f293d] rounded-xl px-4 py-2.5 bg-[#07090e]">
-      <div class="min-w-0">
-        <p class="text-xs font-bold text-white truncate">${escapeHtml(t.name)}</p>
-        <p class="text-[10px] text-gray-400">${escapeHtml(tournamentGamesLabel(t))} · ${escapeHtml(FORMAT_LABELS[t.format] || t.format)}</p>
+      <div class="flex min-w-0 items-center gap-2.5">
+        <img src="${tournamentLogoUrl(t) || './Logos/no-logo.jpeg'}" alt="" onerror="this.onerror=null;this.src='./Logos/no-logo.jpeg'" class="h-8 w-8 shrink-0 rounded-lg border border-white/10 bg-white/5 object-cover">
+        <div class="min-w-0">
+          <p class="text-xs font-bold text-white truncate">${escapeHtml(t.name)}</p>
+          <p class="text-[10px] text-gray-400">${escapeHtml(tournamentGamesLabel(t))} · ${escapeHtml(FORMAT_LABELS[t.format] || t.format)}</p>
+        </div>
       </div>
       <div class="text-right shrink-0">
         <p class="text-[11px] font-bold ${t.status === 'open' ? 'text-emerald-400' : 'text-gray-300'}">${t.starts_at ? `🏁 ${escapeHtml(formatDate(t.starts_at))}` : '📅 Date à confirmer'}</p>
@@ -2693,7 +2696,7 @@ function rosterCard(t, r) {
   const confirmed = r.status === 'confirmed';
   if (t.mode !== 'team') {
     return `<div class="rounded-xl border border-[#1f293d] bg-[#07090e] p-3 flex flex-wrap items-center justify-between gap-2">
-      <p class="text-xs font-black text-white">👤 ${escapeHtml(r.name)}</p>
+      <p class="text-xs font-black ${r.solo_paid ? 'text-emerald-400' : 'text-white'}">👤 ${escapeHtml(r.name)}</p>
       <div class="flex flex-wrap items-center gap-1.5">${rosterStatusBadge(confirmed)}${rosterPaymentBadge(r.solo_paid, 'En attente de paiement')}</div>
     </div>`;
   }
@@ -2706,7 +2709,7 @@ function rosterCard(t, r) {
       </div>
       <div class="flex flex-wrap items-center gap-1.5">${rosterStatusBadge(confirmed)}${rosterPaymentBadge(r.paid_members > 0, 'En attente de paiement d’au moins un joueur')}</div>
     </div>
-    <div class="flex flex-wrap gap-1.5 pl-[46px]">${members.map((m) => `<span class="rounded border border-[#1f293d] px-2 py-0.5 text-[10px] text-gray-300">${escapeHtml(m.pseudo || 'Joueur')}</span>`).join('')}</div>
+    <div class="flex flex-wrap gap-1.5 pl-[46px]">${members.map((m) => `<span class="rounded border px-2 py-0.5 text-[10px] ${m.paid ? 'border-emerald-500/40 bg-emerald-500/10 font-bold text-emerald-400' : 'border-[#1f293d] text-gray-300'}">${escapeHtml(m.pseudo || 'Joueur')}</span>`).join('')}</div>
     <p class="pl-[46px] text-[10px] text-gray-500">${Number(r.paid_members) || 0} / ${Number(r.members_count) || 0} joueur(s) ont réglé leur billet</p>
   </div>`;
 }

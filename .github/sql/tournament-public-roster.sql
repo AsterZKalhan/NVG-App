@@ -2,8 +2,10 @@
 --
 -- Renvoie, pour un tournoi publié, les inscriptions actives avec : nom d'équipe ou
 -- pseudo du site, tag, logo de l'équipe, statut (préinscrit / confirmé), nombre de
--- joueurs ayant réglé, et pseudos des membres. Aucune donnée personnelle (nom,
--- prénom, date de naissance, e-mail) ni état de paiement joueur par joueur n'est exposé.
+-- joueurs ayant réglé, et pseudos des membres avec leur état de paiement (`paid`).
+-- Aucune donnée personnelle (nom, prénom, date de naissance, e-mail) n'est exposée.
+-- Le paiement de chaque joueur est visible publiquement (pseudo en vert) : choix
+-- validé par l'organisation.
 
 drop function if exists public.nvg_tournament_public_roster(uuid);
 
@@ -39,7 +41,13 @@ as $$
     ), 0)::int as paid_members,
     (r.team_id is null and r.payment_status = 'paid') as solo_paid,
     coalesce((
-      select jsonb_agg(jsonb_build_object('pseudo', mu.name) order by mu.name)
+      select jsonb_agg(jsonb_build_object(
+        'pseudo', mu.name,
+        'paid', exists (
+          select 1 from public.nvg_tournament_players p
+          where p.user_id = m.user_id and p.tournament_id = r.tournament_id and p.payment_status = 'paid'
+        )
+      ) order by mu.name)
       from public.nvg_tournament_team_members m
       join public.nvg_users mu on mu.id = m.user_id
       where m.team_id = r.team_id
