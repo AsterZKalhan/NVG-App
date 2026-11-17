@@ -1,7 +1,7 @@
 {
   "id": "./",
   "name": "Le Tournoi des 9 Mondes",
-  "short_name": "9 Mondes",
+  "short_name": "Tournoi des 9 Mondes",
   "description": "Site du Tournoi des 9 Mondes : inscriptions, poules, tableaux et résultats.",
   "lang": "fr",
   "dir": "ltr",
