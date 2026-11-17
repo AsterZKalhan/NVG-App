@@ -53,6 +53,25 @@ et 2 000 participations. Il est déclenché à chaque action admin.
   le site du tournoi), réduction des listes admin (pagination ou recherche serveur), rendu
   ciblé après action.
 
+## Mesures en production (17 novembre 2026)
+
+Relevé Chrome (cache vidé, réseau réel), en Ko transférés :
+
+| Page | Total | Scripts | CSS | Images | Requêtes |
+|---|---|---|---|---|---|
+| Site du tournoi | 352 | 245 | 26 | 40 | 19 |
+| Application | 540 → ~385 | 148 | 1 | 307 → ~150 | 30 |
+
+- **Hébergement sans compression** : le serveur (Apache) envoie `tournament.js` brut
+  (197 Ko). Avec gzip, le même fichier ferait environ 50 Ko. C'est le plus gros gain
+  restant, mais il se règle côté hébergement (option de compression du panneau, ou
+  `.htaccess` avec `mod_deflate`) et non dans le dépôt.
+- **Application** : `logo-nvg.png` était affiché à 200 px maximum mais servi en 1983×1692
+  (188 Ko) ; ramené à 400 px (67 Ko). `favicon.png` (512 px, 59 Ko) ramené à 180 px (25 Ko).
+  Ces deux images représentaient près de la moitié des octets de l'application.
+- **Tailwind de l'application** : encore chargé depuis le CDN et compilé dans le navigateur.
+  À précompiler comme le site du tournoi (étape suivante, avec vérification visuelle).
+
 ## Pistes, par gain attendu
 
 1. **Remplacer le compilateur Tailwind du CDN par un CSS précompilé** (build à la publication,
