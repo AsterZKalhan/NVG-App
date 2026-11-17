@@ -699,7 +699,8 @@ function openTicket(tournamentId, kind) {
     notify('Paiement clôturé : contacte l’organisation pour toute modification ou remboursement.', true);
     return;
   }
-  const url = externalLink(kind === 'team' ? t.ticket_url_team : t.ticket_url_player);
+  const ticketUrl = kind === 'team' ? t.ticket_url_team : kind === 'companion' ? t.ticket_url_companion : t.ticket_url_player;
+  const url = externalLink(ticketUrl);
   if (url) {
     window.open(url, '_blank', 'noopener');
     notify('Billetterie ouverte dans un nouvel onglet.');
@@ -2909,14 +2910,42 @@ function openSignup(tournamentId) {
   const panel = $('signupPanel');
   panel.classList.remove('hidden');
   panel.innerHTML = `
-    <div class="flex items-start justify-between gap-3">
+    ${signupHeader(t)}
+    <p class="text-xs text-gray-300">Tu viens jouer ou accompagner un joueur ?</p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <button onclick="openPlayerSignup('${t.id}')" class="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-left transition hover:bg-amber-500/20">
+        <span class="block text-xs font-black text-white">🎮 Je suis joueur</span>
+        <span class="mt-1 block text-[10px] text-gray-400">Je m’inscris au tournoi (solo ou en équipe)</span>
+      </button>
+      <button onclick="openCompanionTicket('${t.id}')" class="rounded-xl border border-[#1f293d] bg-white/5 px-4 py-3 text-left transition hover:bg-white/10">
+        <span class="block text-xs font-black text-white">🎟️ Je suis accompagnant</span>
+        <span class="mt-1 block text-[10px] text-gray-400">Je prends directement le pass accompagnant</span>
+      </button>
+    </div>`;
+  panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function signupHeader(t) {
+  return `<div class="flex items-start justify-between gap-3">
       <div>
         <h2 class="text-sm font-black text-white">Inscription · ${escapeHtml(t.name)}</h2>
         <p class="text-xs text-gray-400 mt-1">${t.mode === 'solo' ? 'Tournoi solo.' : (Number(t.team_min) === Number(t.team_max) ? `Tournoi en équipe de ${t.team_min} joueurs.` : `Tournoi en équipe de ${t.team_min} à ${t.team_max} joueurs.`)}</p>
         <p class="text-[11px] font-bold ${Number(t.entry_fee_cents) > 0 ? 'text-amber-400' : 'text-emerald-400'} mt-1">${escapeHtml(feeLabel(t))}</p>
       </div>
       <button onclick="closeSignup()" class="px-2 py-1 text-gray-400 hover:text-white text-sm">✕</button>
-    </div>
+    </div>`;
+}
+
+function openCompanionTicket(tournamentId) {
+  openTicket(tournamentId, 'companion');
+}
+
+function openPlayerSignup(tournamentId) {
+  const t = tournamentById(tournamentId);
+  if (!t) return;
+  const panel = $('signupPanel');
+  panel.innerHTML = `
+    ${signupHeader(t)}
     ${t.mode === 'solo' ? `
       <div class="flex flex-wrap gap-2 items-center">
         <input id="soloPlatform" placeholder="Pseudo en jeu (facultatif)" class="flex-1 min-w-[200px] bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
@@ -4576,6 +4605,7 @@ function editTournament(id) {
   $('editToornament').value = t.toornament_url || '';
   $('editTicketPlayer').value = t.ticket_url_player || '';
   $('editTicketTeam').value = t.ticket_url_team || '';
+  $('editTicketCompanion').value = t.ticket_url_companion || '';
   $('editPaymentInstructions').value = t.payment_instructions || '';
   $('editPublished').checked = !!t.published;
   syncEditTournamentFormat(true);
@@ -4788,6 +4818,7 @@ async function saveTournament() {
     toornament_id: toornamentIdFromUrl(toornamentUrl),
     ticket_url_player: safeUrl($('editTicketPlayer').value) || null,
     ticket_url_team: safeUrl($('editTicketTeam').value) || null,
+    ticket_url_companion: safeUrl($('editTicketCompanion').value) || null,
     payment_instructions: $('editPaymentInstructions').value.trim() || null,
     published: complete ? $('editPublished').checked : false
   };
@@ -5172,11 +5203,12 @@ async function createTournament() {
       toornament_id: toornamentIdFromUrl(toornamentUrl),
       ticket_url_player: safeUrl($('tourTicketPlayer').value) || null,
       ticket_url_team: safeUrl($('tourTicketTeam').value) || null,
+      ticket_url_companion: safeUrl($('tourTicketCompanion').value) || null,
       payment_instructions: $('tourPaymentInstructions').value.trim() || null
     }).select('id').single();
     if (error) throw new Error(error.message);
     ['tourName', 'tourBanner', 'tourToornament', 'tourPrizeFirst', 'tourPrizeSecond', 'tourPrizeThird',
-      'tourFee', 'tourTicketPlayer', 'tourTicketTeam', 'tourPaymentInstructions', 'tourMax', 'tourEnd'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
+      'tourFee', 'tourTicketPlayer', 'tourTicketTeam', 'tourTicketCompanion', 'tourPaymentInstructions', 'tourMax', 'tourEnd'].forEach((id) => { const el = $(id); if (el) el.value = ''; });
     if (bo9 || nineWorlds) {
       if ($('tourFormatType')) $('tourFormatType').value = 'single';
       document.querySelectorAll('.bo9-game').forEach((select) => { select.value = ''; });

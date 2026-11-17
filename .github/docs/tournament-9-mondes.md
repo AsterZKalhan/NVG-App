@@ -392,6 +392,12 @@ HelloAsso, Stripe Checkout, virement…).
     **⚙️ Gérer mon inscription** et dans **Mon espace** (Mes équipes et Mes
     inscriptions). Ils ouvrent le lien dans un nouvel onglet ; la validation du
     paiement reste faite par la NVG depuis le back-office.
+- Au clic sur **S'inscrire**, un écran de choix s'affiche :
+  - **🎮 Je suis joueur** : ouvre le formulaire d'inscription habituel (solo, ou
+    équipe à créer ou rejoindre) ;
+  - **🎟️ Je suis accompagnant** : ouvre directement le lien `ticket_url_companion`
+    (« pass accompagnant »), sans créer d'inscription (migration
+    `.github/sql/tournament-companion-ticket.sql`).
 - À l'inscription, `payment_status` passe automatiquement à `awaiting` si des
   frais sont dus, sinon à `not_required`.
 - Dans **Mon espace**, chaque inscription affiche un badge de paiement et, si
