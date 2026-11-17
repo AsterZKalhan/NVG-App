@@ -806,6 +806,8 @@ function openTournamentDetails(id, options = {}) {
   const t = tournamentById(id);
   if (!t) return;
   if (options.push !== false) pushRoute(routeState().tab, { tournament: id });
+  viewingFicheTournamentId = id;
+  ficheRosterLoadedFor = null;
   const banner = tournamentBannerUrl(t);
   const logo = tournamentLogoUrl(t);
   const toornament = externalLink(t.toornament_url);
@@ -852,6 +854,7 @@ function openTournamentDetails(id, options = {}) {
 
       <div class="flex gap-1 border-b border-[#1f293d]">
         <button id="ficheTabInfo" type="button" onclick="setFicheTab('info')" class="-mb-px border-b-2 border-amber-500 px-4 py-2 text-[11px] font-black uppercase tracking-wider text-amber-300 transition">ℹ️ Informations</button>
+        <button id="ficheTabRoster" type="button" onclick="setFicheTab('roster')" class="-mb-px border-b-2 border-transparent px-4 py-2 text-[11px] font-black uppercase tracking-wider text-gray-400 transition hover:text-white">👥 Liste des inscrits</button>
         <button id="ficheTabFollow" type="button" onclick="setFicheTab('follow')" class="-mb-px border-b-2 border-transparent px-4 py-2 text-[11px] font-black uppercase tracking-wider text-gray-400 transition hover:text-white">📺 Suivi du tournoi en direct</button>
       </div>
 
@@ -868,6 +871,8 @@ function openTournamentDetails(id, options = {}) {
           ${!paymentOpen(t) ? `<div class="mt-2">${paymentClosedNote()}</div>` : `<div class="mt-2 flex flex-wrap gap-2">${externalLink(t.ticket_url_player) ? ticketButton(t.id, 'player', 'Je prends mon billet') : ''}${t.mode === 'team' && externalLink(t.ticket_url_team) ? ticketButton(t.id, 'team', `Je prends un pass équipe (je paie pour les ${Number(t.team_max) || 5} joueurs de mon équipe)`) : ''}</div>`}
         </div>` : ''}
       </div>
+
+      <div id="ficheRoster" class="hidden space-y-3"></div>
 
       <div id="ficheFollow" class="hidden space-y-5">
         ${bo9CompetitionBlock(t)}
@@ -2476,20 +2481,72 @@ function ficheInfoBlock(t) {
   </div>`;
 }
 
-// Onglets de la fiche : Informations / Suivi du tournoi en direct.
+// Onglets de la fiche : Informations / Liste des inscrits / Suivi du tournoi en direct.
+let ficheRosterLoadedFor = null;
+let viewingFicheTournamentId = null;
+
 function setFicheTab(name) {
-  const info = name === 'info';
-  $('ficheInfo')?.classList.toggle('hidden', !info);
-  $('ficheFollow')?.classList.toggle('hidden', info);
-  const tabs = [['ficheTabInfo', info], ['ficheTabFollow', !info]];
-  tabs.forEach(([id, active]) => {
+  const panes = { info: 'ficheInfo', roster: 'ficheRoster', follow: 'ficheFollow' };
+  Object.entries(panes).forEach(([key, id]) => $(id)?.classList.toggle('hidden', key !== name));
+  Object.entries({ info: 'ficheTabInfo', roster: 'ficheTabRoster', follow: 'ficheTabFollow' }).forEach(([key, id]) => {
     const btn = $(id);
     if (!btn) return;
+    const active = key === name;
     btn.classList.toggle('border-amber-500', active);
     btn.classList.toggle('text-amber-300', active);
     btn.classList.toggle('border-transparent', !active);
     btn.classList.toggle('text-gray-400', !active);
   });
+  if (name === 'roster') loadFicheRoster(viewingFicheTournamentId);
+}
+
+// Pastilles de statut, identiques à la liste admin.
+function rosterStatusBadge(confirmed) {
+  return `<span class="rounded-full border px-2 py-1 text-[9px] font-black uppercase ${confirmed ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-gray-400 border-[#1f293d] bg-white/5'}">${confirmed ? 'Confirmée' : 'Préinscrite'}</span>`;
+}
+
+function rosterPaymentBadge(paid, awaitingLabel) {
+  return paid
+    ? '<span class="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-emerald-400">Présence validée</span>'
+    : `<span class="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-amber-400">${awaitingLabel}</span>`;
+}
+
+// Carte d'une inscription, sans aucune action : pseudos des membres et états agrégés seulement.
+function rosterCard(t, r) {
+  const confirmed = r.status === 'confirmed';
+  if (t.mode !== 'team') {
+    return `<div class="rounded-xl border border-[#1f293d] bg-[#07090e] p-3 flex flex-wrap items-center justify-between gap-2">
+      <p class="text-xs font-black text-white">👤 ${escapeHtml(r.name)}</p>
+      <div class="flex flex-wrap items-center gap-1.5">${rosterStatusBadge(confirmed)}${rosterPaymentBadge(r.solo_paid, 'En attente de paiement')}</div>
+    </div>`;
+  }
+  const members = Array.isArray(r.members) ? r.members : [];
+  return `<div class="rounded-xl border border-[#1f293d] bg-[#07090e] p-3 space-y-2">
+    <div class="flex flex-wrap items-start justify-between gap-2">
+      <p class="min-w-0 truncate text-xs font-black text-white">🛡️ ${escapeHtml(r.name)}${r.tag ? ` <span class="text-gray-500">[${escapeHtml(r.tag)}]</span>` : ''}</p>
+      <div class="flex flex-wrap items-center gap-1.5">${rosterStatusBadge(confirmed)}${rosterPaymentBadge(r.paid_members > 0, 'En attente de paiement d’au moins un joueur')}</div>
+    </div>
+    <div class="flex flex-wrap gap-1.5">${members.map((m) => `<span class="rounded border border-[#1f293d] px-2 py-0.5 text-[10px] text-gray-300">${escapeHtml(m.pseudo || 'Joueur')}</span>`).join('')}</div>
+    <p class="text-[10px] text-gray-500">${Number(r.paid_members) || 0} / ${Number(r.members_count) || 0} joueur(s) ont réglé leur billet</p>
+  </div>`;
+}
+
+async function loadFicheRoster(tournamentId) {
+  const box = $('ficheRoster');
+  if (!box || !tournamentId || ficheRosterLoadedFor === tournamentId) return;
+  box.innerHTML = '<p class="text-xs text-gray-500">Chargement de la liste…</p>';
+  const { data, error } = await supabaseClient.rpc('nvg_tournament_public_roster', { p_tournament: tournamentId });
+  if (error) {
+    box.innerHTML = `<p class="text-xs text-red-400">Liste indisponible : ${escapeHtml(error.message)}</p>`;
+    return;
+  }
+  ficheRosterLoadedFor = tournamentId;
+  const t = tournamentById(tournamentId) || {};
+  const rows = data || [];
+  const confirmed = rows.filter((r) => r.status === 'confirmed').length;
+  const pending = rows.length - confirmed;
+  box.innerHTML = `<p class="text-[10px] font-bold text-gray-400">${confirmed} confirmée(s) · ${pending} préinscrite(s)</p>`
+    + (rows.length ? rows.map((r) => rosterCard(t, r)).join('') : '<p class="text-xs text-gray-500">Aucune inscription pour le moment.</p>');
 }
 
 function standardCompetitionBlock(t) {
