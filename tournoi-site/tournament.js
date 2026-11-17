@@ -3177,9 +3177,10 @@ async function saveStandardMatchResult(matchId) {
 async function saveFormatConfig(tournamentId, patch) {
   const t = tournamentById(tournamentId);
   if (!t) return;
-  const { error } = await supabaseClient.from('nvg_tournaments').update({ format_config: { ...t.format_config, ...patch } }).eq('id', tournamentId);
+  const formatConfig = { ...t.format_config, ...patch };
+  const { error } = await supabaseClient.from('nvg_tournaments').update({ format_config: formatConfig }).eq('id', tournamentId);
   if (error) { notify('Erreur : ' + error.message, true); return; }
-  await loadPublic();
+  t.format_config = formatConfig;
   renderAdminMatchPanel();
 }
 
@@ -3386,7 +3387,7 @@ async function saveSeedOrder(tournamentId, order) {
   const formatConfig = { ...t.format_config, seed_order: order };
   const { error } = await supabaseClient.from('nvg_tournaments').update({ format_config: formatConfig }).eq('id', tournamentId);
   if (error) { notify('Erreur : ' + error.message, true); return; }
-  await loadPublic();
+  t.format_config = formatConfig;
   renderAdminSeedPanel();
 }
 
@@ -3463,7 +3464,7 @@ async function adjustTiebreak(tournamentId, teamId, delta) {
   const formatConfig = { ...t.format_config, tiebreaks };
   const { error } = await supabaseClient.from('nvg_tournaments').update({ format_config: formatConfig }).eq('id', tournamentId);
   if (error) { notify('Erreur : ' + error.message, true); return; }
-  await loadPublic();
+  t.format_config = formatConfig;
   renderAdminMatchPanel();
 }
 

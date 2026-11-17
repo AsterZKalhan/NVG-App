@@ -588,6 +588,73 @@ git push origin main
    question anti-robot chargée, bascule candidature streameur, envoi reçu dans
    la boîte de réception admin de l'application.
 
+## Poules, classements et départage (format standard)
+
+- **Barème** : victoire 3, nul 1, défaite 0 (classement standard et Décathlon).
+- **Classement** : points, puis différence de buts, puis buts marqués. Le point de départage
+  s'ajoute aux points et compte partout (classement, couleurs, tableau, ronde suisse).
+- **Couleurs** : points en vert pour les qualifiés (rang ≤ `qualifiers_per_pool`), en rouge
+  sinon. Le nombre de rounds passe en bleu dès qu'une équipe a joué tous ses matchs de poule.
+- **Colonnes** : `Round` (matchs joués), V, N, D, Pts, Diff. Largeurs fixes, identiques dans
+  chaque poule (`table-layout: fixed` avec largeurs en style).
+- **Départage** (admin, section « Départage (matchs de poule) ») : par poule, seules les
+  équipes à égalité de points sont proposées, avec +1 / −1. Le point est stocké dans
+  `format_config.tiebreaks` (`{ teamId: points }`) et affiché « +1⚖️ » à côté des points.
+- **Logos** : le logo de chaque équipe est affiché avant son nom dans les cartes de match et
+  dans l'arbre (site et app). Sans logo : `./Logos/no-logo.jpeg`.
+
+## Seed, composition des poules et tableau
+
+- **Seed approximatif** (onglet admin « 🎯 Seed approximatif », tournois par équipe) : une
+  case par seed (1 = le plus fort), chacune avec une liste déroulante d'équipes. Choisir une
+  équipe déjà placée ailleurs la déplace. « ✍️ Finir le remplissage » place les équipes
+  restantes dans les cases vides, dans l'ordre de la liste admin. Stocké dans
+  `format_config.seed_order` (tableau d'identifiants ou `null`).
+- **Répartition des poules** : seed 1 en poule A, 2 en B, 3 en C, 4 en D, puis 5 en A, etc.
+  « 🎲 Répartir aléatoirement » ignore le seed. « Générer les poules » utilise le seed s'il
+  existe.
+- **Composition manuelle** (onglet Poules, avant la génération) : la poule de chaque équipe
+  se choisit (A, B…) ou reste en « Auto ». Stocké dans `format_config.pool_assignment`
+  (`{ teamId: 'A' }`). Les équipes en « Auto » vont dans la poule la moins remplie.
+- **Croisement des poules → tableau** (poules paires, nombre total de qualifiés puissance de 2) :
+  les poules A-B, C-D… se croisent (1er de A contre le dernier qualifié de B, etc.). Les matchs
+  les plus forts sont répartis entre les moitiés du tableau : les premiers de poule ne se
+  rencontrent qu'en finale. Pour les autres cas (poules impaires, nombre non puissance de 2),
+  le tableau garde le placement par seed.
+- **Boutons par onglet** : Poules → « Générer les poules », « Effacer les matchs » ;
+  Bracket → « Générer le bracket ». Les formats à élimination directe ont leur génération dans
+  l'onglet Bracket.
+- **Alerte d'écart** : si le classement a changé après la génération du tableau, un encart
+  propose « Régénérer le bracket ». La régénération est refusée dès qu'un match de la phase finale
+  a commencé.
+- **Placement du tableau** (onglet Bracket) : chaque case du premier tour est une liste
+  déroulante ; changer une équipe échange les deux équipes de place. Figé dès que le premier
+  match de la phase est joué (contrôle côté interface et côté enregistrement).
+
+## Scores
+
+- **Enregistrer** : écrit le score (standard, BO3, Décathlon). Résultat seulement quand le
+  tournoi est « En cours ».
+- **↺ Réinitialiser** (à côté d'« Enregistrer », sur chaque match) : efface les scores tapés à
+  l'écran. Si un résultat est enregistré, demande confirmation, remet le match à « non joué » et
+  retire le vainqueur (et le perdant du repêchage) du tour suivant, à condition que ce tour n'ait
+  pas commencé. Les colonnes `games`, `captain_card` et `mercy` reçoivent leurs valeurs par défaut
+  (`[]`, `{}`, `false`) : elles ne sont pas nulles en base.
+
+## Application (`tournoi9.js`)
+
+Vue en lecture seule, même règles que le site : classements (Round en bleu, points verts ou
+rouges, départage affiché), logos des équipes devant les noms, arbre et cartes de match. Les
+données viennent des mêmes vues publiques (`nvg_tournament_teams_public` avec `logo_url`).
+
+## PWA du site
+
+- `tournoi-site/manifest.json` : nom « Tournoi des 9 Mondes », couleur de fond `#07090e`.
+- Icônes à fond sombre dans `tournoi-site/Logos/` (`icon-192.png`, `icon-512.png`,
+  `icon-maskable-512.png`), créées à partir du logo du tournoi (qui est transparent).
+  Sans manifeste, le téléphone reprenait le favicon sur fond blanc.
+- Le nom et l'icône sont figés à l'installation : après un changement, réinstaller le site.
+
 ## Limites connues
 
 - **Toornament** : pas d'accès API pour l'instant. Aucune synchronisation ;
@@ -602,7 +669,13 @@ git push origin main
   externe (Weezevent, HelloAsso, Stripe…). Aucun encaissement, aucune
   vérification automatique du règlement : la NVG valide à la main depuis le
   back-office.
-- Pas de gestion de scores ni de brackets : Toornament ou un back-office
-  ultérieur prendra le relais.
+- **Validation automatique Weezevent** : la nouvelle interface ne renvoie pas
+  d'URL de retour ni de webhook visible. Le retour de paiement (`nvg_tournament_payment_return`)
+  n'est donc alimenté que par un accès API partenaire ou un relais externe ; à défaut,
+  la validation se fait à la main depuis l'admin.
+- **Décathlon (BO9)** : le croisement des poules, le seed et la composition manuelle des
+  poules ne concernent que le format standard. Le BO9 garde sa génération aléatoire.
+- **Démarrage des phases** : le placement du tableau est figé dès le premier match joué ;
+  un match joué se remet à zéro avec « ↺ Réinitialiser » (pas de correction de score en place).
 - Aucun secret dans `tournoi-site/` : seulement l'URL Supabase et la clé `anon`,
   qui sont publiques par conception.
