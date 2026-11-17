@@ -559,19 +559,35 @@ function applyRoute() {
 
 // --- Données publiques ---
 
+// Matchs : chargés seulement pour les tournois ouverts (fiche, panneau admin). Le
+// rechargement global ne relit que ces tournois-là.
+const matchTournamentIds = new Set();
+
+async function loadTournamentMatches(tournamentId) {
+  if (tournamentId) matchTournamentIds.add(tournamentId);
+  const ids = [...matchTournamentIds];
+  if (!ids.length) { tournamentMatches = []; return tournamentMatches; }
+  const { data, error } = await supabaseClient
+    .from('nvg_tournament_matches')
+    .select(MATCH_COLUMNS)
+    .in('tournament_id', ids)
+    .order('created_at', { ascending: true });
+  if (!error) tournamentMatches = data || [];
+  return tournamentMatches;
+}
+
 async function loadPublic() {
-  const [g, t, regs, teams, matches] = await Promise.all([
+  const [g, t, regs, teams] = await Promise.all([
     supabaseClient.from('nvg_tournament_games').select('*').order('name'),
     supabaseClient.from('nvg_tournaments').select('*').order('starts_at', { ascending: true, nullsFirst: false }),
     supabaseClient.from('nvg_tournament_registrations_public').select('tournament_id,status'),
-    supabaseClient.from('nvg_tournament_teams_public').select('id,tournament_id,name,tag,logo_url,member_count'),
-    supabaseClient.from('nvg_tournament_matches').select(MATCH_COLUMNS).order('created_at', { ascending: true })
+    supabaseClient.from('nvg_tournament_teams_public').select('id,tournament_id,name,tag,logo_url,member_count')
   ]);
   games = g.data || [];
   tournaments = t.data || [];
   publicRegs = regs.data || [];
   publicTeams = teams.data || [];
-  tournamentMatches = matches.data || [];
+  await loadTournamentMatches();
   renderTournaments();
   renderHomeTournaments();
   renderCalendar();
@@ -814,6 +830,11 @@ function signupFromDetails(id) {
 function openTournamentDetails(id, options = {}) {
   const t = tournamentById(id);
   if (!t) return;
+  if (!options.matchesLoaded) {
+    loadTournamentMatches(id).then(() => {
+      if (viewingFicheTournamentId === id) openTournamentDetails(id, { push: false, matchesLoaded: true });
+    });
+  }
   if (options.push !== false) pushRoute(routeState().tab, { tournament: id });
   viewingFicheTournamentId = id;
   ficheRosterLoadedFor = null;
@@ -1311,12 +1332,7 @@ function poolGroupsFromTeams(poolCount, teams, seedOrder, random = false, assign
 }
 
 async function loadMatchesOnly() {
-  const { data, error } = await supabaseClient
-    .from('nvg_tournament_matches')
-    .select(MATCH_COLUMNS)
-    .order('created_at', { ascending: true });
-  if (!error) tournamentMatches = data || [];
-  return tournamentMatches;
+  return loadTournamentMatches();
 }
 
 async function generateBo9Pools(tournamentId, options = {}) {
@@ -3358,7 +3374,7 @@ async function showAdminMatchPanel(tournamentId) {
   const t = tournamentById(tournamentId);
   if (!t || !(isBo9(t) || isStandard(t))) { notify('Ce tournoi n’a pas de matchs à gérer.', true); return; }
   viewingMatchTournamentId = tournamentId;
-  await loadMatchesOnly();
+  await loadTournamentMatches(tournamentId);
   renderAdminMatchPanel();
 }
 
@@ -4810,7 +4826,7 @@ function applyAdminView() {
   });
 }
 
-function selectAdminTab(name, options = {}) {
+async function selectAdminTab(name, options = {}) {
   const t = tournamentById(adminSelectedTournamentId);
   if (!t) return;
   adminTab = adminTabsFor(t).some((tab) => tab.key === name) ? name : 'manage';
@@ -4821,9 +4837,11 @@ function selectAdminTab(name, options = {}) {
     renderAdminTeams();
   } else if (adminTab === 'pool' || adminTab === 'bracket') {
     viewingMatchTournamentId = t.id;
+    await loadTournamentMatches(t.id);
     renderAdminMatchPanel();
   } else if (adminTab === 'seed') {
     viewingSeedTournamentId = t.id;
+    await loadTournamentMatches(t.id);
     renderAdminSeedPanel();
   } else if (adminTab === 'regs') {
     viewingTournamentId = t.id;
@@ -5346,9 +5364,10 @@ function toLocalInput(value) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function editTournament(id) {
+async function editTournament(id) {
   const t = tournamentById(id);
   if (!t) return;
+  await loadTournamentMatches(id);
   editingTournamentId = id;
   const type = tournamentTypeOf(t);
   const bo9 = type === 'bo9';
