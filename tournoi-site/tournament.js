@@ -514,13 +514,18 @@ function pushRoute(tab, extra = {}) {
   window.history.pushState({ tab, ...extra }, document.title, url);
 }
 
-function openTab(name, options = {}) {
-  const { push = true, replace = false } = options;
-  if (name === 'admin' && !isAdmin) name = 'home';
+// Affiche l'onglet sans rien charger : utilisé dès le démarrage pour éviter le flash de l'accueil.
+function showTabSection(name) {
   document.querySelectorAll('.tab-content').forEach((el) => el.classList.add('hidden'));
   const section = $(`tab-${name}`);
   if (section) section.classList.remove('hidden');
   document.querySelectorAll('.tab-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === name));
+}
+
+function openTab(name, options = {}) {
+  const { push = true, replace = false } = options;
+  if (name === 'admin' && !isAdmin) name = 'home';
+  showTabSection(name);
   if (push || replace) {
     const url = routeUrl(name);
     if (replace) {
@@ -6115,6 +6120,7 @@ async function signOut() {
 }
 
 async function init() {
+  showTabSection(routeState().tab);
   const { data: { session } } = await supabaseClient.auth.getSession();
   currentUser = session?.user || null;
   if (currentUser) {
