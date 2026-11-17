@@ -1150,7 +1150,7 @@ async function generateBo9Pools(tournamentId) {
     const j = Math.floor(Math.random() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
-  const groups = ['A', 'B', 'C', 'D', 'E', 'F'];
+  const groups = 'ABCDEFGH'.split('');
   const rows = [];
   for (let p = 0; p < poolCount; p += 1) {
     const groupTeams = shuffled.slice(p * poolSize, (p + 1) * poolSize);
@@ -1201,8 +1201,8 @@ async function generateBo9Bracket(tournamentId) {
     });
   }
   const size = seeds.length;
-  if (![2, 4, 8, 16].includes(size)) {
-    notify(`Le bracket demande 2, 4, 8 ou 16 qualifiés (actuellement ${size}).`, true);
+  if (size < 2) {
+    notify('Il faut au moins 2 qualifiés pour générer le bracket.', true);
     return;
   }
   if (!window.confirm(`Générer le bracket à ${size} équipes ?\n\nLe bracket existant sera effacé.`)) return;
@@ -1210,52 +1210,10 @@ async function generateBo9Bracket(tournamentId) {
     .delete().eq('tournament_id', tournamentId).neq('phase', 'pool');
   if (delError) { notify('Erreur : ' + delError.message, true); return; }
 
-  const order = bracketSeedOrder(size);
-  const firstRound = [];
-  for (let i = 0; i < size; i += 2) {
-    firstRound.push([seeds[order[i] - 1], seeds[order[i + 1] - 1]]);
-  }
-  const totalRounds = Math.log2(size);
-  let previous = [];
-  for (let round = 1; round <= totalRounds; round += 1) {
-    const count = size / (2 ** round);
-    const rows = [];
-    for (let pos = 1; pos <= count; pos += 1) {
-      const row = {
-        tournament_id: tournamentId,
-        phase: 'bracket',
-        round,
-        position: pos,
-        label: bracketRoundLabel(round, totalRounds),
-        status: 'scheduled',
-        team_a: round === 1 ? firstRound[pos - 1][0] : null,
-        team_b: round === 1 ? firstRound[pos - 1][1] : null
-      };
-      rows.push(row);
-    }
-    const { data, error } = await supabaseClient.from('nvg_tournament_matches').insert(rows).select('id,position');
-    if (error) { notify('Erreur : ' + error.message, true); return; }
-    if (previous.length) {
-      for (const prev of previous) {
-        const target = data.find((x) => x.position === Math.floor((prev.position - 1) / 2) + 1);
-        if (!target) continue;
-        await supabaseClient.from('nvg_tournament_matches')
-          .update({ next_match_id: target.id, next_slot: prev.position % 2 === 1 ? 'a' : 'b' })
-          .eq('id', prev.id);
-      }
-    }
-    previous = data;
-  }
-  if (cfg.third_place !== false && totalRounds >= 2) {
-    await supabaseClient.from('nvg_tournament_matches').insert({
-      tournament_id: tournamentId,
-      phase: 'third',
-      round: totalRounds,
-      position: 1,
-      label: 'Petite finale',
-      status: 'scheduled'
-    });
-  }
+  // Tableau complété par des exemptions si le nombre de qualifiés n'est pas une
+  // puissance de 2 (3 poules x 2 qualifiés, par exemple).
+  const error = await insertStandardBracket(tournamentId, seeds, true, cfg.third_place !== false);
+  if (error) { notify('Erreur : ' + error.message, true); return; }
   notify(`Bracket à ${size} équipes généré.`);
   await loadMatchesOnly();
   renderAdminMatchPanel();
@@ -1762,14 +1720,24 @@ async function generateStandardMatches(tournamentId) {
   }
   const teams = adminTeamsFor(tournamentId);
   if (teams.length < 2) { notify('Il faut au moins 2 équipes confirmées.', true); return; }
-  if (format === 'double_elim' && ![4, 8, 16].includes(teams.length)) {
-    notify(`La double élimination demande 4, 8 ou 16 équipes (actuellement ${teams.length}).`, true);
+  if (format === 'double_elim' && ![4, 8, 16, 32].includes(teams.length)) {
+    notify(`La double élimination demande 4, 8, 16 ou 32 équipes (actuellement ${teams.length}).`, true);
     return;
   }
   const poolCount = Number(t.format_config?.pool_count) || 2;
-  if (format === 'groups_playoffs' && teams.length < poolCount * 2) {
-    notify(`Il faut au moins ${poolCount * 2} équipes pour ${poolCount} poules.`, true);
-    return;
+  const configuredSize = Number(t.format_config?.pool_size);
+  const maxSlots = Number(t.max_participants) || 0;
+  const poolSize = configuredSize || (maxSlots > 0 ? Math.ceil(maxSlots / poolCount) : 4);
+  if (format === 'groups_playoffs') {
+    const capacity = poolCount * poolSize;
+    if (teams.length < poolCount * 2) {
+      notify(`Il faut au moins ${poolCount * 2} équipes pour ${poolCount} poules.`, true);
+      return;
+    }
+    if (teams.length > capacity) {
+      notify(`Ce tournoi est configuré pour ${poolCount} poules de ${poolSize} (${capacity} équipes maximum). Il y a ${teams.length} équipes confirmées.`, true);
+      return;
+    }
   }
   if (!window.confirm(`Générer les matchs (${STANDARD_FORMAT_LABELS[format]}) pour ${teams.length} équipes ?\n\nLes matchs existants seront effacés.`)) return;
   const { error: delError } = await supabaseClient.from('nvg_tournament_matches').delete().eq('tournament_id', tournamentId);
@@ -1911,8 +1879,8 @@ async function generateStandardPlayoffBracket(tournamentId) {
     standingsByGroup.forEach((rows) => { if (rows[rank]) seeds.push({ id: rows[rank].id }); });
   }
   if (seeds.length < 2) { notify('Pas assez de qualifiés.', true); return; }
-  if (t.format_config?.tree === 'double' && ![4, 8, 16].includes(seeds.length)) {
-    notify(`La double élimination demande 4, 8 ou 16 qualifiés (actuellement ${seeds.length}).`, true);
+  if (t.format_config?.tree === 'double' && ![4, 8, 16, 32].includes(seeds.length)) {
+    notify(`La double élimination demande 4, 8, 16 ou 32 qualifiés (actuellement ${seeds.length}).`, true);
     return;
   }
   if (!window.confirm(`Générer le tableau à ${seeds.length} qualifiés ?\n\nLe tableau existant sera effacé (les poules sont conservées).`)) return;
@@ -2436,7 +2404,12 @@ function standardScoreRule(t, a, b) {
 // --- Poules + arbre (multigaming) : un jeu par tour, finale BO3 ---
 
 function standardTreeSize(t) {
-  return (Number(t?.format_config?.pool_count) || 2) * (Number(t?.format_config?.qualifiers_per_pool) || 2);
+  // Taille réelle du tableau : puissance de 2 supérieure ou égale aux qualifiés
+  // (l'élimination directe complète le tableau avec des exemptions).
+  const qualified = (Number(t?.format_config?.pool_count) || 2) * (Number(t?.format_config?.qualifiers_per_pool) || 2);
+  let size = 2;
+  while (size < qualified) size *= 2;
+  return size;
 }
 
 // La finale (arbre simple : dernier tour ; arbre double : grande finale) se joue en BO3.
@@ -2461,9 +2434,12 @@ function standardRoundKey(m, t) {
 // Liste des tours à associer à un jeu, selon la taille de l'arbre.
 function standardRoundKeys(t) {
   const rounds = Math.log2(standardTreeSize(t));
-  const teams = adminTeamsFor(t.id).length || standardTreeSize(t) * 2;
-  const poolSize = Math.ceil(teams / (Number(t.format_config?.pool_count) || 2));
-  const poolRounds = poolSize % 2 === 0 ? poolSize - 1 : poolSize;
+  const cfg = t.format_config || {};
+  const poolCount = Number(cfg.pool_count) || 2;
+  const poolSize = Number(cfg.pool_size) || 4;
+  const teams = adminTeamsFor(t.id).length || poolCount * poolSize;
+  const perPool = Math.max(2, Math.ceil(teams / poolCount));
+  const poolRounds = perPool % 2 === 0 ? perPool - 1 : perPool;
   const keys = [];
   for (let r = 1; r <= poolRounds; r += 1) keys.push(`P${r}`);
   if (t.format_config?.tree === 'double') {
@@ -3654,10 +3630,43 @@ const STANDARD_FORMAT_LABELS = {
 
 function toggleStandardOptions() {
   const format = $('tourStdFormat')?.value;
-  $('tourStdPoolsWrap')?.classList.toggle('hidden', format !== 'groups_playoffs');
-  $('tourStdQualWrap')?.classList.toggle('hidden', format !== 'groups_playoffs');
-  $('tourStdTreeWrap')?.classList.toggle('hidden', format !== 'groups_playoffs');
+  const pools = format === 'groups_playoffs';
+  $('tourStdPoolsWrap')?.classList.toggle('hidden', !pools);
+  $('tourStdPoolSizeWrap')?.classList.toggle('hidden', !pools);
+  $('tourStdQualWrap')?.classList.toggle('hidden', !pools);
+  $('tourStdTreeWrap')?.classList.toggle('hidden', !pools);
+  $('tourStdSlotsHint')?.classList.toggle('hidden', !pools);
   $('tourStdRoundsWrap')?.classList.toggle('hidden', format !== 'swiss');
+  if (pools) syncStandardSlots();
+}
+
+// Poules + élimination : met à jour les places du tournoi et les qualifiés
+// autorisés d'après le nombre de poules et d'équipes par poule.
+function syncStandardSlots() {
+  const format = $('tourStdFormat');
+  if (!format || format.value !== 'groups_playoffs') return;
+  const pools = Number($('tourStdPools')?.value) || 2;
+  const size = Number($('tourStdPoolSize')?.value) || 4;
+  const qualifiers = $('tourStdQualifiers');
+  if (qualifiers) {
+    [...qualifiers.options].forEach((opt) => { opt.disabled = Number(opt.value) > size; });
+    if (Number(qualifiers.value) > size) qualifiers.value = String(size);
+  }
+  const slots = $('tourMax');
+  if (slots) slots.value = String(pools * size);
+  const bracketTeams = pools * (Number(qualifiers?.value) || 2);
+  const powerOfTwo = bracketTeams >= 4 && Number.isInteger(Math.log2(bracketTeams));
+  const tree = $('tourStdTree');
+  if (tree) {
+    const doubleOption = [...tree.options].find((opt) => opt.value === 'double');
+    if (doubleOption) doubleOption.disabled = !powerOfTwo;
+    if (!powerOfTwo && tree.value === 'double') tree.value = 'single';
+  }
+  const hint = $('tourStdSlotsHint');
+  if (hint) {
+    hint.textContent = `${pools * size} places (${pools} poules de ${size}) · tableau à ${bracketTeams} qualifiés`
+      + (powerOfTwo ? '' : ' · double élimination indisponible (tableau non puissance de 2).');
+  }
 }
 
 function toggleTournamentFormat() {
@@ -3714,11 +3723,6 @@ function bo9FormConfig() {
   const qualifiers = Number($('tourBo9Qualifiers').value) || 2;
   if (qualifiers > poolSize) {
     notify('Il ne peut pas y avoir plus de qualifiés que d’équipes par poule.', true);
-    return null;
-  }
-  const bracketTeams = poolCount * qualifiers;
-  if (![2, 4, 8, 16].includes(bracketTeams)) {
-    notify('Le bracket doit accueillir 2, 4, 8 ou 16 qualifiés.', true);
     return null;
   }
   return {
@@ -4745,8 +4749,10 @@ async function createTournament() {
     formatConfig = { type: 'standard', format };
     if (format === 'groups_playoffs') {
       formatConfig.pool_count = Number($('tourStdPools')?.value) || 2;
+      formatConfig.pool_size = Number($('tourStdPoolSize')?.value) || 4;
       formatConfig.qualifiers_per_pool = Number($('tourStdQualifiers')?.value) || 2;
       formatConfig.tree = $('tourStdTree')?.value === 'double' ? 'double' : 'single';
+      maxParticipants = formatConfig.pool_count * formatConfig.pool_size;
     }
     if (format === 'swiss') {
       const rounds = parseInt($('tourStdRounds')?.value, 10);

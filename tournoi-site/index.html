@@ -427,15 +427,29 @@
               <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <div id="tourStdPoolsWrap" class="hidden">
                   <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Nombre de poules</span>
-                  <select id="tourStdPools" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
+                  <select id="tourStdPools" onchange="syncStandardSlots()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
                     <option value="2">2 poules</option>
                     <option value="3">3 poules</option>
                     <option value="4">4 poules</option>
+                    <option value="5">5 poules</option>
+                    <option value="6">6 poules</option>
+                    <option value="7">7 poules</option>
+                    <option value="8">8 poules</option>
+                  </select>
+                </div>
+                <div id="tourStdPoolSizeWrap" class="hidden">
+                  <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Équipes par poule</span>
+                  <select id="tourStdPoolSize" onchange="syncStandardSlots()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
+                    <option value="2">2 équipes</option>
+                    <option value="3">3 équipes</option>
+                    <option value="4" selected>4 équipes</option>
+                    <option value="5">5 équipes</option>
+                    <option value="6">6 équipes</option>
                   </select>
                 </div>
                 <div id="tourStdQualWrap" class="hidden">
                   <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Qualifiés par poule</span>
-                  <select id="tourStdQualifiers" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
+                  <select id="tourStdQualifiers" onchange="syncStandardSlots()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
                     <option value="1">1 qualifié</option>
                     <option value="2" selected>2 qualifiés</option>
                     <option value="4">4 qualifiés</option>
@@ -447,12 +461,13 @@
                 </div>
                 <div id="tourStdTreeWrap" class="hidden">
                   <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Arbre</span>
-                  <select id="tourStdTree" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
+                  <select id="tourStdTree" onchange="syncStandardSlots()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
                     <option value="single">Simple élimination + petite finale</option>
                     <option value="double">Double élimination</option>
                   </select>
                 </div>
               </div>
+              <span id="tourStdSlotsHint" class="mt-1 block text-[9px] text-gray-500"></span>
             </label>
             <label id="tourGameWrap" class="block">
               <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Jeu</span>
@@ -487,15 +502,22 @@
                   <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Poules</span>
                   <select id="tourBo9Pools" onchange="syncBo9Slots()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
                     <option value="2">2 poules</option>
+                    <option value="3">3 poules</option>
                     <option value="4" selected>4 poules</option>
+                    <option value="5">5 poules</option>
+                    <option value="6">6 poules</option>
+                    <option value="7">7 poules</option>
+                    <option value="8">8 poules</option>
                   </select>
                 </label>
                 <label class="block">
                   <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Équipes par poule</span>
                   <select id="tourBo9PoolSize" onchange="syncBo9Slots()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+                    <option value="2">2 équipes</option>
                     <option value="3">3 équipes</option>
                     <option value="4" selected>4 équipes</option>
                     <option value="5">5 équipes</option>
+                    <option value="6">6 équipes</option>
                   </select>
                 </label>
                 <label class="block">

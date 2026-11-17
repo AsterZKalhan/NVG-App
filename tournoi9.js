@@ -118,7 +118,11 @@ function t9MatchLine(m, label = '', t = null) {
 }
 
 function t9TreeSize(t) {
-  return (Number(t.format_config?.pool_count) || 2) * (Number(t.format_config?.qualifiers_per_pool) || 2);
+  // Taille réelle du tableau (puissance de 2, exemptions comprises), comme sur le site.
+  const qualified = (Number(t.format_config?.pool_count) || 2) * (Number(t.format_config?.qualifiers_per_pool) || 2);
+  let size = 2;
+  while (size < qualified) size *= 2;
+  return size;
 }
 
 // Finale BO3 : arbre simple (dernier tour) ou grande finale (arbre double).
