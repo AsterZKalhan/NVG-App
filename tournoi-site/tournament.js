@@ -6128,6 +6128,7 @@ async function signOut() {
 }
 
 async function init() {
+  document.getElementById('routeFlashStyle')?.remove();
   showTabSection(routeState().tab);
   const { data: { session } } = await supabaseClient.auth.getSession();
   currentUser = session?.user || null;

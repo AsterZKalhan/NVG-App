@@ -3,6 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    // Avant le premier affichage : seul l'onglet de l'adresse est visible (pas de flash de l'accueil).
+    // Retiré par init() une fois l'onglet appliqué.
+    (function () {
+      var tab = (new URLSearchParams(location.search).get('tab') || 'home').replace(/[^a-z]/g, '');
+      var style = document.createElement('style');
+      style.id = 'routeFlashStyle';
+      style.textContent = '.tab-content{display:none!important}#tab-' + tab + '{display:block!important}';
+      document.head.appendChild(style);
+    })();
+  </script>
   <title>Tournoi des 9 Mondes - Normandy Viking Gaming</title>
   <link rel="icon" type="image/png" href="./Logos/favicon.png">
   <link rel="apple-touch-icon" href="./Logos/icon-192.png">
