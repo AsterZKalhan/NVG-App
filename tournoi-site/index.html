@@ -1145,5 +1145,13 @@
   <script src="auth-shared.js" defer></script>
   <script src="tournament.js" defer></script>
   <script src="contact-form.js" defer></script>
+  <script>
+    // Cache des fichiers du site (service worker) : rechargement plus rapide.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js').catch(function () { /* hors ligne ou non pris en charge */ });
+      });
+    }
+  </script>
 </body>
 </html>

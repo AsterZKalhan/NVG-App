@@ -22,6 +22,9 @@ jobs:
       - name: Compiler le CSS (Tailwind)
         run: npx --yes tailwindcss@3.4.17 -c tournoi-site/tailwind.config.js -i tournoi-site/src/tailwind.css -o tournoi-site/tailwind.css --minify
 
+      - name: Identifier le déploiement (cache du service worker)
+        run: sed -i "s/__BUILD__/${GITHUB_SHA::12}/" tournoi-site/sw.js
+
       - name: Minifier les scripts du site
         run: |
           npm install -g terser@5
