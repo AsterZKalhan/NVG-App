@@ -522,9 +522,35 @@ function showTabSection(name) {
   document.querySelectorAll('.tab-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === name));
 }
 
+// Quitter l'espace admin remet son état à zéro et vide ses données : à la prochaine
+// ouverture, tout repart du premier tournoi, onglet « Gestion », sans cache périmé.
+let activeMainTab = null;
+
+function resetAdminState() {
+  adminTab = 'manage';
+  adminPane = 'manage';
+  adminSelectedTournamentId = null;
+  adminTabRestored = true;
+  viewingMatchTournamentId = null;
+  viewingSeedTournamentId = null;
+  viewingTeamsTournamentId = null;
+  adminRegs = [];
+  adminPlayers = [];
+  adminTeams = [];
+  adminEventPlayers = [];
+  localStorage.removeItem('nvg_admin_tournament');
+  localStorage.removeItem('nvg_admin_subtab');
+  matchTournamentIds.clear();
+  tournamentMatches = [];
+  // La fiche ouverte dans un autre onglet garde ses matchs.
+  if (viewingFicheTournamentId) loadTournamentMatches(viewingFicheTournamentId);
+}
+
 function openTab(name, options = {}) {
   const { push = true, replace = false } = options;
   if (name === 'admin' && !isAdmin) name = 'home';
+  if (activeMainTab === 'admin' && name !== 'admin') resetAdminState();
+  activeMainTab = name;
   showTabSection(name);
   if (push || replace) {
     const url = routeUrl(name);
