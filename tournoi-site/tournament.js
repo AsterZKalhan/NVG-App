@@ -2745,7 +2745,6 @@ function renderStandardMatchPanel(t) {
         <h3 class="text-xs font-black uppercase tracking-wider text-white">🏟️ Matchs</h3>
         ${standardStandingsBlocks(matches)}
         <div id="stdPoolsAdmin" class="space-y-2">
-          ${standardPoolFilters('stdPoolsAdmin', pools)}
           ${standardPoolRoundsHtml('stdPoolsAdmin', pools, (m) => adminStandardMatchCard(m, m.label || (m.group_name ? `Poule ${m.group_name}` : 'Match')))}
         </div>
       </div>` : ''}
