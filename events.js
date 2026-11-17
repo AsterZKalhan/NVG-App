@@ -892,6 +892,26 @@ async function adminSaveEventForm() {
   await loadEvents();
 }
 
+// Formulaire d'événement remis à vide, hors mode modification (en quittant l'onglet).
+function resetEventForm() {
+  editingEventId = null;
+  ['adminNewEvTitle', 'adminNewEvStartDate', 'adminNewEvStartTime', 'adminNewEvEndDate', 'adminNewEvEndTime', 'adminNewEvLoc', 'adminNewEvDropbox', 'adminNewEvDesc'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const watch = document.getElementById('adminNewEvWatch');
+  if (watch) watch.value = 'none';
+  adminStreams = [];
+  adminWatchModeChanged();
+  renderAdminStreams();
+  renderAdminEventGames();
+  const createBtn = document.getElementById('adminEventSubmitBtn');
+  if (createBtn) {
+    createBtn.innerText = "Créer l'événement";
+    createBtn.className = "px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-lg hover:bg-amber-400 transition md:col-span-2";
+  }
+}
+
 let adminStreams = [];
 
 function adminWatchModeChanged() {

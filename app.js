@@ -178,7 +178,16 @@ function goBack() {
 // est remis à zéro : à la prochaine ouverture, il repart de l'état par défaut.
 let previousAppTab = null;
 
+// Formulaires d'édition (catalogue, événement, jeu, membre) remis à vide en quittant l'onglet.
+function resetEditingForms() {
+  if (typeof resetCatalogForm === 'function') resetCatalogForm();
+  if (typeof resetEventForm === 'function') resetEventForm();
+  if (typeof resetGameForm === 'function') resetGameForm();
+  if (typeof closeAdminUserModal === 'function') closeAdminUserModal();
+}
+
 function leaveAppTab(tab) {
+  resetEditingForms();
   if (tab === 'admin') {
     try { localStorage.removeItem('nvg_admin_panel'); } catch (e) { /* stockage indisponible */ }
   }

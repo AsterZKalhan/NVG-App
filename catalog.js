@@ -64,6 +64,22 @@ function adminEditCatalogItem(id) {
   }
 }
 
+// Formulaire du catalogue remis à vide, hors mode modification (en quittant l'onglet).
+function resetCatalogForm() {
+  editingCatalogId = null;
+  ['adminCatName', 'adminCatDesc', 'adminCatImg'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const category = document.getElementById('adminCatCategory');
+  if (category) category.value = 'Périphérique PC';
+  const submitBtn = document.getElementById('adminCatalogSubmitBtn');
+  if (submitBtn) {
+    submitBtn.innerText = "Ajouter au catalogue";
+    submitBtn.className = "px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-lg hover:bg-amber-400 transition md:col-span-4";
+  }
+}
+
 // 4. SAUVEGARDE / CRÉATION / MODIFICATION D'UN ITEM DANS SUPABASE
 // Enregistre un article du catalogue. La catégorie (Câblage, Interface audio, Interface vidéo, Périphérique PC) détermine le choix proposé aux participants.
 async function adminSaveCatalogItem() {
