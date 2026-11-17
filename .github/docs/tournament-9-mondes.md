@@ -355,7 +355,15 @@ Statuts d'un tournoi : `draft`, `open`, `closed`, `running`, `finished`, `cancel
    - **👤 Mes informations** : pseudo, prénom, nom, date de naissance et mot de
      passe ;
    - **🛡️ Mes équipes** : rejoindre une équipe par code, équipes, membres, code
-     d'invitation, inscription et dissolution ;
+     d'invitation, inscription et dissolution. Chaque carte indique le **tournoi**
+     concerné et son statut, et affiche en face de chaque joueur le même voyant
+     de paiement que le back-office (vert « Billet pris », rouge « Billet à
+     prendre », bleu « Remboursé », gris « Gratuit »), avec un récapitulatif
+     `x/y billet(s) pris`. La lecture des billets des coéquipiers passe par la
+     fonction `nvg_tournament_team_payments` (`.github/sql/`
+     `tournament-team-payments.sql`) : la RLS reste inchangée, la fonction
+     `SECURITY DEFINER` ne renvoie que l'état de paiement aux membres de
+     l'équipe ou aux admins ;
    - **📋 Mes inscriptions** : inscriptions actives avec statut et état du
      paiement. Une inscription annulée (par le joueur ou par la NVG)
      **disparaît de Mon espace** ; elle reste consultable dans le back-office.

@@ -24,6 +24,8 @@ const MATCH_COLUMNS = 'id,tournament_id,phase,round,position,group_name,label,te
 let myTeams = [];
 let myRegistrations = [];
 let myParticipations = [];
+// Paiement du billet de chaque joueur des équipes de l'utilisateur (RPC dédiée).
+let teamPayments = new Map();
 let manageTournamentId = null;
 let adminRegs = [];
 let adminPlayers = [];
@@ -3014,6 +3016,20 @@ async function loadMember() {
   const myTeamIds = new Set(myTeams.map((team) => team.id));
   myRegistrations = (regs.data || []).filter((r) => r.user_id === uid || myTeamIds.has(r.team_id));
   myParticipations = parts.data || [];
+  // La RLS n'autorise la lecture de nvg_tournament_players qu'au joueur lui-même
+  // ou à un admin. La fonction SECURITY DEFINER ne renvoie que les états de
+  // paiement des membres de l'équipe, sans donnée personnelle supplémentaire.
+  teamPayments = new Map();
+  if (myTeams.length) {
+    const results = await Promise.all(myTeams.map((team) =>
+      supabaseClient.rpc('nvg_tournament_team_payments', { p_team: team.id })
+        .then(({ data, error }) => error ? [] : (data || []))
+        .catch(() => [])
+    ));
+    myTeams.forEach((team, index) => {
+      teamPayments.set(team.id, new Map((results[index] || []).map((row) => [row.user_id, row])));
+    });
+  }
   renderMyTeams();
   renderMyRegistrations();
   if (manageTournamentId) renderManage();
@@ -3029,28 +3045,45 @@ function renderMyTeams() {
     const tournament = team.nvg_tournaments || {};
     const members = team.nvg_tournament_team_members || [];
     const isCaptain = team.captain_id === currentUser?.id;
-    const alreadyRegistered = myRegistrations.some((r) => r.team_id === team.id && r.status !== 'cancelled');
+    const registration = myRegistrations.find((r) => r.team_id === team.id && r.status !== 'cancelled');
+    const alreadyRegistered = Boolean(registration);
     const enough = members.length >= (tournament.team_min || 1);
+    const payments = teamPayments.get(team.id) || new Map();
+    const paidCount = members.filter((m) => payments.get(m.user_id)?.payment_status === 'paid').length;
     return `
       <article class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
         <div class="flex items-start justify-between gap-2">
           <div class="min-w-0">
-            <p class="text-[10px] uppercase tracking-widest text-amber-400 font-black truncate">${escapeHtml(tournament.name || 'Tournoi')}</p>
+            <p class="text-[10px] uppercase tracking-widest text-amber-400 font-black truncate">🏆 Tournoi : ${escapeHtml(tournament.name || '—')}</p>
+            <p class="mt-0.5 text-[10px] text-gray-500">${escapeHtml(STATUS_LABELS[tournament.status] || tournament.status || 'Statut à confirmer')}</p>
             <h3 class="text-sm font-black text-white mt-1">${escapeHtml(team.name)} ${team.tag ? `<span class="text-gray-500">[${escapeHtml(team.tag)}]</span>` : ''}</h3>
           </div>
           <span class="shrink-0 text-[10px] px-2 py-1 rounded-full border border-[#1f293d] text-gray-400">${members.length}/${tournament.team_max || '?'}</span>
         </div>
-        <ul class="text-[11px] text-gray-400 space-y-1">
-          ${members.map((m) => `<li>${m.role === 'captain' ? '👑' : '•'} ${escapeHtml(m.nvg_users?.name || 'Membre')}${m.user_id === currentUser?.id ? ' <span class="text-gray-600">(toi)</span>' : ''}${isCaptain && m.role !== 'captain' ? ` <button onclick="setTeamCaptain('${team.id}', '${m.user_id}')" class="ml-2 text-[10px] font-bold text-amber-400 hover:text-amber-300">Passer capitaine</button>` : ''}</li>`).join('')}
-        </ul>
+        <div>
+          <p class="mb-1 text-[9px] font-black uppercase tracking-wider text-gray-500">Joueurs · paiement du billet</p>
+          <ul class="text-[11px] text-gray-300 space-y-1">
+            ${members.map((m) => {
+              const known = payments.has(m.user_id);
+              const status = payments.get(m.user_id)?.payment_status || 'not_required';
+              const light = !known ? 'bg-gray-500' : status === 'paid' ? 'bg-emerald-400' : status === 'refunded' ? 'bg-sky-400' : status === 'not_required' ? 'bg-gray-500' : 'bg-red-500';
+              const label = known ? escapeHtml(PLAYER_PAY_LABELS[status] || status) : '—';
+              return `<li class="flex flex-wrap items-center justify-between gap-2">
+                <span class="min-w-0">${m.role === 'captain' ? '👑' : '•'} ${escapeHtml(m.nvg_users?.name || 'Membre')}${m.user_id === currentUser?.id ? ' <span class="text-gray-600">(toi)</span>' : ''}${isCaptain && m.role !== 'captain' ? ` <button onclick="setTeamCaptain('${team.id}', '${m.user_id}')" class="ml-2 text-[10px] font-bold text-amber-400 hover:text-amber-300">Passer capitaine</button>` : ''}</span>
+                <span class="flex shrink-0 items-center gap-1.5 text-[10px] text-gray-400" title="${label}"><span class="h-2.5 w-2.5 shrink-0 rounded-full ${light}"></span>${label}</span>
+              </li>`;
+            }).join('')}
+          </ul>
+          ${payments.size ? `<p class="mt-1.5 text-[10px] text-gray-500">🎟️ ${paidCount}/${members.length} billet(s) pris</p>` : ''}
+        </div>
         ${isCaptain ? `
           <div class="flex flex-wrap items-center gap-2">
             <input readonly value="${escapeHtml(inviteUrl(team.invite_code))}" class="flex-1 min-w-[160px] bg-[#07090e] border border-[#1f293d] rounded-lg px-3 py-2 text-[10px] text-gray-400">
             <button onclick="copyText('${escapeHtml(inviteUrl(team.invite_code))}')" class="px-3 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-300 font-bold text-[10px] rounded-lg transition">Copier</button>
           </div>` : ''}
-        <div class="flex flex-wrap gap-2">
+        <div class="flex flex-wrap items-center gap-2">
           ${alreadyRegistered
-            ? '<span class="px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold rounded-lg">✅ Équipe inscrite</span>'
+            ? `<span class="px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold rounded-lg">✅ Équipe inscrite</span><span title="Paiement de l'inscription de l'équipe">${paymentBadge(registration.payment_status)}</span>`
             : isCaptain
               ? `<button onclick="registerTeam('${team.id}')" ${enough ? '' : 'disabled'} class="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-[10px] rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed">Inscrire l'équipe${enough ? '' : ' (incomplète)'}</button>`
               : '<span class="px-3 py-2 bg-white/5 border border-[#1f293d] text-gray-500 text-[10px] font-bold rounded-lg">En attente du capitaine</span>'}
