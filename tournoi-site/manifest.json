@@ -1,0 +1,35 @@
+{
+  "id": "./",
+  "name": "Le Tournoi des 9 Mondes",
+  "short_name": "9 Mondes",
+  "description": "Site du Tournoi des 9 Mondes : inscriptions, poules, tableaux et résultats.",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#07090e",
+  "theme_color": "#0b0f17",
+  "categories": ["sports", "entertainment"],
+  "icons": [
+    {
+      "src": "./Logos/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./Logos/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./Logos/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
