@@ -1074,13 +1074,13 @@ function bo9PoolTable(groupName, cfg, matches) {
   return `
     <div class="overflow-hidden rounded-xl border border-[#1f293d] bg-[#07090e]">
       <p class="border-b border-[#1f293d] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-amber-300">Poule ${escapeHtml(groupName)}</p>
-      <table class="w-full table-fixed text-[10px]">
-        <colgroup><col class="w-8"><col><col class="w-9"><col class="w-9"><col class="w-9"><col class="w-9"><col class="w-12"><col class="w-14"></colgroup>
+      <table class="w-full text-[10px]" style="table-layout:fixed">
+        <colgroup><col style="width:32px"><col><col style="width:64px"><col style="width:36px"><col style="width:36px"><col style="width:36px"><col style="width:52px"><col style="width:60px"></colgroup>
         <thead class="text-gray-500">
           <tr>
             <th class="px-2 py-1 text-left font-bold">#</th>
             <th class="px-2 py-1 text-left font-bold">Équipe</th>
-            <th class="px-1 py-1 text-center font-bold">J</th>
+            <th class="px-2 py-1 text-center font-bold">Round</th>
             <th class="px-1 py-1 text-center font-bold">V</th>
             <th class="px-1 py-1 text-center font-bold">N</th>
             <th class="px-1 py-1 text-center font-bold">D</th>
@@ -2205,12 +2205,12 @@ function standardStandingsTable(matches) {
   if (!rows.length) return '';
   return `
     <div class="overflow-hidden rounded-xl border border-[#1f293d] bg-[#07090e]">
-      <table class="w-full table-fixed text-[10px]">
-        <colgroup><col><col class="w-9"><col class="w-9"><col class="w-9"><col class="w-9"><col class="w-12"><col class="w-14"></colgroup>
+      <table class="w-full text-[10px]" style="table-layout:fixed">
+        <colgroup><col><col style="width:64px"><col style="width:36px"><col style="width:36px"><col style="width:36px"><col style="width:52px"><col style="width:60px"></colgroup>
         <thead class="bg-white/5 text-gray-400">
           <tr>
             <th class="px-2 py-1 text-left font-black">Équipe</th>
-            <th class="px-1 py-1 text-center font-black">J</th>
+            <th class="px-2 py-1 text-center font-black">Round</th>
             <th class="px-1 py-1 text-center font-black">V</th>
             <th class="px-1 py-1 text-center font-black">N</th>
             <th class="px-1 py-1 text-center font-black">D</th>
