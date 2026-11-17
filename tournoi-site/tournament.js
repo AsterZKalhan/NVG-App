@@ -3237,15 +3237,16 @@ function standardBracketSlotsHtml(t, matches) {
   if (!bracket.length) return '';
   const first = Math.min(...bracket.map((m) => m.round));
   const round1 = bracket.filter((m) => m.round === first).sort((a, b) => a.position - b.position);
+  const locked = matches.some((m) => m.phase !== 'pool' && m.status !== 'scheduled' && m.team_a && m.team_b);
   const teamIds = round1.flatMap((m) => [m.team_a, m.team_b]).filter(Boolean);
   const select = (m, side, fixed) => `<select ${fixed ? 'disabled' : ''} onchange="setBracketSlot('${t.id}','${m.id}','${side}',this.value)" class="${MANAGE_INPUT_CLASS} min-w-0 flex-1 py-1">
     ${teamIds.map((id) => `<option value="${id}" ${(side === 'a' ? m.team_a : m.team_b) === id ? 'selected' : ''}>${escapeHtml(teamLabelById(id))}</option>`).join('')}
   </select>`;
   return `<div class="space-y-2">
     <h3 class="text-xs font-black uppercase tracking-wider text-white">🏆 Tableau : placement des équipes</h3>
-    <p class="text-[10px] text-gray-500">Change une équipe de case : les deux équipes échangent leurs places. Les matchs déjà joués sont verrouillés (remets leur résultat à zéro pour les modifier).</p>
+    <p class="text-[10px] text-gray-500">${locked ? 'Le premier match est joué : les équipes du tableau sont figées.' : 'Change une équipe de case : les deux équipes échangent leurs places. Les équipes se figent dès que le premier match est joué.'}</p>
     <div class="grid gap-1.5 sm:grid-cols-2">${round1.map((m) => {
-      const fixed = m.status !== 'scheduled' || !m.team_a || !m.team_b;
+      const fixed = locked || m.status !== 'scheduled' || !m.team_a || !m.team_b;
       return `<div class="flex items-center gap-2 rounded-lg border border-[#1f293d] bg-[#07090e] px-2 py-1.5">
         ${select(m, 'a', fixed)}<span class="text-[9px] font-black text-gray-500">vs</span>${select(m, 'b', fixed)}
       </div>`;
@@ -3255,6 +3256,11 @@ function standardBracketSlotsHtml(t, matches) {
 
 async function setBracketSlot(tournamentId, matchId, side, teamId) {
   const all = tournamentMatches.filter((m) => m.tournament_id === tournamentId && m.phase !== 'pool');
+  if (all.some((m) => m.status !== 'scheduled' && m.team_a && m.team_b)) {
+    notify('Le premier match est joué : les équipes du tableau sont figées.', true);
+    renderAdminMatchPanel();
+    return;
+  }
   const bracket = all.filter((m) => m.phase === 'bracket' || m.phase === 'winners');
   const first = Math.min(...bracket.map((m) => m.round));
   const round1 = bracket.filter((m) => m.round === first);
