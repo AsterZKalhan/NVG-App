@@ -333,3 +333,10 @@ Pour déployer une fonction Edge : `curl` vers `/v1/projects/{ref}/functions/dep
   - **Optimisation** : après une modification admin (ordre du seed, composition, départage), la copie locale du tournoi est mise à jour sans recharger toutes les données (5 requêtes en moins par action). Remplace le rechargement complet dans `saveSeedOrder`, `saveFormatConfig` et `adjustTiebreak`.
   - **Documentation** : `.github/docs/tournament-9-mondes.md` complété (classements, seed, composition, tableau, scores, app, PWA) et limites mises à jour.
   - **Non fait** : chargement des matchs à la demande (piste 5 de `performance-tournoi.md`, la plus gros gain restant), Décathlon (BO9) pour le croisement et le seed, validation Weezevent automatique (pas d'URL de retour visible).
+- **18 novembre 2026, performance et navigation** :
+  - **Matchs à la demande** (site du tournoi) : les matchs ne sont plus chargés pour tous les tournois. `loadTournamentMatches(id)` charge ceux du tournoi ouvert (fiche, panneau admin, édition) ; le rechargement global ne relit que les tournois déjà ouverts. Commit `34f6cef`.
+  - **Service worker du site** (`tournoi-site/sw.js`) : fichiers statiques (scripts, CSS, images) en cache versionné par déploiement (`__BUILD__` remplacé par le SHA dans `deploy-tournament.yml`) ; pages en réseau d'abord ; données Supabase jamais mises en cache. Commit `78120b0`. Effet visible après le premier déploiement, à la deuxième visite.
+  - **Menu du site** : affiché d'un bloc une fois la session connue (classe `nav-ready`, sécurité après 4 s). Commit `2e70bab`.
+  - **Onglet de l'adresse et onglet admin** : l'onglet (`?tab=`) est appliqué avant le chargement du script ; le tournoi admin et l'onglet interne sont mémorisés (localStorage). Commits `9b88f49`, `f48bbe8`, `5b3bd80`.
+  - **App NVG** : service worker enrichi d'un cache des fichiers (même principe, version par déploiement via `deploy.yml`), notifications push inchangées ; menu masqué jusqu'à la session connue. Commit `b1a56f7`.
+  - **Non vérifié en navigateur réel** : effet du service worker (à tester après deux Ctrl+F5 en production) et flash des onglets.
