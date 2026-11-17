@@ -174,6 +174,17 @@ function goBack() {
 }
 
 // Fonction globale pour basculer d'un onglet à un autre
+// En quittant un onglet (le lecteur Twitch flottant n'est pas concerné), son état local
+// est remis à zéro : à la prochaine ouverture, il repart de l'état par défaut.
+let previousAppTab = null;
+
+function leaveAppTab(tab) {
+  if (tab === 'admin') {
+    try { localStorage.removeItem('nvg_admin_panel'); } catch (e) { /* stockage indisponible */ }
+  }
+  if (tab === 'tournoi9' && typeof t9Reset === 'function') t9Reset();
+}
+
 function showTab(tabId) {
   // --- SÉCURITÉ : Bloquer l'accès selon le GRADE VIKING ---
   if (currentUser) {
@@ -231,6 +242,9 @@ function showTab(tabId) {
     videosPipActive = enterVideosPip();
     if (!videosPipActive && typeof pauseVideosIfNotPip === 'function') pauseVideosIfNotPip();
   }
+
+  if (previousAppTab && previousAppTab !== tabId) leaveAppTab(previousAppTab);
+  previousAppTab = tabId;
 
   const tabs = document.querySelectorAll('.tab-content');
   tabs.forEach(tab => {

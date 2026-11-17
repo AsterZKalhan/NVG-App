@@ -546,10 +546,34 @@ function resetAdminState() {
   if (viewingFicheTournamentId) loadTournamentMatches(viewingFicheTournamentId);
 }
 
+// Quitter un menu principal remet son état à zéro et vide ses données ; elles sont
+// rechargées à la prochaine ouverture. L'accueil n'a rien à vider.
+function leaveMainTab(tab) {
+  if (tab === 'admin') resetAdminState();
+  if (tab === 'tournaments') resetTournamentsState();
+  if (tab === 'account') resetAccountState();
+}
+
+function resetTournamentsState() {
+  closeTournamentDetails({ push: false });
+  viewingFicheTournamentId = null;
+  ficheRosterLoadedFor = null;
+  matchTournamentIds.clear();
+  tournamentMatches = [];
+}
+
+function resetAccountState() {
+  accountPane = 'info';
+  myTeams = [];
+  myRegistrations = [];
+  myParticipations = [];
+  teamPayments = new Map();
+}
+
 function openTab(name, options = {}) {
   const { push = true, replace = false } = options;
   if (name === 'admin' && !isAdmin) name = 'home';
-  if (activeMainTab === 'admin' && name !== 'admin') resetAdminState();
+  if (activeMainTab && activeMainTab !== name) leaveMainTab(activeMainTab);
   activeMainTab = name;
   showTabSection(name);
   if (push || replace) {

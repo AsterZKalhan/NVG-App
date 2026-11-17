@@ -10,6 +10,15 @@ let t9Teams = new Map();
 let t9Games = new Map();
 let t9SelectedId = null;
 
+// Quitter l'onglet : données et sélection vidées (rechargées à la prochaine ouverture).
+function t9Reset() {
+  t9Tournaments = [];
+  t9Matches = [];
+  t9Teams = new Map();
+  t9Games = new Map();
+  t9SelectedId = null;
+}
+
 function t9Esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }
