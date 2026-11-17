@@ -3228,22 +3228,39 @@ async function fillSeedSlots(tournamentId) {
 
 // Départage : l'admin ajoute ou retire 1 point à une équipe à égalité. Le point est
 // stocké dans format_config.tiebreaks et compte dans le classement et le tableau.
+// Par poule, seules les équipes à égalité de points (et celles déjà départagées) sont
+// proposées : l'admin choisit l'équipe qui reçoit le point.
 function standardTiebreakHtml(t, matches) {
-  const poolIds = new Set(matches.filter((m) => m.phase === 'pool').flatMap((m) => [m.team_a, m.team_b]).filter(Boolean));
-  const teams = adminTeamsFor(t.id).filter((team) => poolIds.has(team.id));
   const bonuses = t.format_config?.tiebreaks || {};
-  if (!teams.length) return '';
+  const letters = [...new Set(matches.filter((m) => m.phase === 'pool').map((m) => m.group_name))].sort(standardGroupOrder);
+  const chip = (id) => {
+    const bonus = bonuses[id] ? `<span class="text-[10px] font-black text-amber-300">+${bonuses[id]}</span>` : '';
+    return `<div class="flex items-center gap-1.5 rounded-lg border border-[#1f293d] bg-[#07090e] px-2 py-1">
+      <span class="text-[10px] font-bold text-gray-200">${escapeHtml(teamLabelById(id))}</span>${bonus}
+      <button onclick="adjustTiebreak('${t.id}','${id}',-1)" class="rounded border border-[#1f293d] px-1.5 text-[11px] text-gray-300 hover:text-white" aria-label="Retirer un point">−1</button>
+      <button onclick="adjustTiebreak('${t.id}','${id}',1)" class="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 text-[11px] font-bold text-amber-300 hover:bg-amber-500/20" aria-label="Ajouter un point">+1</button>
+    </div>`;
+  };
+  const blocks = letters.map((letter) => {
+    const rows = standardStandings(matches.filter((m) => m.phase === 'pool' && m.group_name === letter), bonuses);
+    const byPoints = new Map();
+    rows.forEach((r) => byPoints.set(r.points, [...(byPoints.get(r.points) || []), r.id]));
+    const ties = [...byPoints.entries()].filter(([, ids]) => ids.length > 1).sort((a, b) => b[0] - a[0]);
+    const tied = new Set(ties.flatMap(([, ids]) => ids));
+    const others = rows.filter((r) => bonuses[r.id] && !tied.has(r.id)).map((r) => r.id);
+    if (!ties.length && !others.length) return '';
+    return `<div class="space-y-1.5">
+      <p class="text-[10px] font-black uppercase tracking-wider text-gray-400">Poule ${escapeHtml(letter)}</p>
+      ${ties.map(([pts, ids]) => `<div class="flex flex-wrap items-center gap-2">
+        <span class="text-[10px] font-bold text-amber-300">Égalité à ${pts} pts</span>${ids.map(chip).join('')}
+      </div>`).join('')}
+      ${others.length ? `<div class="flex flex-wrap items-center gap-2"><span class="text-[10px] text-gray-500">Points déjà ajoutés</span>${others.map(chip).join('')}</div>` : ''}
+    </div>`;
+  }).filter(Boolean);
   return `<div class="space-y-2">
     <h3 class="text-xs font-black uppercase tracking-wider text-white">⚖️ Départage (matchs de poule)</h3>
-    <p class="text-[10px] text-gray-500">En cas d’égalité, ajoute 1 point à l’une des deux équipes. Le point compte dans le classement et la qualification.</p>
-    <div class="flex flex-wrap gap-2">
-      ${teams.map((team) => `<div class="flex items-center gap-1.5 rounded-lg border border-[#1f293d] bg-[#07090e] px-2 py-1">
-        <span class="text-[10px] font-bold text-gray-200">${escapeHtml(team.name)}${team.tag ? ` [${escapeHtml(team.tag)}]` : ''}</span>
-        ${bonuses[team.id] ? `<span class="text-[10px] font-black text-amber-300">+${bonuses[team.id]}</span>` : ''}
-        <button onclick="adjustTiebreak('${t.id}','${team.id}',-1)" class="rounded border border-[#1f293d] px-1.5 text-[11px] text-gray-300 hover:text-white" aria-label="Retirer un point">−1</button>
-        <button onclick="adjustTiebreak('${t.id}','${team.id}',1)" class="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 text-[11px] font-bold text-amber-300 hover:bg-amber-500/20" aria-label="Ajouter un point">+1</button>
-      </div>`).join('')}
-    </div>
+    <p class="text-[10px] text-gray-500">En cas d’égalité, ajoute 1 point à l’équipe qui doit passer. Le point compte dans le classement et la qualification.</p>
+    ${blocks.length ? blocks.join('') : '<p class="text-[10px] text-gray-400">Aucune égalité à départager pour le moment.</p>'}
   </div>`;
 }
 
