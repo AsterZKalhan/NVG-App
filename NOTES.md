@@ -340,3 +340,11 @@ Pour déployer une fonction Edge : `curl` vers `/v1/projects/{ref}/functions/dep
   - **Onglet de l'adresse et onglet admin** : l'onglet (`?tab=`) est appliqué avant le chargement du script ; le tournoi admin et l'onglet interne sont mémorisés (localStorage). Commits `9b88f49`, `f48bbe8`, `5b3bd80`.
   - **App NVG** : service worker enrichi d'un cache des fichiers (même principe, version par déploiement via `deploy.yml`), notifications push inchangées ; menu masqué jusqu'à la session connue. Commit `b1a56f7`.
   - **Non vérifié en navigateur réel** : effet du service worker (à tester après deux Ctrl+F5 en production) et flash des onglets.
+- **18 novembre 2026, fin de session (navigation, menus, icônes)** :
+  - **Menus au démarrage** : copie locale du compte (site et app, valable tant que la session l'est), appliquée avant la revérification du profil ; le pseudo mémorisé reste affiché. Commits `2a83b35`, `a1d3a0f`.
+  - **Menus au départ** : en quittant un onglet, son état est remis à zéro (site : Admin, Tournois, Mon espace ; app : Admin, Tournoi 9 Mondes, formulaires d'édition catalogue, événement, jeu, membre). Le lecteur Twitch flottant n'est pas concerné. Commits `37f7bdb`, `71626bc`, `ae482ee`.
+  - **Boutons Actualiser** : retirés du site du tournoi (Tournois, Mon espace, Admin) car chaque onglet recharge déjà ses données à l'ouverture. Conservé dans l'app pour les vidéos (forcer la récupération YouTube). Commit `b84b0d9`.
+  - **Admin (site)** : cadre « Gestion des tournois » aux 3/4 de la fenêtre sur grand écran. Commit `d46c955`.
+  - **Icônes PWA du site** : icônes « any » transparentes pour PC ; icône maskable sombre conservée pour le téléphone (`icon-any-192.png`, `icon-any-512.png`). Commit `87ed568`. Réinstallation nécessaire pour voir le changement.
+  - **À vérifier en production** : cache du service worker (deux Ctrl+F5), flash des onglets et du menu, aller-retour entre onglets, icônes installées.
+  - **Non fait** : mise en cache plus poussée des menus de l'app (Calendrier, Logistique, Jeux, Streams, Vidéos, Notifications, Bot) ; messages de contact dans l'app à vérifier avant de retirer leur bouton Actualiser.
