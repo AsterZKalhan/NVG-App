@@ -246,8 +246,8 @@
     </div>
   </div>
   <!-- MODALE DE GESTION DE PRÉSENCE & MATÉRIEL -->
-  <div id="attendanceModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-6 w-full max-w-2xl shadow-2xl relative space-y-5">
+  <div id="attendanceModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4" style="overscroll-behavior:contain">
+    <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-6 w-full max-w-2xl shadow-2xl relative space-y-5" style="max-height:90vh;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y">
       <div class="flex items-center justify-between border-b border-[#1f293d] pb-3">
         <h3 class="text-sm font-black text-white uppercase tracking-wider">🚀 Gérer ma présence & mon matériel</h3>
         <button onclick="closeAttendanceModal()" class="text-gray-400 hover:text-white font-bold text-xs">✕</button>
