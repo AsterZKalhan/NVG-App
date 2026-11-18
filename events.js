@@ -136,6 +136,7 @@ function renderPublicEvents() {
     const attendance = ev.attendance || [];
     const userAttendance = currentUser ? attendance.find(a => a.userId === currentUser.id) : null;
     const isParticipating = !!userAttendance;
+    const isPast = (ev.date_fin || ev.date_debut || '') < todayStr;
 
     return `
       <div class="event-card border-2 rounded-xl flex flex-col justify-between shadow relative">
@@ -149,11 +150,15 @@ function renderPublicEvents() {
         </div>
         <p class="ec-desc">${ev.description}</p>
         <div class="ec-footer">
-          ${isPetitViking() ? '' : `
+          ${isPetitViking() ? '' : (isPast ? `
+            <button disabled class="ec-btn w-full font-bold bg-white/5 text-gray-500 border border-[#1f293d] cursor-not-allowed">
+              ${isParticipating ? '✅ Participation enregistrée (événement passé)' : 'Événement passé'}
+            </button>
+          ` : `
             <button onclick="openAttendanceModal('${ev.id}')" class="ec-btn w-full font-bold transition ${isParticipating ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-600/30 hover:bg-emerald-600 hover:text-white' : 'bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600 hover:text-white'}">
               ${isParticipating ? '✅ Je participe à cet événement (modifier ma présence)' : '🚀 Je m\'inscris'}
             </button>
-          `}
+          `)}
           <div class="ec-row">
             <div class="ec-watch flex items-center min-w-0 flex-wrap">
               <span class="font-bold shrink-0">Où regarder :</span>
