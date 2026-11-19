@@ -5114,21 +5114,18 @@ async function openWeezTicket(tournamentId, userId) {
     body.innerHTML = '<p class="text-xs text-red-400">Pas d’adresse e-mail pour ce joueur.</p>';
     return;
   }
-  const { data, error } = await supabaseClient.functions.invoke('weezevent-ticket', { body: { email } });
-  if (error || !data) {
-    let detail = '';
-    try {
-      const info = await error?.context?.json();
-      detail = [info?.error, info?.step].filter(Boolean).join(' · ');
-    } catch (_) {
-      detail = error?.context?.status ? `HTTP ${error.context.status}` : '';
-    }
-    body.innerHTML = `<p class="text-xs text-red-400">Impossible de lire Weezevent pour le moment.${detail ? ` (${escapeHtml(detail)})` : ''}</p>`;
+  // Lecture de la base : les billets sont synchronisés toutes les 5 minutes par la fonction weezevent-sync.
+  const { data: rows, error } = await supabaseClient
+    .from('nvg_tournament_tickets')
+    .select('*')
+    .eq('tournament_id', tournamentId);
+  if (error) {
+    body.innerHTML = '<p class="text-xs text-red-400">Impossible de lire les billets pour le moment.</p>';
     return;
   }
-  const billets = data.participants || [];
+  const billets = (rows || []).filter((b) => b.user_id === userId || (b.members || []).some((m) => m.user_id === userId));
   if (!billets.length) {
-    body.innerHTML = `<p class="text-xs text-amber-300">Aucun billet Weezevent trouvé pour ${escapeHtml(email)}.</p>`;
+    body.innerHTML = `<p class="text-xs text-amber-300">Aucun billet Weezevent rattaché à ${escapeHtml(email)} pour l’instant (synchronisation toutes les 5 minutes).</p>`;
     return;
   }
   const QRCode = await loadQrLib();
