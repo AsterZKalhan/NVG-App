@@ -5106,17 +5106,26 @@ let qrLibPromise = null;
 
 // Bibliothèque QR chargée à la demande, seulement quand on consulte un billet.
 function loadQrLib() {
-  if (window.QRCode) return Promise.resolve(window.QRCode);
+  if (window.qrcode) return Promise.resolve(window.qrcode);
   if (!qrLibPromise) {
     qrLibPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
-      script.onload = () => resolve(window.QRCode);
-      script.onerror = reject;
+      script.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js';
+      script.onload = () => resolve(window.qrcode);
+      script.onerror = () => reject(new Error('qr_lib'));
       document.head.appendChild(script);
     });
   }
   return qrLibPromise;
+}
+
+// QR code du code-barres, en image (data URL). Vide si la bibliothèque n'est pas disponible.
+function barcodeQrDataUrl(qrLib, text) {
+  if (!qrLib || !text) return '';
+  const qr = qrLib(0, 'M');
+  qr.addData(String(text), 'Byte');
+  qr.make();
+  return qr.createDataURL(4, 4);
 }
 
 function closeWeezTicket() {
@@ -5147,9 +5156,9 @@ async function openWeezTicket(tournamentId, userId) {
     body.innerHTML = `<p class="text-xs text-amber-300">Aucun billet Weezevent rattaché à ${escapeHtml(email)} pour l’instant (synchronisation toutes les 5 minutes).</p>`;
     return;
   }
-  const QRCode = await loadQrLib();
-  const cards = await Promise.all(billets.map(async (b) => {
-    const qr = b.barcode ? await QRCode.toDataURL(b.barcode, { width: 180, margin: 1 }) : '';
+  const qrLib = await loadQrLib().catch(() => null);
+  const cards = billets.map((b) => {
+    const qr = barcodeQrDataUrl(qrLib, b.barcode);
     const rows = [
       ['Nom', b.last_name],
       ['Prénom', b.first_name],
@@ -5171,7 +5180,7 @@ async function openWeezTicket(tournamentId, userId) {
         </dl>
       </div>
     </div>`;
-  }));
+  });
   body.innerHTML = cards.join('');
 }
 
