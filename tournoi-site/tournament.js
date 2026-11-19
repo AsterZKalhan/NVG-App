@@ -3776,8 +3776,9 @@ function openPlayerSignup(tournamentId) {
       <div class="flex flex-wrap gap-2">
         <button onclick="createTeam('${t.id}')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-lg transition">Créer mon équipe</button>
         <button onclick="openTab('account')" class="px-4 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-200 font-bold text-xs rounded-lg transition">J'ai déjà un code</button>
+        <button onclick="joinWithoutTeam('${t.id}')" class="px-4 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-200 font-bold text-xs rounded-lg transition">Pas d'équipe pour le moment</button>
       </div>
-      <p class="text-[11px] text-gray-500">Une fois l'équipe complète, inscris-la au tournoi depuis « Mon espace ».</p>`}
+      <p class="text-[11px] text-gray-500">Une fois l'équipe complète, inscris-la au tournoi depuis « Mon espace ». Sans équipe, tu pourras en rejoindre une plus tard.</p>`}
   `;
   panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
@@ -3808,6 +3809,19 @@ async function registerSolo(tournamentId) {
   try {
     await rpc('nvg_tournament_register_solo', { p_tournament: tournamentId, p_platform: platform });
     notify('Inscription enregistrée. Elle sera confirmée par la NVG.');
+    closeSignup();
+    await Promise.all([loadPublic(), loadMember()]);
+  } catch (err) {
+    notify('Erreur : ' + err.message, true);
+  }
+}
+
+// Inscription à un tournoi en équipe sans équipe pour le moment : le joueur rejoint l'évènement,
+// et pourra rejoindre ou créer une équipe ensuite depuis « Mon espace ».
+async function joinWithoutTeam(tournamentId) {
+  try {
+    await rpc('nvg_tournament_join_event', { p_tournament: tournamentId });
+    notify('Tu es inscrit sans équipe. Tu pourras rejoindre ou créer une équipe depuis « Mon espace ».');
     closeSignup();
     await Promise.all([loadPublic(), loadMember()]);
   } catch (err) {
