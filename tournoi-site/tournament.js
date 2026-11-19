@@ -771,12 +771,31 @@ function paymentActions(tournamentId) {
     const payments = teamPayments.get(team.id);
     return !payments || !payments.size || [...payments.values()].some((p) => p.payment_status === 'awaiting');
   })());
+  // « Vérifier mon paiement » : après un achat, relance la lecture Weezevent. Disparaît dès que le compte est payé.
+  const checkButton = playerAwaiting
+    ? `<button onclick="checkMyPayment('${t.id}')" class="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-[10px] font-black text-cyan-300 transition hover:bg-cyan-500/20">🔄 Vérifier mon paiement</button>`
+    : '';
   if (!playerAwaiting && !teamAwaiting) return paidNote;
-  if (!paymentOpen(t)) return `${paidNote}${paymentClosedNote()}`;
+  if (!paymentOpen(t)) return `${paidNote}<div class="flex flex-wrap items-center gap-2">${checkButton}</div>${paymentClosedNote()}`;
   const buttons = [];
   if (playerAwaiting) buttons.push(ticketButton(t.id, 'player', 'Je prends mon billet'));
   if (teamAwaiting) buttons.push(ticketButton(t.id, 'team', `Je prends un pass équipe (je paie pour les ${Number(t.team_max) || 5} joueurs de mon équipe)`));
-  return `${paidNote}<div class="flex flex-wrap items-center gap-2">${buttons.join('')}</div>`;
+  return `${paidNote}<div class="flex flex-wrap items-center gap-2">${buttons.join('')}${checkButton}</div>`;
+}
+
+async function checkMyPayment(tournamentId) {
+  const { data, error } = await supabaseClient.functions.invoke('weezevent-check', { body: {} });
+  if (!error && data?.throttled) {
+    notify('Une vérification vient d’être faite : réessaie dans une minute.', true);
+    return;
+  }
+  if (error || !data?.ok) {
+    notify('Impossible de vérifier le paiement pour le moment.', true);
+    return;
+  }
+  await refreshAccount();
+  const t = tournamentById(tournamentId);
+  notify(ownTicketStatus(t) === 'paid' ? 'Paiement confirmé, merci !' : 'Aucun paiement trouvé pour l’instant.', ownTicketStatus(t) !== 'paid');
 }
 
 // Référence renvoyée par la billetterie au retour de paiement (paramètre nvg_ref).
