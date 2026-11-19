@@ -2184,6 +2184,20 @@ async function generateSwissRound(tournamentId) {
 
 // Poules + élimination : les N premiers de chaque poule (tour par tour, en
 // alternant les poules) forment le tableau, têtes de série comprises.
+// 6 poules, 2 qualifiés par poule (12 qualifiés, tableau de 16) : les 4 meilleurs premiers
+// passent directement en quart ; les 2 moins bons premiers et les 6 deuxièmes jouent les barrages.
+// Seeds : 1 à 4 = premiers 1 à 4 ; 5 = 1er deuxième ; 6 = 5e premier ; 7 = 6e premier ;
+// 8 = 2e deuxième ; 9 = 3e deuxième ; 10 = 5e deuxième ; 11 = 6e deuxième ; 12 = 4e deuxième.
+function barrageSeeds(standingsByGroup) {
+  const bestFirst = (x, y) => (y.points - x.points) || ((y.scored - y.conceded) - (x.scored - x.conceded)) || (y.scored - x.scored);
+  const firsts = standingsByGroup.map((rows) => rows[0]).filter(Boolean).sort(bestFirst);
+  const seconds = standingsByGroup.map((rows) => rows[1]).filter(Boolean).sort(bestFirst);
+  if (firsts.length !== 6 || seconds.length !== 6) return null;
+  const f = (i) => ({ id: firsts[i - 1].id });
+  const s = (i) => ({ id: seconds[i - 1].id });
+  return [f(1), f(2), f(3), f(4), s(1), f(5), f(6), s(2), s(3), s(5), s(6), s(4)];
+}
+
 // Qualifiés dans l'ordre des seeds du tableau, à partir du classement actuel des poules.
 function standardPlayoffSeeds(t, pools) {
   const letters = [...new Set(pools.map((m) => m.group_name))].sort();
@@ -2192,6 +2206,10 @@ function standardPlayoffSeeds(t, pools) {
   let seeds = [];
   for (let rank = 0; rank < qualifiers; rank += 1) {
     standingsByGroup.forEach((rows) => { if (rows[rank]) seeds.push({ id: rows[rank].id }); });
+  }
+  if (letters.length === 6 && qualifiers === 2 && t.format_config?.tree !== 'double') {
+    const barrage = barrageSeeds(standingsByGroup);
+    if (barrage) return barrage.map((s) => ({ id: s.id }));
   }
   // Croisement par paires de poules : 1er A / 2e B, 1er B / 2e A, etc. (seed 1 et 2 en finale).
   const crossed = crossedBracketSlots(letters.length, qualifiers, standingsByGroup);
