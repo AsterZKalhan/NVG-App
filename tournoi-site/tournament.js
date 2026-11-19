@@ -5190,8 +5190,12 @@ function renderAdminTeams() {
   if (!panel) return;
   if (!t) { closeAdminTeams(); return; }
   const teams = adminTeams.filter((x) => x.tournament_id === t.id);
-  const players = adminEventPlayers.filter((p) => p.tournament_id === t.id);
+  // Joueurs triés par ordre alphabétique (nom affiché).
+  const players = adminEventPlayers
+    .filter((p) => p.tournament_id === t.id)
+    .sort((a, b) => (a.nvg_users?.name || '').localeCompare(b.nvg_users?.name || '', 'fr', { sensitivity: 'base' }));
   const teamMax = Number(t.team_max) || 5;
+  if ($('adminTeamsTitle')) $('adminTeamsTitle').textContent = adminTab === 'teams' ? '👥 Équipes' : '👥 Joueurs';
   const teamOf = new Map();
   teams.forEach((x) => (x.nvg_tournament_team_members || []).forEach((m) => teamOf.set(m.user_id, x.name)));
   $('adminTeamsSubtitle').textContent = `${t.name} · ${players.length} joueur(s) dans l’évènement · ${teams.length} équipe(s) · ${teamMax} joueurs max par équipe`;
