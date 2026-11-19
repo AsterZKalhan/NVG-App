@@ -2972,7 +2972,7 @@ function standardTreeSize(t) {
 // Tournoi des 9 Mondes : la finale se joue en BO3 jeu par jeu (clés F1–F3).
 // Les autres tournois utilisent une série réglée par round (seriesLength).
 function isStandardBo3(m, t) {
-  if (!t?.format_config?.nine_worlds || standardFormat(t) !== 'groups_playoffs') return false;
+  if (!isNineWorlds(t) || standardFormat(t) !== 'groups_playoffs') return false;
   const rounds = Math.log2(standardTreeSize(t));
   return m.phase === 'grand' || (m.phase === 'bracket' && m.round === rounds);
 }
