@@ -5066,7 +5066,7 @@ function adminEventPlayerRow(tournamentId, p, teamName) {
   const light = status === 'paid' ? 'bg-emerald-400' : status === 'refunded' ? 'bg-sky-400' : status === 'not_required' ? 'bg-gray-500' : 'bg-red-500';
   const btn = 'text-[10px] font-bold transition';
   const actions = [
-    `<button onclick="openWeezTicket('${tournamentId}', '${p.user_id}')" class="${btn} text-cyan-300 hover:text-cyan-200">🎟️ Info ticket</button>`,
+    status === 'paid' ? `<button onclick="openWeezTicket('${tournamentId}', '${p.user_id}')" class="${btn} text-cyan-300 hover:text-cyan-200">🎟️ Info ticket</button>` : '',
     status !== 'paid' ? `<button onclick="setPlayerPayment('${tournamentId}', '${p.user_id}', 'paid')" class="${btn} text-emerald-400 hover:text-emerald-300">✅ Marquer payé</button>` : '',
     status === 'paid' ? `<button onclick="setPlayerPayment('${tournamentId}', '${p.user_id}', 'awaiting')" class="${btn} text-amber-400 hover:text-amber-300">↩️ Annuler le paiement</button>` : '',
     status === 'paid' ? `<button onclick="setPlayerPayment('${tournamentId}', '${p.user_id}', 'refunded')" class="${btn} text-sky-400 hover:text-sky-300">💸 Rembourser</button>` : '',
