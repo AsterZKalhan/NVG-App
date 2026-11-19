@@ -5047,6 +5047,7 @@ function adminEventPlayerRow(tournamentId, p, teamName) {
   const light = status === 'paid' ? 'bg-emerald-400' : status === 'refunded' ? 'bg-sky-400' : status === 'not_required' ? 'bg-gray-500' : 'bg-red-500';
   const btn = 'text-[10px] font-bold transition';
   const actions = [
+    `<button onclick="openWeezTicket('${tournamentId}', '${p.user_id}')" class="${btn} text-cyan-300 hover:text-cyan-200">🎟️ Info ticket</button>`,
     status !== 'paid' ? `<button onclick="setPlayerPayment('${tournamentId}', '${p.user_id}', 'paid')" class="${btn} text-emerald-400 hover:text-emerald-300">✅ Marquer payé</button>` : '',
     status === 'paid' ? `<button onclick="setPlayerPayment('${tournamentId}', '${p.user_id}', 'awaiting')" class="${btn} text-amber-400 hover:text-amber-300">↩️ Annuler le paiement</button>` : '',
     status === 'paid' ? `<button onclick="setPlayerPayment('${tournamentId}', '${p.user_id}', 'refunded')" class="${btn} text-sky-400 hover:text-sky-300">💸 Rembourser</button>` : '',
@@ -5078,6 +5079,77 @@ function adminEventPlayerRow(tournamentId, p, teamName) {
     </details>
     <div class="flex flex-wrap items-center gap-2">${actions}</div>
   </li>`;
+}
+
+// --- Info ticket Weezevent (admin) : lu par la fonction serveur weezevent-ticket ---
+
+let qrLibPromise = null;
+
+// Bibliothèque QR chargée à la demande, seulement quand on consulte un billet.
+function loadQrLib() {
+  if (window.QRCode) return Promise.resolve(window.QRCode);
+  if (!qrLibPromise) {
+    qrLibPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
+      script.onload = () => resolve(window.QRCode);
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+  return qrLibPromise;
+}
+
+function closeWeezTicket() {
+  $('weezTicketModal')?.classList.add('hidden');
+}
+
+async function openWeezTicket(tournamentId, userId) {
+  const player = adminEventPlayers.find((p) => p.tournament_id === tournamentId && p.user_id === userId);
+  const email = player?.nvg_users?.email || '';
+  const body = $('weezTicketBody');
+  $('weezTicketModal').classList.remove('hidden');
+  body.innerHTML = '<p class="text-xs text-gray-400">Recherche du billet sur Weezevent…</p>';
+  if (!email) {
+    body.innerHTML = '<p class="text-xs text-red-400">Pas d’adresse e-mail pour ce joueur.</p>';
+    return;
+  }
+  const { data, error } = await supabaseClient.functions.invoke('weezevent-ticket', { body: { email } });
+  if (error || !data) {
+    body.innerHTML = '<p class="text-xs text-red-400">Impossible de lire Weezevent pour le moment.</p>';
+    return;
+  }
+  const billets = data.participants || [];
+  if (!billets.length) {
+    body.innerHTML = `<p class="text-xs text-amber-300">Aucun billet Weezevent trouvé pour ${escapeHtml(email)}.</p>`;
+    return;
+  }
+  const QRCode = await loadQrLib();
+  const cards = await Promise.all(billets.map(async (b) => {
+    const qr = b.barcode ? await QRCode.toDataURL(b.barcode, { width: 180, margin: 1 }) : '';
+    const rows = [
+      ['Nom', b.last_name],
+      ['Prénom', b.first_name],
+      ['Billet', b.ticket_name],
+      ['Code-barres', b.barcode],
+      ['Référence billet', b.ticket_ref],
+      ['Référence commande', b.order_ref],
+      ['Acheteur', [b.buyer_name, b.buyer_email].filter(Boolean).join(' · ')],
+      ['Payé sur Weezevent', b.paid ? 'oui' : 'non'],
+      ['Scanné', b.scanned ? `${b.scanned}${b.scan_date ? ` · ${b.scan_date}` : ''}` : 'non'],
+      ['Commandé le', b.create_date],
+      ['Billet annulé', b.deleted ? 'oui' : 'non']
+    ];
+    return `<div class="rounded-xl border border-[#1f293d] bg-[#07090e] p-4 space-y-3">
+      <div class="flex flex-wrap items-start gap-4">
+        ${qr ? `<img src="${qr}" alt="QR code du billet" class="h-36 w-36 shrink-0 rounded-lg bg-white p-1">` : ''}
+        <dl class="min-w-0 flex-1 space-y-1.5 text-[11px]">
+          ${rows.map(([label, value]) => `<div class="flex flex-wrap gap-x-2"><dt class="text-gray-500">${escapeHtml(label)} :</dt><dd class="break-all font-bold text-gray-200">${escapeHtml(value || '—')}</dd></div>`).join('')}
+        </dl>
+      </div>
+    </div>`;
+  }));
+  body.innerHTML = cards.join('');
 }
 
 function renderAdminTeams() {

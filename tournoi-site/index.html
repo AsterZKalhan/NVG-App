@@ -1142,6 +1142,15 @@
   <script src="auth-shared.js" defer></script>
   <script src="tournament.js" defer></script>
   <script src="contact-form.js" defer></script>
+  <div id="weezTicketModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4" style="overscroll-behavior:contain">
+    <div class="bg-[#121722] border border-cyan-500/40 rounded-2xl p-5 w-full max-w-lg shadow-2xl relative space-y-4" style="max-height:90vh;overflow-y:auto;overscroll-behavior:contain">
+      <div class="flex items-center justify-between border-b border-[#1f293d] pb-3">
+        <h3 class="text-sm font-black text-white uppercase tracking-wider">🎟️ Info ticket Weezevent</h3>
+        <button onclick="closeWeezTicket()" class="text-gray-400 hover:text-white font-bold text-xs" aria-label="Fermer">✕</button>
+      </div>
+      <div id="weezTicketBody" class="space-y-4"></div>
+    </div>
+  </div>
   <script>
     // Cache des fichiers du site (service worker) : rechargement plus rapide.
     if ('serviceWorker' in navigator) {
