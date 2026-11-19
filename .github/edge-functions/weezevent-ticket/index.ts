@@ -53,8 +53,10 @@ Deno.serve(async (req) => {
   const eventId = String(body.event_id || WEEZ_EVENT_ID).replace(/\D/g, "");
   if (!email || !eventId) return json({ error: "bad_request" }, 400);
 
+  let step = "auth";
   try {
     const token = await weezToken();
+    step = "tickets";
     const q = `api_key=${encodeURIComponent(Deno.env.get("key_apiweez") || "")}&access_token=${encodeURIComponent(token)}`;
 
     const tickets = await fetch(`https://api.weezevent.com/tickets?${q}&id_event[]=${eventId}`).then((r) => r.json()).catch(() => ({}));
@@ -63,6 +65,7 @@ Deno.serve(async (req) => {
       for (const t of ev.tickets || []) names.set(String(t.id), String(t.name));
     }
 
+    step = "participants";
     const data = await fetch(`https://api.weezevent.com/participant/list?${q}&id_event[]=${eventId}&full=1`).then((r) => r.json());
     const all = Array.isArray(data.participants) ? data.participants : [];
     const mine = all.filter((p: Record<string, any>) => {
@@ -90,7 +93,7 @@ Deno.serve(async (req) => {
         deleted: String(p.deleted) === "1",
       })),
     });
-  } catch (error) {
-    return json({ error: "weezevent_unavailable" }, 502);
+  } catch (_error) {
+    return json({ error: "weezevent_unavailable", step }, 502);
   }
 });

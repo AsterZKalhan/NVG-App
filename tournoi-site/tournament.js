@@ -5116,7 +5116,14 @@ async function openWeezTicket(tournamentId, userId) {
   }
   const { data, error } = await supabaseClient.functions.invoke('weezevent-ticket', { body: { email } });
   if (error || !data) {
-    body.innerHTML = '<p class="text-xs text-red-400">Impossible de lire Weezevent pour le moment.</p>';
+    let detail = '';
+    try {
+      const info = await error?.context?.json();
+      detail = [info?.error, info?.step].filter(Boolean).join(' · ');
+    } catch (_) {
+      detail = error?.context?.status ? `HTTP ${error.context.status}` : '';
+    }
+    body.innerHTML = `<p class="text-xs text-red-400">Impossible de lire Weezevent pour le moment.${detail ? ` (${escapeHtml(detail)})` : ''}</p>`;
     return;
   }
   const billets = data.participants || [];
