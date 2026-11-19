@@ -980,7 +980,7 @@ function openTournamentDetails(id, options = {}) {
       </div>
 
       <div class="flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-4">
-        ${currentUser && (already || myTeam || (t.mode === 'team' && open) || myParticipations.some((p) => p.tournament_id === t.id))
+        ${currentUser && (already || myTeam || myParticipations.some((p) => p.tournament_id === t.id))
           ? `<div class="flex flex-wrap items-center gap-2">
               ${already ? '<span class="px-2 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase tracking-wider rounded-lg">✅ Inscrit</span>' : ''}
               <button onclick="closeTournamentDetails({ push: false });openManage('${t.id}')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">⚙️ Gérer ma participation</button>
@@ -3655,7 +3655,7 @@ function tournamentCard(t) {
         ${t.description ? `<p class="text-xs text-gray-400 line-clamp-2">${escapeHtml(t.description)}</p>` : ''}
         ${hasPrizes(t) ? `<p class="flex items-center gap-1.5 text-[11px] text-gray-300"><span class="text-amber-400">${trophyIcon('h-3.5 w-3.5')}</span>${escapeHtml(t.prize_first || t.prize)}</p>` : ''}
         <div class="mt-auto flex flex-wrap items-center gap-2 border-t border-[#1f293d] pt-3">
-          ${currentUser && (already || myTeam || (t.mode === 'team' && open) || myParticipations.some((p) => p.tournament_id === t.id))
+          ${currentUser && (already || myTeam || myParticipations.some((p) => p.tournament_id === t.id))
             ? `<button onclick="openManage('${t.id}')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-lg transition">⚙️ Gérer ma participation</button>`
             : open
               ? `<button onclick="openSignup('${t.id}')" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-black text-xs rounded-lg transition">S'inscrire</button>`
