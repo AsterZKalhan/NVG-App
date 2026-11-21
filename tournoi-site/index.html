@@ -446,7 +446,8 @@
                 <option value="single_elim">Élimination directe</option>
                 <option value="double_elim">Double élimination</option>
                 <option value="round_robin">Poules (round robin)</option>
-                <option value="groups_playoffs">Poules + élimination</option>
+                <option value="groups_playoffs">Poules + élimination simple</option>
+                <option value="groups_playoffs_double">Poules + double élimination</option>
                 <option value="league">Championnat (round robin global)</option>
                 <option value="swiss">Suisse</option>
               </select>
@@ -749,7 +750,8 @@
                 <option value="single_elim">Élimination directe (arbre simple)</option>
                 <option value="double_elim">Double élimination (arbre + repêchage)</option>
                 <option value="round_robin">Poules (round robin)</option>
-                <option value="groups_playoffs">Poules puis arbre</option>
+                <option value="groups_playoffs">Poules + élimination simple</option>
+                <option value="groups_playoffs_double">Poules + double élimination</option>
                 <option value="league">Championnat (round robin global)</option>
                 <option value="swiss">Suisse</option>
               </select>
@@ -773,7 +775,7 @@
                   <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option>
                 </select>
               </label>
-              <label class="block">
+              <label id="editStdTreeLabel" class="block">
                 <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Arbre</span>
                 <select id="editStdTree" onchange="syncEditStandardStructure()" class="w-full bg-[#0b0f17] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
                   <option value="single">Simple</option>
@@ -785,7 +787,7 @@
               <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Nombre de rondes</span>
               <input id="editStdRounds" type="number" min="1" max="10" placeholder="Auto" onchange="syncEditStandardStructure()" class="w-full bg-[#0b0f17] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
             </label>
-            <span id="editStdWarning" class="hidden block text-[10px] text-amber-400">⚠️ Changer la structure effacera tous les matchs existants lors de l’enregistrement. Pour ajouter ou retirer le repêchage, change l’arbre ici.</span>
+            <span id="editStdWarning" class="hidden block text-[10px] text-amber-400">⚠️ Changer la structure effacera tous les matchs existants lors de l’enregistrement. Pour le repêchage, choisis « Poules + double élimination ».</span>
           </div>
           <label class="block">
             <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Format de jeu</span>

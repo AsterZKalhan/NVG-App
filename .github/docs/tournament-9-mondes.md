@@ -98,7 +98,8 @@ indique aussi le format (`League of Legends — 5 joueurs`).
 Le formulaire **➕ Nouveau tournoi** commence par un menu **Format du tournoi** :
 
 - **Un jeu — format standard** : fonctionnement historique (un jeu, 1 à 6 joueurs,
-  élimination directe, double élimination, poules, poules + élimination,
+  élimination directe, double élimination, poules, poules + élimination simple,
+  poules + double élimination (`format: 'groups_playoffs'`, `tree: 'double'`, qualifiés = 4, 8, 16 ou 32),
   championnat ou suisse, géré par l'organisateur ou Toornament) ;
 - **Décathlon — 9 jeux avec points (BO9)** : tournoi multi-jeux, équipes de
   **5 joueurs**, phase de poules puis bracket, barème de points, mercy rule,

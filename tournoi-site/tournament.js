@@ -371,7 +371,7 @@ function tournamentGamesLabel(t) {
 function competitionFormatLabel(t) {
   if (bo9Config(t)) return 'Décathlon · BO9';
   if (isNineWorlds(t)) return 'Un jeu par tour';
-  if (t?.format_config?.format) return STANDARD_FORMAT_LABELS[standardFormat(t)] || standardFormat(t);
+  if (t?.format_config?.format) return standardFormatLabel(t);
   return '';
 }
 
@@ -2018,9 +2018,31 @@ function standardFormat(t) {
   return t?.format_config?.format || 'single_elim';
 }
 
+// Valeur du sélecteur « Type de compétition ». « Poules + double élimination »
+// est stocké comme format groups_playoffs avec tree = 'double'.
+const GROUPS_DOUBLE_FORMAT = 'groups_playoffs_double';
+
+function standardUiFormat(t) {
+  return standardFormat(t) === 'groups_playoffs' && t?.format_config?.tree === 'double'
+    ? GROUPS_DOUBLE_FORMAT
+    : standardFormat(t);
+}
+
+function standardFormatFromUi(value) {
+  return value === GROUPS_DOUBLE_FORMAT
+    ? { format: 'groups_playoffs', tree: 'double' }
+    : { format: value || 'single_elim', tree: null };
+}
+
+function standardFormatLabel(t) {
+  if (standardUiFormat(t) === GROUPS_DOUBLE_FORMAT) return 'Poules + double élimination';
+  if (standardFormat(t) === 'groups_playoffs') return 'Poules + élimination simple';
+  return STANDARD_FORMAT_LABELS[standardFormat(t)] || standardFormat(t);
+}
+
 // Libellé affiché : distingue le format « Tournoi des 9 Mondes » (un jeu par tour).
 function standardFormatTitle(t) {
-  const label = STANDARD_FORMAT_LABELS[standardFormat(t)] || standardFormat(t);
+  const label = standardFormatLabel(t);
   return isNineWorlds(t) ? `Tournoi des 9 Mondes · ${label}` : label;
 }
 
@@ -2059,7 +2081,7 @@ async function generateStandardMatches(tournamentId, options = {}) {
       return;
     }
   }
-  if (!window.confirm(`Générer les matchs (${STANDARD_FORMAT_LABELS[format]}) pour ${teams.length} équipes ?\n\nLes matchs existants seront effacés.`)) return;
+  if (!window.confirm(`Générer les matchs (${standardFormatLabel(t)}) pour ${teams.length} équipes ?\n\nLes matchs existants seront effacés.`)) return;
   const { error: delError } = await supabaseClient.from('nvg_tournament_matches').delete().eq('tournament_id', tournamentId);
   if (delError) { notify('Erreur : ' + delError.message, true); return; }
   if (format === 'swiss') {
@@ -4731,14 +4753,16 @@ const STANDARD_FORMAT_LABELS = {
 
 function toggleStandardOptions() {
   const format = $('tourStdFormat')?.value;
-  const pools = format === 'groups_playoffs';
+  const groupsDouble = format === GROUPS_DOUBLE_FORMAT;
+  const pools = format === 'groups_playoffs' || groupsDouble;
   $('tourStdPoolsWrap')?.classList.toggle('hidden', !pools);
   $('tourStdPoolSizeWrap')?.classList.toggle('hidden', !pools);
   $('tourStdQualWrap')?.classList.toggle('hidden', !pools);
-  $('tourStdTreeWrap')?.classList.toggle('hidden', !pools);
+  $('tourStdTreeWrap')?.classList.toggle('hidden', !pools || groupsDouble);
   $('tourStdSlotsHint')?.classList.toggle('hidden', !pools);
   $('tourStdRoundsWrap')?.classList.toggle('hidden', format !== 'swiss');
   if (pools) syncStandardSlots();
+  if (groupsDouble && $('tourStdTree')) $('tourStdTree').value = 'double';
   renderTourStdRoundGames();
 }
 
@@ -4746,7 +4770,7 @@ function toggleStandardOptions() {
 // autorisés d'après le nombre de poules et d'équipes par poule.
 function syncStandardSlots() {
   const format = $('tourStdFormat');
-  if (!format || format.value !== 'groups_playoffs') return;
+  if (!format || (format.value !== 'groups_playoffs' && format.value !== GROUPS_DOUBLE_FORMAT)) return;
   const pools = Number($('tourStdPools')?.value) || 2;
   const size = Number($('tourStdPoolSize')?.value) || 4;
   const qualifiers = $('tourStdQualifiers');
@@ -4776,7 +4800,8 @@ function syncStandardSlots() {
 
 // Tournoi des 9 Mondes : aperçu de la configuration en cours pour lister les tours.
 function stdRoundGamesPreviewTournament() {
-  const format = $('tourStdFormat')?.value || 'single_elim';
+  const mapped = standardFormatFromUi($('tourStdFormat')?.value);
+  const format = mapped.format;
   const pools = Number($('tourStdPools')?.value) || 2;
   const size = Number($('tourStdPoolSize')?.value) || 4;
   const max = parseInt($('tourMax')?.value, 10) || pools * size;
@@ -4790,7 +4815,7 @@ function stdRoundGamesPreviewTournament() {
       pool_count: pools,
       pool_size: size,
       qualifiers_per_pool: Number($('tourStdQualifiers')?.value) || 2,
-      tree: $('tourStdTree')?.value === 'double' ? 'double' : 'single',
+      tree: mapped.tree || ($('tourStdTree')?.value === 'double' ? 'double' : 'single'),
       rounds: parseInt($('tourStdRounds')?.value, 10) || undefined
     }
   };
@@ -5631,7 +5656,7 @@ async function editTournament(id) {
   $('editTournamentType').value = type;
   const stdCfg = t.format_config || {};
   const stdFormatValue = standardFormat(t);
-  $('editStdFormat').value = STANDARD_GENERATED_FORMATS.includes(stdFormatValue) ? stdFormatValue : 'single_elim';
+  $('editStdFormat').value = STANDARD_GENERATED_FORMATS.includes(stdFormatValue) ? standardUiFormat(t) : 'single_elim';
   $('editStdRounds').value = Number(stdCfg.rounds) > 0 ? String(stdCfg.rounds) : '';
   $('editStdPools').value = String(Number(stdCfg.pool_count) || 2);
   $('editStdPoolSize').value = String(Number(stdCfg.pool_size) || 4);
@@ -5672,7 +5697,8 @@ async function editTournament(id) {
 // Structure d'un tournoi standard lue dans le formulaire d'édition : le type de
 // compétition choisi (élimination, poules, championnat, suisse…) et ses réglages.
 function editStandardStructure(nine = false) {
-  const format = $('editStdFormat')?.value || 'single_elim';
+  const mapped = standardFormatFromUi($('editStdFormat')?.value);
+  const format = mapped.format;
   const base = nine ? { type: 'standard', format, nine_worlds: true } : { type: 'standard', format };
   if (format === 'swiss') {
     const rounds = parseInt($('editStdRounds')?.value, 10);
@@ -5684,7 +5710,7 @@ function editStandardStructure(nine = false) {
     pool_count: Number($('editStdPools').value) || 2,
     pool_size: Number($('editStdPoolSize').value) || 4,
     qualifiers_per_pool: Number($('editStdQualifiers').value) || 2,
-    tree: $('editStdTree').value === 'double' ? 'double' : 'single'
+    tree: mapped.tree || ($('editStdTree').value === 'double' ? 'double' : 'single')
   };
 }
 
@@ -5701,16 +5727,20 @@ function isPowerOfTwoBracket(teams) {
 
 function syncEditStandardStructure() {
   const nine = $('editTournamentType')?.value === 'nine_worlds';
-  const format = $('editStdFormat')?.value || 'single_elim';
+  const rawFormat = $('editStdFormat')?.value || 'single_elim';
+  const format = standardFormatFromUi(rawFormat).format;
+  const groupsDouble = rawFormat === GROUPS_DOUBLE_FORMAT;
   $('editStdPoolsWrap')?.classList.toggle('hidden', format !== 'groups_playoffs');
-  $('editStdRoundsWrap')?.classList.toggle('hidden', format !== 'swiss');
+  $('editStdRoundsWrap')?.classList.toggle('hidden', rawFormat !== 'swiss');
+  $('editStdTreeLabel')?.classList.toggle('hidden', format !== 'groups_playoffs' || groupsDouble);
   if (format === 'groups_playoffs') {
     const teams = (Number($('editStdPools').value) || 2) * (Number($('editStdQualifiers').value) || 2);
     const powerOfTwo = isPowerOfTwoBracket(teams);
     const tree = $('editStdTree');
     const doubleOption = [...tree.options].find((opt) => opt.value === 'double');
     if (doubleOption) doubleOption.disabled = !powerOfTwo;
-    if (!powerOfTwo && tree.value === 'double') tree.value = 'single';
+    if (!powerOfTwo && tree.value === 'double' && !groupsDouble) tree.value = 'single';
+    if (groupsDouble) tree.value = 'double';
   }
   const t = tournamentById(editingTournamentId);
   const changed = Boolean(t) && standardStructureChanged(t.format_config, editStandardStructure(nine));
@@ -6267,7 +6297,8 @@ async function createTournament() {
   } else {
     mode = teamSize === 1 ? 'solo' : 'team';
     // Le type de compétition est libre pour tous les tournois, y compris 9 Mondes.
-    const format = $('tourStdFormat')?.value || 'single_elim';
+    const mapped = standardFormatFromUi($('tourStdFormat')?.value);
+    const format = mapped.format;
     formatConfig = { type: 'standard', format };
     if (nineWorlds) {
       // Même moteur que le tournoi ZZ : standard, un jeu par tour.
@@ -6278,7 +6309,11 @@ async function createTournament() {
       formatConfig.pool_count = Number($('tourStdPools')?.value) || 2;
       formatConfig.pool_size = Number($('tourStdPoolSize')?.value) || 4;
       formatConfig.qualifiers_per_pool = Number($('tourStdQualifiers')?.value) || 2;
-      formatConfig.tree = $('tourStdTree')?.value === 'double' ? 'double' : 'single';
+      formatConfig.tree = mapped.tree || ($('tourStdTree')?.value === 'double' ? 'double' : 'single');
+      if (formatConfig.tree === 'double' && !isPowerOfTwoBracket(formatConfig.pool_count * formatConfig.qualifiers_per_pool)) {
+        notify('Poules + double élimination : il faut un nombre de qualifiés égal à 4, 8, 16 ou 32 (poules × qualifiés).', true);
+        return;
+      }
       maxParticipants = formatConfig.pool_count * formatConfig.pool_size;
     }
     if (format === 'swiss') {
