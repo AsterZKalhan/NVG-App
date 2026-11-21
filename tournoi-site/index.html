@@ -488,7 +488,7 @@
                 </div>
                 <div id="tourStdRoundsWrap" class="hidden">
                   <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Nombre de rondes</span>
-                  <input id="tourStdRounds" type="number" min="1" max="10" placeholder="Auto" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
+                  <input id="tourStdRounds" type="number" min="1" max="10" placeholder="Auto" oninput="toggleStandardOptions()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
                 </div>
                 <div id="tourStdTreeWrap" class="hidden">
                   <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Arbre</span>
@@ -518,7 +518,7 @@
             </label>
             <div id="tourStdRoundGamesWrap" class="hidden sm:col-span-2 rounded-xl border border-violet-500/30 bg-violet-500/5 p-3">
               <p class="text-[10px] font-black uppercase tracking-wider text-violet-300">🎮 Jeu de chaque tour</p>
-              <p class="mt-1 text-[10px] text-gray-500">Un jeu par tour, des poules jusqu'à la finale. Laisse vide pour choisir plus tard dans « Gestion tournoi ».</p>
+              <p class="mt-1 text-[10px] text-gray-500">Un jeu par tour, du premier tour à la finale. Laisse vide pour choisir plus tard dans « Gestion tournoi ».</p>
               <div id="tourStdRoundGamesGrid" class="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3"></div>
             </div>
             <div id="tourBo9Wrap" class="hidden sm:col-span-2 space-y-4">
@@ -623,7 +623,7 @@
             </label>
             <label class="block">
               <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Slots (nombre de places)</span>
-              <input id="tourMax" type="number" min="1" placeholder="Ex. 32 (vide = illimité)" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+              <input id="tourMax" type="number" min="1" placeholder="Ex. 32 (vide = illimité)" oninput="renderTourStdRoundGames()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
             </label>
             <label class="block">
               <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Frais d'inscription (€)</span>
@@ -748,7 +748,10 @@
               <select id="editStdFormat" onchange="syncEditStandardStructure()" class="w-full bg-[#0b0f17] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
                 <option value="single_elim">Élimination directe (arbre simple)</option>
                 <option value="double_elim">Double élimination (arbre + repêchage)</option>
+                <option value="round_robin">Poules (round robin)</option>
                 <option value="groups_playoffs">Poules puis arbre</option>
+                <option value="league">Championnat (round robin global)</option>
+                <option value="swiss">Suisse</option>
               </select>
             </label>
             <div id="editStdPoolsWrap" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -778,6 +781,10 @@
                 </select>
               </label>
             </div>
+            <label id="editStdRoundsWrap" class="hidden block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Nombre de rondes</span>
+              <input id="editStdRounds" type="number" min="1" max="10" placeholder="Auto" onchange="syncEditStandardStructure()" class="w-full bg-[#0b0f17] border border-[#1f293d] rounded-xl px-3 py-2 text-xs text-white">
+            </label>
             <span id="editStdWarning" class="hidden block text-[10px] text-amber-400">⚠️ Changer la structure effacera tous les matchs existants lors de l’enregistrement. Pour ajouter ou retirer le repêchage, change l’arbre ici.</span>
           </div>
           <label class="block">

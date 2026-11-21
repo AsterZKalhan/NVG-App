@@ -104,10 +104,12 @@ Le formulaire **➕ Nouveau tournoi** commence par un menu **Format du tournoi**
   **5 joueurs**, phase de poules puis bracket, barème de points, mercy rule,
   carte capitaine et pick & ban (voir ci-dessous) ;
 - **Tournoi des 9 Mondes — un jeu par tour** : même moteur que le tournoi ZZ admin.
-  `format_config = { type: 'standard', format: 'groups_playoffs', nine_worlds:
-  true, round_games: { … } }`, `game_id = null`, équipes de 5 par défaut, type de
-  compétition verrouillé sur **Poules + élimination**. Les jeux de chaque tour
-  (`P1…`, `B1…`, `T`, `F1…F3`) se choisissent à la création puis dans
+  `format_config = { type: 'standard', format: <type de compétition>, nine_worlds:
+  true, round_games: { … } }`, `game_id = null`, équipes de 5 par défaut. Tous
+  les types de compétition sont disponibles : élimination directe, double
+  élimination, poules, poules + élimination, championnat (round robin global) et
+  suisse. Les jeux de chaque tour (`P1…`, `B1…`, `W1…`/`L1…`, `T`, `GF`,
+  `F1…F3` selon le format) se choisissent à la création puis dans
   **⚙️ Gestion tournoi** ; un jeu peut être laissé vide et complété plus tard.
   Un tournoi standard sans `game_id` mais avec des `round_games` (le ZZ admin)
   est reconnu comme Tournoi des 9 Mondes.
@@ -122,9 +124,9 @@ Le formulaire **➕ Nouveau tournoi** commence par un menu **Format du tournoi**
   tous les matchs existants du tournoi (poules, tableau et scores) avant de
   reconstruire la configuration. Le format standard réutilise le jeu choisi
   dans le sélecteur « Jeu du tournoi » ; le passage au Décathlon propose les
-  9 jeux à renseigner, et le Tournoi des 9 Mondes reprend ses réglages de
-  poules et ses jeux par tour. Sans changement de format, la configuration est
-  conservée telle quelle.
+  9 jeux à renseigner, et le Tournoi des 9 Mondes reprend le type de compétition
+  choisi, ses réglages de poules et ses jeux par tour. Sans changement de format,
+  la configuration est conservée telle quelle.
 
 ### Les 9 jeux et le barème
 
