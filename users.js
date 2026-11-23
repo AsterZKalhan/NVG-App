@@ -112,6 +112,44 @@ async function handleLogout() {
   window.location.reload();
 }
 
+async function deleteMyAccount() {
+  if (!currentUser) {
+    alert('Connecte-toi pour supprimer ton compte.');
+    return;
+  }
+  const password = document.getElementById('deleteAccountPassword')?.value || '';
+  const word = (document.getElementById('deleteAccountWord')?.value || '').trim();
+  if (word !== 'SUPPRIMER') {
+    alert('Tape SUPPRIMER pour confirmer.');
+    return;
+  }
+  if (!password) {
+    alert('Saisis ton mot de passe.');
+    return;
+  }
+  if (!window.confirm('Supprimer définitivement ton compte ? Cette action est irréversible. L’application, le bot Discord et le tournoi perdront ce compte.')) return;
+  try {
+    const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+    if (sessionError) throw sessionError;
+    const email = sessionData?.session?.user?.email || currentUser.email;
+    if (!email) {
+      alert('Session introuvable. Reconnecte-toi.');
+      return;
+    }
+    const { error: authError } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (authError) {
+      alert('Mot de passe incorrect.');
+      return;
+    }
+    const { error } = await supabaseClient.rpc('nvg_delete_my_account');
+    if (error) throw error;
+    alert('Ton compte a été supprimé.');
+    await handleLogout();
+  } catch (err) {
+    alert('Suppression impossible : ' + (err.message || err));
+  }
+}
+
 // --- GESTION DE L'ESPACE "MON COMPTE" ---
 function loadAccountTab() {
   if (!currentUser) return;

@@ -736,6 +736,21 @@
           </button>
         </div>
       </div>
+      <div class="rounded-2xl border border-red-600/40 bg-red-600/5 p-6 max-w-2xl space-y-3">
+        <h3 class="text-sm font-black text-white uppercase tracking-wider">🗑️ Supprimer mon compte</h3>
+        <p class="text-xs text-gray-400">Le compte est partagé avec le bot Discord et le Tournoi des 9 Mondes : sa suppression les concerne aussi. Elle est refusée si tu as une inscription active, un billet payé, ou si tu es capitaine d'une équipe avec d'autres membres.</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Ton mot de passe</label>
+            <input id="deleteAccountPassword" type="password" autocomplete="current-password" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Tape SUPPRIMER</label>
+            <input id="deleteAccountWord" type="text" autocomplete="off" placeholder="SUPPRIMER" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white focus:border-red-600 focus:outline-none">
+          </div>
+        </div>
+        <button type="button" onclick="deleteMyAccount()" class="px-4 py-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white font-bold text-xs rounded-lg transition">Supprimer définitivement mon compte</button>
+      </div>
     </section>
     <!-- ONGLET ADMINISTRATION -->
     <section id="tournoi9" class="tab-content hidden space-y-6">
