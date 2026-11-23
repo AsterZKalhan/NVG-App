@@ -332,6 +332,17 @@ function readUserSnapshot(userId) {
   }
 }
 
+function saveUserSnapshot() {
+  if (!currentUser) return;
+  try {
+    const user = { ...currentUser, email: undefined };
+    if (typeof user.avatar_url === 'string' && user.avatar_url.startsWith('data:')) user.avatar_url = '';
+    localStorage.setItem('nvg_user_snapshot', JSON.stringify({ id: currentUser.id, user }));
+  } catch (e) {
+    // Quota dépassée : Twitch et le pseudo restent en mémoire, l'avatar revient de la base.
+  }
+}
+
 async function handleSuccessfulAuth(authUser) {
   const email = authUser.email ? authUser.email.toLowerCase() : '';
   
@@ -379,7 +390,9 @@ async function handleSuccessfulAuth(authUser) {
     twitch_channel: userProfile ? userProfile.twitch_channel : ''
   };
 
-  localStorage.setItem('nvg_user_snapshot', JSON.stringify({ id: currentUser.id, user: { ...currentUser, email: undefined } }));
+  // L'avatar fichier est une image encodée, trop lourde pour le stockage local.
+  // Si l'écriture échoue, le profil en mémoire doit quand même remplir le formulaire.
+  saveUserSnapshot();
 
   if (!userProfile) {
     await supabaseClient.from('nvg_users').upsert([{
