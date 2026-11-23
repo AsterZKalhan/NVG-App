@@ -461,6 +461,12 @@ function applyUserUi() {
     else videosRefreshBtn.classList.add('hidden');
   }
 
+  // L'onglet Mon compte peut déjà être affiché (actualisation sur #account)
+  // avant que le profil existe. On le remplit dès que le compte est connu.
+  const accountTab = document.getElementById('account');
+  if (accountTab && !accountTab.classList.contains('hidden') && typeof loadAccountTab === 'function') {
+    loadAccountTab();
+  }
 }
 
 async function renderAll() {
