@@ -54,6 +54,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     await handleSuccessfulAuth(session.user);
   } else {
     showAuthModal();
+    // Le calendrier est public : sans session, renderAll ne part pas,
+    // et la liste resterait sur « Chargement des événements… ».
+    if (typeof loadEvents === 'function') loadEvents();
   }
 
   if (!canShowBeforeAuth) {

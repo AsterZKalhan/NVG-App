@@ -14,6 +14,13 @@ et le site du **Tournoi des 9 Mondes**, servi sur
 - Push : `sw.js` + Edge Function `send-push`
 - Package Android : `com.nvg.companion`
 
+## État au 23 novembre 2026
+
+Parcours public des deux sites, sans compte. Aucune erreur JavaScript.
+
+- **Application** — streams, vidéos, boutique et tournoi intégré (poules du tournoi en cours) s'affichent. Contact, confidentialité, mentions légales et `assetlinks.json` répondent. Mon compte propose la suppression du compte, et le profil (photo, Twitch, avatar) se recharge à l'actualisation. Le calendrier se charge aussi sans session.
+- **Tournoi** — accueil, liste, fiche, suivi (poules) et contact s'ouvrent. L'inscription réelle, l'admin et le paiement n'ont pas été rejoués sans session.
+
 ## Principe important
 
 L'application Android **ne contient pas le code du site**. Elle ouvre directement
