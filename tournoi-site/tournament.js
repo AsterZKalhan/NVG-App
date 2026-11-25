@@ -10,6 +10,9 @@ const TOURNAMENT_SITE_URL = 'https://letournoides9mondes.nvg-tv.com';
 const supabaseClient = window.NVG_SHARED_AUTH_STORAGE
   ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { storage: window.NVG_SHARED_AUTH_STORAGE } })
   : supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+window.nvgSupabase = supabaseClient;
+window.NVG_SUPABASE_URL = SUPABASE_URL;
+window.NVG_SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
 const $ = (id) => document.getElementById(id);
 
 let currentUser = null;
@@ -426,8 +429,8 @@ function inviteUrl(code) {
 
 // --- Navigation ---
 
-const TAB_NAMES = ['home', 'tournaments', 'account', 'admin'];
-const ADMIN_PANES = ['players', 'games', 'create', 'manage'];
+const TAB_NAMES = ['home', 'tournaments', 'vote', 'account', 'admin'];
+const ADMIN_PANES = ['players', 'games', 'poll', 'create', 'manage'];
 const ACCOUNT_PANES = ['info', 'teams', 'registrations'];
 let adminPane = 'manage';
 let accountPane = 'info';
@@ -487,6 +490,7 @@ function openAdminPane(name, options = {}) {
   });
   if (name === 'players') renderAdminPlayers();
   if (name === 'manage') renderAdminTournaments();
+  if (name === 'poll' && typeof loadPollAdmin === 'function') loadPollAdmin();
   if (options.push !== false) {
     const url = routeUrl('admin', { admin: name });
     if (currentUrl() !== url) {
@@ -593,6 +597,7 @@ function openTab(name, options = {}) {
     openAdminPane(routeState().admin || adminPane, { push: false });
     loadAdmin();
   }
+  if (name === 'vote' && typeof loadPoll === 'function') loadPoll();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 

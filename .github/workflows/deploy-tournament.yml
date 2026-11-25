@@ -31,6 +31,9 @@ jobs:
           terser tournoi-site/tournament.js -c -m --comments false -o tournoi-site/tournament.js.tmp
           mv tournoi-site/tournament.js.tmp tournoi-site/tournament.js
           node --check tournoi-site/tournament.js
+          terser tournoi-site/poll.js -c -m --comments false -o tournoi-site/poll.js.tmp
+          mv tournoi-site/poll.js.tmp tournoi-site/poll.js
+          node --check tournoi-site/poll.js
 
       - uses: actions/setup-python@v5
         with:

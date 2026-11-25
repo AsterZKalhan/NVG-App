@@ -64,6 +64,7 @@
         <nav class="hidden md:flex items-center gap-1">
           <button data-tab="home" class="tab-btn px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-gray-300 hover:text-white transition">Accueil</button>
           <button data-tab="tournaments" class="tab-btn px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-gray-300 hover:text-white transition">Tournois</button>
+          <button data-tab="vote" class="tab-btn px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-gray-300 hover:text-white transition">Vote</button>
           <button onclick="openContactModal()" class="px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-gray-300 hover:text-white transition">✉️ Contact</button>
           <button data-tab="account" class="tab-btn px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-gray-300 hover:text-white transition">Mon espace</button>
           <button id="navAdmin" data-tab="admin" class="tab-btn hidden px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-gray-300 hover:text-white transition">Admin</button>
@@ -77,6 +78,7 @@
     <nav class="md:hidden flex items-center gap-1 px-3 pb-3 overflow-x-auto">
       <button data-tab="home" class="tab-btn px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-gray-300">Accueil</button>
       <button data-tab="tournaments" class="tab-btn px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-gray-300">Tournois</button>
+      <button data-tab="vote" class="tab-btn px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-gray-300">Vote</button>
       <button onclick="openContactModal()" class="px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-gray-300">✉️ Contact</button>
       <button data-tab="account" class="tab-btn px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-gray-300">Mon espace</button>
       <button id="navAdminMobile" data-tab="admin" class="tab-btn hidden px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-gray-300">Admin</button>
@@ -96,6 +98,7 @@
             <p class="text-sm text-gray-400 mt-4 max-w-xl">Neuf jeux, neuf mondes, une seule communauté. Tournois en ligne, en LAN ou les deux, inscriptions solo ou en équipe, calendrier et prix à gagner.</p>
             <div class="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-6">
               <button onclick="openTab('tournaments')" class="px-5 py-3 bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase rounded-xl transition">🏆 Voir les tournois</button>
+              <button onclick="openTab('vote')" class="px-5 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase rounded-xl transition">🗳️ Voir les sondages</button>
               <button onclick="openTab('account')" class="px-5 py-3 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-200 font-bold text-xs uppercase rounded-xl transition">🛡️ Mon espace</button>
             </div>
           </div>
@@ -145,6 +148,38 @@
         <div id="calendarList" class="mt-4 space-y-2"></div>
       </div>
       <div id="tournamentsList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    </section>
+
+    <!-- VOTE DES SONDAGES -->
+    <section id="tab-vote" class="tab-content hidden space-y-5">
+      <div id="pollList" class="space-y-4"></div>
+      <div id="pollDetail" hidden class="space-y-5">
+        <div class="flex flex-wrap items-end justify-between gap-3">
+          <div class="min-w-0">
+            <button type="button" onclick="openTab('vote')" class="text-[10px] font-bold uppercase tracking-wider text-amber-400 hover:underline">← Tous les sondages</button>
+            <p id="pollKind" class="text-[11px] uppercase tracking-[0.3em] text-amber-400 font-black mt-2">Sondage</p>
+            <h1 id="pollTitle" class="text-2xl font-black text-white mt-1">Sondage</h1>
+            <p id="pollIntro" class="text-xs text-gray-400 mt-1 max-w-2xl"></p>
+          </div>
+          <div class="flex items-center gap-3">
+            <button id="pollResultsBtn" type="button" hidden onclick="togglePollResults()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-[11px] uppercase rounded-xl transition">Résultats</button>
+            <p id="pollCount" class="text-sm font-black text-amber-300">0 / 9</p>
+          </div>
+        </div>
+        <div id="pollBanner" hidden class="rounded-2xl border px-4 py-3 text-sm font-bold" role="status"></div>
+        <div id="pollResults" hidden class="bg-[#121722] border border-[#1f293d] rounded-2xl p-4 space-y-2"></div>
+        <div id="pollGrid" class="space-y-6"></div>
+        <form id="pollForm" class="sticky bottom-3 z-20 bg-[#121722]/95 backdrop-blur border border-[#1f293d] rounded-2xl p-4 shadow-2xl space-y-3">
+          <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
+            <label class="block flex-1">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">E-mail <span class="text-red-400">*</span></span>
+              <input id="pollEmail" type="email" autocomplete="email" required maxlength="200" placeholder="Ton adresse e-mail" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-3 text-sm text-white focus:border-red-600 focus:outline-none">
+            </label>
+            <button id="pollSubmit" type="submit" disabled class="px-5 py-3 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:hover:bg-red-600 text-white font-black text-xs uppercase rounded-xl transition">Valider mon vote</button>
+          </div>
+          <p class="text-[10px] text-gray-500">L'e-mail sert uniquement à empêcher un second vote. Il n'est visible que par l'équipe d'organisation.</p>
+        </form>
+      </div>
     </section>
 
     <!-- MON ESPACE -->
@@ -257,7 +292,7 @@
               <input id="deleteAccountWord" type="text" autocomplete="off" placeholder="SUPPRIMER" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
             </label>
           </div>
-          <button onclick="deleteMyAccount()" class="px-4 py-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white font-bold text-xs rounded-lg transition">Supprimer définitivement mon compte</button>
+          <button type="button" onclick="deleteMyAccount()" class="px-4 py-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white font-bold text-xs rounded-lg transition">Supprimer définitivement mon compte</button>
         </div>
         </div>
 
@@ -298,6 +333,7 @@
       <div id="adminNav" class="flex flex-wrap gap-2">
         <button data-admin-pane="players" onclick="openAdminPane('players')" class="admin-nav-btn rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-gray-300 transition">👥 Joueurs</button>
         <button data-admin-pane="games" onclick="openAdminPane('games')" class="admin-nav-btn rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-gray-300 transition">🎮 Jeux</button>
+        <button data-admin-pane="poll" onclick="openAdminPane('poll')" class="admin-nav-btn rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-gray-300 transition">🗳️ Gestion des sondages</button>
         <button data-admin-pane="create" onclick="openAdminPane('create')" class="admin-nav-btn rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-gray-300 transition">➕ Nouveau tournoi</button>
         <button data-admin-pane="manage" onclick="openAdminPane('manage')" class="admin-nav-btn rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-gray-300 transition">📋 Gestion des tournois</button>
       </div>
@@ -421,6 +457,101 @@
           <div id="adminGames" class="text-[11px] text-gray-400 space-y-1"></div>
         </div>
       </div>
+      </div>
+
+      <!-- GESTION DES SONDAGES -->
+      <div id="adminPane-poll" class="admin-pane hidden space-y-4">
+        <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 class="text-sm font-black text-white">🗳️ Gestion des sondages</h2>
+              <p class="text-[11px] text-gray-400">Crée un sondage Tournoi des 9 Mondes (9 jeux libres) ou Décathlon (3 colonnes : 5v5, 2v2, 1v1, 3 jeux chacune).</p>
+            </div>
+            <button type="button" onclick="startPollCreate()" class="px-3 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-[10px] uppercase rounded-lg transition">Nouveau sondage</button>
+          </div>
+          <div id="pollAdminList" class="space-y-2"></div>
+          <form id="pollSettingsForm" hidden class="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-[#1f293d] pt-3">
+            <label class="block sm:col-span-2">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Titre</span>
+              <input id="pollSettingsTitle" maxlength="120" required class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+            </label>
+            <label class="block sm:col-span-2">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Texte d'introduction</span>
+              <textarea id="pollSettingsIntro" maxlength="500" rows="2" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white"></textarea>
+            </label>
+            <label class="block sm:col-span-2">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Type de vote</span>
+              <select id="pollSettingsMode" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+                <option value="nine_worlds">Tournoi des 9 Mondes — 9 jeux, quels qu'ils soient</option>
+                <option value="decathlon">Décathlon — 3 colonnes (5v5, 2v2, 1v1), 3 réponses par colonne</option>
+              </select>
+            </label>
+            <label class="flex items-center gap-2 text-xs text-gray-200 sm:col-span-2">
+              <input id="pollSettingsOpen" type="checkbox" class="accent-red-600">
+              Ouvrir le vote au public
+            </label>
+            <div class="flex flex-wrap gap-2 sm:col-span-2">
+              <button type="submit" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-lg transition">Enregistrer le sondage</button>
+              <button type="button" onclick="cancelPollCreate()" class="px-4 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-300 font-bold text-xs rounded-lg transition">Annuler</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="pollAdminEditor" hidden class="space-y-4">
+          <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h2 id="pollAdminEditorTitle" class="text-sm font-black text-white">🎮 Jeux</h2>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" onclick="copyPollLink()" class="px-3 py-2 bg-white/5 hover:bg-white/10 border border-[#1f293d] text-gray-200 font-bold text-[10px] uppercase rounded-lg transition">Copier le lien</button>
+                <button type="button" onclick="deletePoll()" class="px-3 py-2 bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white font-bold text-[10px] uppercase rounded-lg transition">Supprimer</button>
+              </div>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-[11px] text-gray-400">Image et lien, comme les propositions de jeux de l'application.</p>
+              <button id="pollGameCancel" type="button" onclick="cancelPollGameEdit()" hidden class="text-[10px] font-bold text-gray-400 hover:text-white">Annuler la modification</button>
+            </div>
+            <form id="pollGameForm" class="space-y-3">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label class="block">
+                  <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Nom du jeu</span>
+                  <input id="pollGameTitle" maxlength="120" required placeholder="Nom du jeu" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+                </label>
+                <label class="block">
+                  <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Lien (Steam, site…)</span>
+                  <input id="pollGameLink" type="url" maxlength="500" required placeholder="https://…" onchange="pollFillImageFromLink()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+                </label>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                <label class="block">
+                  <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Image</span>
+                  <input id="pollGameImage" type="url" maxlength="500" placeholder="Remplie depuis le lien, ou URL https" oninput="pollPreviewGameImage()" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+                </label>
+                <label id="pollGameColumnWrap" hidden class="block">
+                  <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Colonne</span>
+                  <select id="pollGameColumn" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
+                    <option value="5v5">5v5</option>
+                    <option value="2v2">2v2</option>
+                    <option value="1v1">1v1</option>
+                  </select>
+                </label>
+              </div>
+              <label class="flex items-center gap-2 text-xs text-gray-200">
+                <input id="pollGameActive" type="checkbox" checked class="accent-red-600">
+                Visible dans le vote
+              </label>
+              <div class="h-28 w-full max-w-md overflow-hidden rounded-xl border border-[#1f293d] bg-black/40">
+                <img id="pollGameImagePreview" alt="" hidden class="h-full w-full object-cover">
+                <span id="pollGameImageEmpty" class="flex h-full items-center justify-center text-[10px] text-gray-600">aucune image</span>
+              </div>
+              <button id="pollGameSubmit" type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-lg transition">Ajouter le jeu</button>
+            </form>
+            <div id="pollAdminGames" class="space-y-2"></div>
+          </div>
+          <div class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 space-y-3">
+            <h2 class="text-sm font-black text-white">📊 Résultats</h2>
+            <div id="pollAdminResults" class="space-y-2 text-xs text-gray-400">Choisis un sondage.</div>
+          </div>
+        </div>
       </div>
 
       <!-- NOUVEAU TOURNOI -->
@@ -1149,6 +1280,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0" defer></script>
   <script src="auth-shared.js" defer></script>
+  <script src="poll.js" defer></script>
   <script src="tournament.js" defer></script>
   <script src="contact-form.js" defer></script>
   <div id="weezTicketModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4" style="overscroll-behavior:contain">
