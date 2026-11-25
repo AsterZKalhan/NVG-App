@@ -196,16 +196,16 @@ function pollCard(game, canVote) {
   const link = pollHttps(game.link);
   return `
     <div role="button" tabindex="0" onclick="togglePollPick('${game.id}')" onkeydown="pollPickKey(event, '${game.id}')"
-      class="bg-[#121722] border ${selected ? 'border-red-500 ring-1 ring-red-500' : 'border-[#1f293d]'} rounded-xl overflow-hidden flex flex-col shadow-lg text-left ${canVote ? 'cursor-pointer' : ''} group">
-      <div class="relative h-16 w-full overflow-hidden bg-black/40 border-b border-[#1f293d]">
-        <img ${image ? `src="${pollEsc(image)}"` : `data-game-link="${pollEsc(link)}"`} referrerpolicy="no-referrer" alt="" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="this.style.display='none'">
-        <span class="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full border ${selected ? 'border-red-500 bg-red-600 text-white' : 'border-white/20 bg-black/50 text-transparent'} text-[10px] font-black">✓</span>
+      class="flex items-center gap-3 rounded-xl border ${selected ? 'border-red-500 ring-1 ring-red-500' : 'border-[#1f293d]'} bg-[#121722] p-2 text-left ${canVote ? 'cursor-pointer' : ''}">
+      <div class="aspect-[460/215] w-36 shrink-0 overflow-hidden rounded-lg bg-black sm:w-44">
+        <img ${image ? `src="${pollEsc(image)}"` : `data-game-link="${pollEsc(link)}"`} referrerpolicy="no-referrer" alt="" class="h-full w-full object-contain" onerror="this.style.display='none'">
       </div>
-      <div class="p-2.5 space-y-1">
-        <h3 class="text-[11px] font-black text-white uppercase tracking-wider leading-tight">${pollEsc(game.title)}</h3>
+      <div class="min-w-0 flex-1 space-y-0.5">
+        <h3 class="truncate text-xs font-black uppercase tracking-wider text-white">${pollEsc(game.title)}</h3>
         <p class="text-[10px] font-black uppercase tracking-wider text-amber-300">${pollEsc(pollPriceLabel(game.price_cents))}</p>
-        ${link ? `<a href="${pollEsc(link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="text-[10px] text-red-400 hover:underline inline-block truncate max-w-full">🔗 Lien</a>` : ''}
+        ${link ? `<a href="${pollEsc(link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="inline-block max-w-full truncate text-[10px] text-red-400 hover:underline">🔗 Lien</a>` : ''}
       </div>
+      <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${selected ? 'border-red-500 bg-red-600 text-white' : 'border-white/20 bg-black/50 text-transparent'} text-[10px] font-black">✓</span>
     </div>`;
 }
 
@@ -236,14 +236,14 @@ function renderPoll() {
             <h2 class="text-sm font-black uppercase tracking-wider text-white">${column.label}</h2>
             <p class="text-xs font-black ${pollColumnCount(column.key) === POLL_COLUMN_PICKS ? 'text-emerald-400' : 'text-amber-300'}">${pollColumnCount(column.key)} / ${POLL_COLUMN_PICKS}</p>
           </div>
-          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+          <div class="grid grid-cols-1 gap-2 lg:grid-cols-2">
             ${games.map((game) => pollCard(game, canVote)).join('') || '<p class="text-xs text-gray-500">Aucun jeu dans cette colonne.</p>'}
           </div>
         </section>`;
     }).join('');
     pollHydrate(grid);
   } else {
-    grid.innerHTML = `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">${activeGames.map((game) => pollCard(game, canVote)).join('')}</div>`;
+    grid.innerHTML = `<div class="grid grid-cols-1 gap-2 lg:grid-cols-2">${activeGames.map((game) => pollCard(game, canVote)).join('')}</div>`;
     pollHydrate(grid);
   }
 
@@ -636,8 +636,8 @@ function renderPollAdminGames() {
         const link = pollHttps(game.link);
         return `
           <div class="flex items-center gap-3 rounded-xl border border-[#1f293d] bg-[#07090e] p-2">
-            <div class="h-12 w-24 shrink-0 overflow-hidden rounded-lg bg-black/40">
-              ${image ? `<img src="${pollEsc(image)}" alt="" referrerpolicy="no-referrer" class="h-full w-full object-cover" onerror="this.style.display='none'">` : ''}
+            <div class="aspect-[460/215] h-12 w-auto shrink-0 overflow-hidden rounded-lg bg-black">
+              ${image ? `<img src="${pollEsc(image)}" alt="" referrerpolicy="no-referrer" class="h-full w-full object-contain" onerror="this.style.display='none'">` : ''}
             </div>
             <div class="min-w-0 flex-1">
               <p class="truncate text-xs font-black text-white">${pollEsc(game.title)}</p>
