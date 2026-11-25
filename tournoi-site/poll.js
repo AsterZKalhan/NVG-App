@@ -11,6 +11,15 @@ const POLL_COLUMNS = [
   { key: '1v1', label: '1v1' }
 ];
 
+function pollVoteColumn(key) {
+  return key === '1v1x10' ? '1v1' : key;
+}
+
+function pollFormatBadge(key) {
+  if (key !== '1v1x10') return '';
+  return '<span class="ml-1 shrink-0 text-[9px] font-black uppercase tracking-wider text-sky-300">1v1 x10</span>';
+}
+
 const pollImageCache = {};
 let pollId = null;
 let pollSettings = { title: '', intro: '', open: false, mode: 'nine_worlds' };
@@ -117,7 +126,7 @@ function pollSyncResultsButton() {
 }
 
 function pollColumnCount(columnKey) {
-  return [...pollSelected].filter((id) => pollGames.find((game) => game.id === id)?.column_key === columnKey).length;
+  return [...pollSelected].filter((id) => pollVoteColumn(pollGames.find((game) => game.id === id)?.column_key) === columnKey).length;
 }
 
 function pollSelectionReady() {
@@ -201,7 +210,7 @@ function pollCard(game, canVote) {
         <img ${image ? `src="${pollEsc(image)}"` : `data-game-link="${pollEsc(link)}"`} referrerpolicy="no-referrer" alt="" class="h-full w-full object-contain" onerror="this.style.display='none'">
       </div>
       <div class="min-w-0 flex-1 space-y-0.5">
-        <h3 class="truncate text-xs font-black uppercase tracking-wider text-white">${pollEsc(game.title)}</h3>
+        <h3 class="truncate text-xs font-black uppercase tracking-wider text-white">${pollEsc(game.title)}${pollFormatBadge(game.column_key)}</h3>
         <p class="text-[10px] font-black uppercase tracking-wider text-amber-300">${pollEsc(pollPriceLabel(game.price_cents))}</p>
         ${link ? `<a href="${pollEsc(link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="inline-block max-w-full truncate text-[10px] text-red-400 hover:underline">🔗 Lien</a>` : ''}
       </div>
@@ -220,7 +229,7 @@ function renderPoll() {
 
   const activeGames = pollGames.filter((game) => game.column_key || !pollIsDecathlon());
   const tooFew = pollIsDecathlon()
-    ? POLL_COLUMNS.some((column) => activeGames.filter((game) => game.column_key === column.key).length < POLL_COLUMN_PICKS)
+    ? POLL_COLUMNS.some((column) => activeGames.filter((game) => pollVoteColumn(game.column_key) === column.key).length < POLL_COLUMN_PICKS)
     : activeGames.length < POLL_PICKS;
   const canVote = !!pollSettings.open && !tooFew && !pollDone;
   pollLocked = !canVote;
@@ -229,7 +238,7 @@ function renderPoll() {
     grid.innerHTML = '<p class="text-xs text-gray-400 p-4 bg-[#121722] border border-[#1f293d] rounded-xl">Aucun jeu n’est proposé pour le moment.</p>';
   } else if (pollIsDecathlon()) {
     grid.innerHTML = POLL_COLUMNS.map((column) => {
-      const games = activeGames.filter((game) => game.column_key === column.key);
+      const games = activeGames.filter((game) => pollVoteColumn(game.column_key) === column.key);
       return `
         <section class="space-y-3">
           <div class="flex items-center justify-between gap-2">
@@ -348,7 +357,7 @@ function togglePollPick(id) {
   if (pollSelected.has(id)) {
     pollSelected.delete(id);
   } else if (pollIsDecathlon()) {
-    const column = pollGames.find((game) => game.id === id)?.column_key;
+    const column = pollVoteColumn(pollGames.find((game) => game.id === id)?.column_key);
     if (pollColumnCount(column) >= POLL_COLUMN_PICKS) {
       pollNotify('Pas plus de 3 jeux dans cette colonne.', true);
       return;
@@ -437,7 +446,7 @@ function pollRankHtml(rows, limit, title) {
               : '<span class="w-14 shrink-0" aria-hidden="true"></span>'}
             <span class="w-5 shrink-0 text-xs font-black ${eligible ? 'text-amber-200' : 'text-gray-500'}">${index + 1}</span>
             ${image ? `<img src="${pollEsc(image)}" alt="" referrerpolicy="no-referrer" class="h-8 w-14 shrink-0 rounded object-cover" onerror="this.style.display='none'">` : ''}
-            <p class="min-w-0 flex-1 truncate text-xs font-bold ${eligible ? 'text-white' : 'text-gray-300'}">${pollEsc(game.title)}</p>
+            <p class="min-w-0 flex-1 truncate text-xs font-bold ${eligible ? 'text-white' : 'text-gray-300'}">${pollEsc(game.title)}${pollFormatBadge(game.column_key)}</p>
             <p class="shrink-0 text-[11px] font-black ${eligible ? 'text-amber-200' : 'text-gray-400'}">${votes} vote${votes > 1 ? 's' : ''}</p>
           </div>`;
       }).join('')}
@@ -449,7 +458,7 @@ function renderPollRanking(rows) {
   if (!box) return;
   if (pollIsDecathlon()) {
     box.innerHTML = POLL_COLUMNS.map((column) => pollRankHtml(
-      (rows || []).filter((row) => row.column_key === column.key),
+      (rows || []).filter((row) => pollVoteColumn(row.column_key) === column.key),
       POLL_COLUMN_PICKS,
       column.label
     )).join('');
@@ -568,7 +577,7 @@ async function savePollGame(event) {
   if (pollEditingGameId) {
     ({ error } = await db.from('nvg_poll_games').update(payload).eq('id', pollEditingGameId));
   } else {
-    const same = pollAdminGames.filter((game) => !decathlon || game.column_key === payload.column_key);
+    const same = pollAdminGames.filter((game) => !decathlon || pollVoteColumn(game.column_key) === pollVoteColumn(payload.column_key));
     payload.position = same.length ? Math.max(...same.map((game) => Number(game.position) || 0)) + 1 : 0;
     ({ error } = await db.from('nvg_poll_games').insert(payload));
   }
@@ -599,7 +608,7 @@ async function movePollGame(id, direction) {
   if (!game) return;
   const decathlon = pollIsDecathlon(pollAdminMode());
   const pool = pollAdminGames
-    .filter((item) => !decathlon || item.column_key === game.column_key)
+    .filter((item) => !decathlon || pollVoteColumn(item.column_key) === pollVoteColumn(game.column_key))
     .sort((a, b) => (a.position - b.position) || a.title.localeCompare(b.title, 'fr'));
   const index = pool.findIndex((item) => item.id === id);
   const target = index + direction;
@@ -625,7 +634,7 @@ function renderPollAdminGames() {
     return;
   }
   const groups = pollIsDecathlon(pollAdminMode())
-    ? POLL_COLUMNS.map((column) => ({ label: column.label, games: pollAdminGames.filter((game) => game.column_key === column.key) }))
+    ? POLL_COLUMNS.map((column) => ({ label: column.label, games: pollAdminGames.filter((game) => pollVoteColumn(game.column_key) === column.key) }))
     : [{ label: '', games: pollAdminGames }];
   box.innerHTML = groups.map((group) => {
     const sorted = [...group.games].sort((a, b) => (a.position - b.position) || a.title.localeCompare(b.title, 'fr'));
@@ -640,7 +649,7 @@ function renderPollAdminGames() {
               ${image ? `<img src="${pollEsc(image)}" alt="" referrerpolicy="no-referrer" class="h-full w-full object-contain" onerror="this.style.display='none'">` : ''}
             </div>
             <div class="min-w-0 flex-1">
-              <p class="truncate text-xs font-black text-white">${pollEsc(game.title)}</p>
+              <p class="truncate text-xs font-black text-white">${pollEsc(game.title)}${pollFormatBadge(game.column_key)}</p>
               <p class="truncate text-[10px] ${game.active ? 'text-emerald-400' : 'text-gray-500'}">${game.active ? 'Visible' : 'Masqué'} · ${pollEsc(pollPriceLabel(game.price_cents))}${link ? ` · ${pollEsc(link)}` : ''}</p>
             </div>
             <div class="flex shrink-0 gap-1">
@@ -666,7 +675,7 @@ function renderPollResults() {
   });
   const rows = pollAdminGames.map((game) => ({ ...game, votes: counts.get(game.id) || 0 }));
   const ranking = pollIsDecathlon(pollAdminMode())
-    ? POLL_COLUMNS.map((column) => pollRankHtml(rows.filter((row) => row.column_key === column.key), POLL_COLUMN_PICKS, column.label)).join('')
+    ? POLL_COLUMNS.map((column) => pollRankHtml(rows.filter((row) => pollVoteColumn(row.column_key) === column.key), POLL_COLUMN_PICKS, column.label)).join('')
     : pollRankHtml(rows, POLL_PICKS, 'Classement');
   const voters = pollVotes.map((vote) => {
     const when = new Date(vote.created_at);

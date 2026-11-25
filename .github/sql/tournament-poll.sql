@@ -83,11 +83,10 @@ begin
   if not exists (select 1 from public.nvg_poll_votes where poll_id is null) then
     alter table public.nvg_poll_votes alter column poll_id set not null;
   end if;
-  if not exists (select 1 from pg_constraint where conname = 'nvg_poll_games_column_chk') then
-    alter table public.nvg_poll_games
-      add constraint nvg_poll_games_column_chk
-      check (column_key is null or column_key in ('5v5', '2v2', '1v1'));
-  end if;
+  alter table public.nvg_poll_games drop constraint if exists nvg_poll_games_column_chk;
+  alter table public.nvg_poll_games
+    add constraint nvg_poll_games_column_chk
+    check (column_key is null or column_key in ('5v5', '2v2', '1v1', '1v1x10'));
 end $$;
 
 drop index if exists public.nvg_poll_votes_email_idx;
@@ -195,7 +194,7 @@ begin
     end if;
     select count(*) into v_count
     from public.nvg_poll_games
-    where poll_id = p_poll and active and column_key = '1v1' and id = any (p_games);
+    where poll_id = p_poll and active and column_key in ('1v1', '1v1x10') and id = any (p_games);
     if v_count is distinct from 3 then
       raise exception 'need_three';
     end if;
