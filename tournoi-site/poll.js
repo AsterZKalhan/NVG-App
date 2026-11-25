@@ -11,13 +11,16 @@ const POLL_COLUMNS = [
   { key: '1v1', label: '1v1' }
 ];
 
+const POLL_1V1_FORMATS = { '1v1x8': '1v1 x8', '1v1x10': '1v1 x10' };
+
 function pollVoteColumn(key) {
-  return key === '1v1x10' ? '1v1' : key;
+  return POLL_1V1_FORMATS[key] ? '1v1' : key;
 }
 
 function pollFormatBadge(key) {
-  if (key !== '1v1x10') return '';
-  return '<span class="ml-1 shrink-0 text-[9px] font-black uppercase tracking-wider text-sky-300">1v1 x10</span>';
+  const label = POLL_1V1_FORMATS[key];
+  if (!label) return '';
+  return `<span class="ml-1 shrink-0 text-[9px] font-black uppercase tracking-wider text-sky-300">${label}</span>`;
 }
 
 const pollImageCache = {};
