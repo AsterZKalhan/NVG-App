@@ -10,7 +10,6 @@ create table if not exists public.nvg_polls (
   title text not null check (char_length(trim(title)) between 1 and 120),
   intro text not null default '' check (char_length(intro) <= 500),
   mode text not null default 'nine_worlds' check (mode in ('nine_worlds', 'decathlon')),
-  price_cents integer not null default 0 check (price_cents >= 0),
   open boolean not null default false,
   created_at timestamptz not null default now()
 );
@@ -23,12 +22,14 @@ create table if not exists public.nvg_poll_games (
   image_url text check (image_url is null or (image_url ~* '^https://' and char_length(image_url) <= 500)),
   column_key text,
   position integer not null default 0,
+  price_cents integer not null default 0 check (price_cents >= 0),
   active boolean not null default true,
   created_at timestamptz not null default now()
 );
 
-alter table public.nvg_polls add column if not exists price_cents integer not null default 0;
+alter table public.nvg_polls drop column if exists price_cents;
 
+alter table public.nvg_poll_games add column if not exists price_cents integer not null default 0;
 alter table public.nvg_poll_games add column if not exists poll_id uuid references public.nvg_polls(id) on delete cascade;
 alter table public.nvg_poll_games add column if not exists column_key text;
 

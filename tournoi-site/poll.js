@@ -64,8 +64,8 @@ function pollPriceLabel(cents) {
   return (value / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 }
 
-function pollPriceCentsFromInput() {
-  const raw = String(document.getElementById('pollSettingsPrice')?.value ?? '').replace(',', '.').trim();
+function pollPriceCentsFromInput(inputId) {
+  const raw = String(document.getElementById(inputId)?.value ?? '').replace(',', '.').trim();
   if (raw === '') return 0;
   const euros = Number(raw);
   if (!Number.isFinite(euros) || euros < 0) return null;
@@ -203,6 +203,7 @@ function pollCard(game, canVote) {
       </div>
       <div class="p-2.5 space-y-1">
         <h3 class="text-[11px] font-black text-white uppercase tracking-wider leading-tight">${pollEsc(game.title)}</h3>
+        <p class="text-[10px] font-black uppercase tracking-wider text-amber-300">${pollEsc(pollPriceLabel(game.price_cents))}</p>
         ${link ? `<a href="${pollEsc(link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="text-[10px] text-red-400 hover:underline inline-block truncate max-w-full">🔗 Lien</a>` : ''}
       </div>
     </div>`;
@@ -211,12 +212,10 @@ function pollCard(game, canVote) {
 function renderPoll() {
   const title = document.getElementById('pollTitle');
   const intro = document.getElementById('pollIntro');
-  const price = document.getElementById('pollPrice');
   const grid = document.getElementById('pollGrid');
   const form = document.getElementById('pollForm');
   if (title) title.textContent = pollSettings.title || 'Sondage';
   if (intro) intro.textContent = pollSettings.intro || '';
-  if (price) price.textContent = pollPriceLabel(pollSettings.price_cents);
   if (!grid) return;
 
   const activeGames = pollGames.filter((game) => game.column_key || !pollIsDecathlon());
@@ -266,7 +265,7 @@ async function renderPollList() {
   const db = pollDb();
   if (!list || !db) return;
   list.innerHTML = '<p class="text-xs text-gray-400">Chargement des sondages…</p>';
-  const { data, error } = await db.from('nvg_polls').select('id,title,intro,mode,open,price_cents').eq('open', true).order('created_at', { ascending: false });
+  const { data, error } = await db.from('nvg_polls').select('id,title,intro,mode,open').eq('open', true).order('created_at', { ascending: false });
   const code = pollErrorCode(error);
   if (code === 'missing') {
     list.innerHTML = `<p class="text-sm text-red-300">${pollEsc(pollMessage('missing'))}</p>`;
@@ -289,8 +288,7 @@ async function renderPollList() {
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       ${polls.map((poll) => `
         <button type="button" onclick="openPoll('${poll.id}')" class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 text-left hover:border-red-500 transition">
-          <p class="text-[10px] font-black uppercase tracking-wider text-amber-400">${pollEsc(pollPriceLabel(poll.price_cents))}</p>
-          <h2 class="text-base font-black text-white mt-1">${pollEsc(poll.title)}</h2>
+          <h2 class="text-base font-black text-white">${pollEsc(poll.title)}</h2>
           ${poll.intro ? `<p class="text-xs text-gray-400 mt-2">${pollEsc(poll.intro)}</p>` : ''}
         </button>`).join('')}
     </div>`;
@@ -324,8 +322,8 @@ async function loadPoll() {
   const grid = document.getElementById('pollGrid');
   if (grid) grid.innerHTML = '<p class="text-xs text-gray-400">Chargement du sondage…</p>';
   const [settings, games] = await Promise.all([
-    db.from('nvg_polls').select('id,title,intro,mode,open,price_cents').eq('id', id).maybeSingle(),
-    db.from('nvg_poll_games').select('id,title,link,image_url,column_key,position').eq('poll_id', id).eq('active', true).order('position').order('title')
+    db.from('nvg_polls').select('id,title,intro,mode,open').eq('id', id).maybeSingle(),
+    db.from('nvg_poll_games').select('id,title,link,image_url,column_key,position,price_cents').eq('poll_id', id).eq('active', true).order('position').order('title')
   ]);
   const code = pollErrorCode(settings.error || games.error);
   if (code === 'missing') {
@@ -529,6 +527,8 @@ function editPollGame(id) {
   document.getElementById('pollGameLink').value = game.link || '';
   document.getElementById('pollGameImage').value = game.image_url || '';
   document.getElementById('pollGameActive').checked = game.active !== false;
+  const priceInput = document.getElementById('pollGamePrice');
+  if (priceInput) priceInput.value = ((Number(game.price_cents) || 0) / 100).toFixed(2);
   const column = document.getElementById('pollGameColumn');
   if (column && game.column_key) column.value = game.column_key;
   document.getElementById('pollGameSubmit').textContent = 'Enregistrer le jeu';
@@ -548,6 +548,11 @@ async function savePollGame(event) {
     pollNotify('Indique un nom et un lien https.', true);
     return;
   }
+  const priceCents = pollPriceCentsFromInput('pollGamePrice');
+  if (priceCents === null) {
+    pollNotify('Indique un prix positif, ou 0 pour gratuit.', true);
+    return;
+  }
   if (!image) image = await pollFetchImage(link);
   const decathlon = pollIsDecathlon(pollAdminMode());
   const payload = {
@@ -556,7 +561,8 @@ async function savePollGame(event) {
     link,
     image_url: image || null,
     column_key: decathlon ? document.getElementById('pollGameColumn').value : null,
-    active: !!document.getElementById('pollGameActive').checked
+    active: !!document.getElementById('pollGameActive').checked,
+    price_cents: priceCents
   };
   let error;
   if (pollEditingGameId) {
@@ -635,7 +641,7 @@ function renderPollAdminGames() {
             </div>
             <div class="min-w-0 flex-1">
               <p class="truncate text-xs font-black text-white">${pollEsc(game.title)}</p>
-              <p class="truncate text-[10px] ${game.active ? 'text-emerald-400' : 'text-gray-500'}">${game.active ? 'Visible' : 'Masqué'}${link ? ` · ${pollEsc(link)}` : ''}</p>
+              <p class="truncate text-[10px] ${game.active ? 'text-emerald-400' : 'text-gray-500'}">${game.active ? 'Visible' : 'Masqué'} · ${pollEsc(pollPriceLabel(game.price_cents))}${link ? ` · ${pollEsc(link)}` : ''}</p>
             </div>
             <div class="flex shrink-0 gap-1">
               <button type="button" onclick="movePollGame('${game.id}', -1)" class="px-2 py-1 text-[11px] text-gray-300 hover:text-white" aria-label="Monter">↑</button>
@@ -687,8 +693,6 @@ function fillPollForm(poll) {
   document.getElementById('pollSettingsTitle').value = poll?.title || '';
   document.getElementById('pollSettingsIntro').value = poll?.intro || '';
   document.getElementById('pollSettingsOpen').checked = !!poll?.open;
-  const priceInput = document.getElementById('pollSettingsPrice');
-  if (priceInput) priceInput.value = ((Number(poll?.price_cents) || 0) / 100).toFixed(2);
   const mode = document.getElementById('pollSettingsMode');
   mode.value = poll?.mode === 'decathlon' ? 'decathlon' : 'nine_worlds';
   mode.disabled = !!poll;
@@ -722,7 +726,7 @@ function renderPollAdminList() {
   box.innerHTML = pollAdminPolls.map((poll) => `
     <button type="button" onclick="selectPollAdmin('${poll.id}')" class="w-full rounded-xl border px-3 py-2 text-left transition ${poll.id === pollAdminId ? 'border-red-500 bg-red-600/10' : 'border-[#1f293d] bg-[#07090e] hover:border-white/20'}">
       <p class="text-xs font-black text-white">${pollEsc(poll.title)}</p>
-      <p class="text-[10px] ${poll.open ? 'text-emerald-400' : 'text-gray-500'}">${pollEsc(pollModeLabel(poll.mode))} · ${pollEsc(pollPriceLabel(poll.price_cents))} · ${poll.open ? 'Ouvert' : 'Fermé'}</p>
+      <p class="text-[10px] ${poll.open ? 'text-emerald-400' : 'text-gray-500'}">${pollEsc(pollModeLabel(poll.mode))} · ${poll.open ? 'Ouvert' : 'Fermé'}</p>
     </button>`).join('');
 }
 
@@ -741,17 +745,11 @@ async function savePollSettings(event) {
   event.preventDefault();
   const db = pollDb();
   if (!db) return;
-  const priceCents = pollPriceCentsFromInput();
   const payload = {
     title: document.getElementById('pollSettingsTitle').value.trim(),
     intro: document.getElementById('pollSettingsIntro').value.trim(),
-    open: !!document.getElementById('pollSettingsOpen').checked,
-    price_cents: priceCents
+    open: !!document.getElementById('pollSettingsOpen').checked
   };
-  if (priceCents === null) {
-    pollNotify('Indique un prix positif, ou 0 pour gratuit.', true);
-    return;
-  }
   if (!payload.title) {
     pollNotify('Indique un titre.', true);
     return;
@@ -818,7 +816,7 @@ async function loadPollAdmin() {
   const db = pollDb();
   const list = document.getElementById('pollAdminList');
   if (!db || !list) return;
-  const { data, error } = await db.from('nvg_polls').select('id,title,intro,mode,open,price_cents,created_at').order('created_at', { ascending: false });
+  const { data, error } = await db.from('nvg_polls').select('id,title,intro,mode,open,created_at').order('created_at', { ascending: false });
   if (pollErrorCode(error) === 'missing') {
     list.innerHTML = `<p class="text-xs text-red-300">${pollEsc(pollMessage('missing'))}</p>`;
     return;
@@ -839,7 +837,7 @@ async function loadPollAdmin() {
   if (!pollCreating) fillPollForm(current);
   pollHide(document.getElementById('pollAdminEditor'), false);
   const [games, votes] = await Promise.all([
-    db.from('nvg_poll_games').select('id,title,link,image_url,column_key,position,active').eq('poll_id', pollAdminId).order('position').order('title'),
+    db.from('nvg_poll_games').select('id,title,link,image_url,column_key,position,price_cents,active').eq('poll_id', pollAdminId).order('position').order('title'),
     db.from('nvg_poll_votes').select('id,email,created_at,nvg_poll_choices(game_id)').eq('poll_id', pollAdminId).order('created_at', { ascending: false })
   ]);
   pollAdminGames = games.data || [];
