@@ -157,7 +157,7 @@
         <div class="flex flex-wrap items-end justify-between gap-3">
           <div class="min-w-0">
             <button type="button" onclick="openTab('vote')" class="text-[10px] font-bold uppercase tracking-wider text-amber-400 hover:underline">← Tous les sondages</button>
-            <p id="pollKind" class="text-[11px] uppercase tracking-[0.3em] text-amber-400 font-black mt-2">Sondage</p>
+            <p id="pollPrice" class="text-[11px] uppercase tracking-[0.3em] text-amber-400 font-black mt-2">Gratuit</p>
             <h1 id="pollTitle" class="text-2xl font-black text-white mt-1">Sondage</h1>
             <p id="pollIntro" class="text-xs text-gray-400 mt-1 max-w-2xl"></p>
           </div>
@@ -479,7 +479,12 @@
               <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Texte d'introduction</span>
               <textarea id="pollSettingsIntro" maxlength="500" rows="2" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white"></textarea>
             </label>
-            <label class="block sm:col-span-2">
+            <label class="block">
+              <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Prix (€)</span>
+              <input id="pollSettingsPrice" type="number" min="0" step="0.01" value="0" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-4 py-2.5 text-xs text-white">
+              <span class="mt-1 block text-[10px] text-gray-500">0 s’affiche « Gratuit ».</span>
+            </label>
+            <label class="block">
               <span class="mb-1 block text-[10px] font-black uppercase tracking-wider text-gray-400">Type de vote</span>
               <select id="pollSettingsMode" class="w-full bg-[#07090e] border border-[#1f293d] rounded-xl px-3 py-2.5 text-xs text-white">
                 <option value="nine_worlds">Tournoi des 9 Mondes — 9 jeux, quels qu'ils soient</option>

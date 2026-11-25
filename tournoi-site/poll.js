@@ -58,6 +58,20 @@ function pollModeLabel(mode) {
   return pollIsDecathlon(mode) ? 'Décathlon' : 'Tournoi des 9 Mondes';
 }
 
+function pollPriceLabel(cents) {
+  const value = Math.max(0, Math.round(Number(cents) || 0));
+  if (value === 0) return 'Gratuit';
+  return (value / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+}
+
+function pollPriceCentsFromInput() {
+  const raw = String(document.getElementById('pollSettingsPrice')?.value ?? '').replace(',', '.').trim();
+  if (raw === '') return 0;
+  const euros = Number(raw);
+  if (!Number.isFinite(euros) || euros < 0) return null;
+  return Math.round(euros * 100);
+}
+
 function pollVotedKey(id) {
   return id ? `nvg_poll_voted_${id}` : '';
 }
@@ -182,14 +196,14 @@ function pollCard(game, canVote) {
   const link = pollHttps(game.link);
   return `
     <div role="button" tabindex="0" onclick="togglePollPick('${game.id}')" onkeydown="pollPickKey(event, '${game.id}')"
-      class="bg-[#121722] border ${selected ? 'border-red-500 ring-1 ring-red-500' : 'border-[#1f293d]'} rounded-2xl overflow-hidden flex flex-col shadow-lg text-left ${canVote ? 'cursor-pointer' : ''} group">
-      <div class="relative h-32 w-full overflow-hidden bg-black/40 border-b border-[#1f293d]">
+      class="bg-[#121722] border ${selected ? 'border-red-500 ring-1 ring-red-500' : 'border-[#1f293d]'} rounded-xl overflow-hidden flex flex-col shadow-lg text-left ${canVote ? 'cursor-pointer' : ''} group">
+      <div class="relative h-16 w-full overflow-hidden bg-black/40 border-b border-[#1f293d]">
         <img ${image ? `src="${pollEsc(image)}"` : `data-game-link="${pollEsc(link)}"`} referrerpolicy="no-referrer" alt="" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="this.style.display='none'">
-        <span class="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full border ${selected ? 'border-red-500 bg-red-600 text-white' : 'border-white/20 bg-black/50 text-transparent'} text-sm font-black">✓</span>
+        <span class="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full border ${selected ? 'border-red-500 bg-red-600 text-white' : 'border-white/20 bg-black/50 text-transparent'} text-[10px] font-black">✓</span>
       </div>
-      <div class="p-5 space-y-2">
-        <h3 class="text-sm font-black text-white uppercase tracking-wider">${pollEsc(game.title)}</h3>
-        ${link ? `<a href="${pollEsc(link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="text-xs text-red-400 hover:underline inline-block truncate max-w-full">🔗 Lien externe</a>` : ''}
+      <div class="p-2.5 space-y-1">
+        <h3 class="text-[11px] font-black text-white uppercase tracking-wider leading-tight">${pollEsc(game.title)}</h3>
+        ${link ? `<a href="${pollEsc(link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="text-[10px] text-red-400 hover:underline inline-block truncate max-w-full">🔗 Lien</a>` : ''}
       </div>
     </div>`;
 }
@@ -197,12 +211,12 @@ function pollCard(game, canVote) {
 function renderPoll() {
   const title = document.getElementById('pollTitle');
   const intro = document.getElementById('pollIntro');
-  const kind = document.getElementById('pollKind');
+  const price = document.getElementById('pollPrice');
   const grid = document.getElementById('pollGrid');
   const form = document.getElementById('pollForm');
   if (title) title.textContent = pollSettings.title || 'Sondage';
   if (intro) intro.textContent = pollSettings.intro || '';
-  if (kind) kind.textContent = pollModeLabel();
+  if (price) price.textContent = pollPriceLabel(pollSettings.price_cents);
   if (!grid) return;
 
   const activeGames = pollGames.filter((game) => game.column_key || !pollIsDecathlon());
@@ -223,14 +237,14 @@ function renderPoll() {
             <h2 class="text-sm font-black uppercase tracking-wider text-white">${column.label}</h2>
             <p class="text-xs font-black ${pollColumnCount(column.key) === POLL_COLUMN_PICKS ? 'text-emerald-400' : 'text-amber-300'}">${pollColumnCount(column.key)} / ${POLL_COLUMN_PICKS}</p>
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
             ${games.map((game) => pollCard(game, canVote)).join('') || '<p class="text-xs text-gray-500">Aucun jeu dans cette colonne.</p>'}
           </div>
         </section>`;
     }).join('');
     pollHydrate(grid);
   } else {
-    grid.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">${activeGames.map((game) => pollCard(game, canVote)).join('')}</div>`;
+    grid.innerHTML = `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">${activeGames.map((game) => pollCard(game, canVote)).join('')}</div>`;
     pollHydrate(grid);
   }
 
@@ -252,7 +266,7 @@ async function renderPollList() {
   const db = pollDb();
   if (!list || !db) return;
   list.innerHTML = '<p class="text-xs text-gray-400">Chargement des sondages…</p>';
-  const { data, error } = await db.from('nvg_polls').select('id,title,intro,mode,open').eq('open', true).order('created_at', { ascending: false });
+  const { data, error } = await db.from('nvg_polls').select('id,title,intro,mode,open,price_cents').eq('open', true).order('created_at', { ascending: false });
   const code = pollErrorCode(error);
   if (code === 'missing') {
     list.innerHTML = `<p class="text-sm text-red-300">${pollEsc(pollMessage('missing'))}</p>`;
@@ -275,7 +289,7 @@ async function renderPollList() {
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       ${polls.map((poll) => `
         <button type="button" onclick="openPoll('${poll.id}')" class="bg-[#121722] border border-[#1f293d] rounded-2xl p-5 text-left hover:border-red-500 transition">
-          <p class="text-[10px] font-black uppercase tracking-wider text-amber-400">${pollEsc(pollModeLabel(poll.mode))}</p>
+          <p class="text-[10px] font-black uppercase tracking-wider text-amber-400">${pollEsc(pollPriceLabel(poll.price_cents))}</p>
           <h2 class="text-base font-black text-white mt-1">${pollEsc(poll.title)}</h2>
           ${poll.intro ? `<p class="text-xs text-gray-400 mt-2">${pollEsc(poll.intro)}</p>` : ''}
         </button>`).join('')}
@@ -310,7 +324,7 @@ async function loadPoll() {
   const grid = document.getElementById('pollGrid');
   if (grid) grid.innerHTML = '<p class="text-xs text-gray-400">Chargement du sondage…</p>';
   const [settings, games] = await Promise.all([
-    db.from('nvg_polls').select('id,title,intro,mode,open').eq('id', id).maybeSingle(),
+    db.from('nvg_polls').select('id,title,intro,mode,open,price_cents').eq('id', id).maybeSingle(),
     db.from('nvg_poll_games').select('id,title,link,image_url,column_key,position').eq('poll_id', id).eq('active', true).order('position').order('title')
   ]);
   const code = pollErrorCode(settings.error || games.error);
@@ -673,6 +687,8 @@ function fillPollForm(poll) {
   document.getElementById('pollSettingsTitle').value = poll?.title || '';
   document.getElementById('pollSettingsIntro').value = poll?.intro || '';
   document.getElementById('pollSettingsOpen').checked = !!poll?.open;
+  const priceInput = document.getElementById('pollSettingsPrice');
+  if (priceInput) priceInput.value = ((Number(poll?.price_cents) || 0) / 100).toFixed(2);
   const mode = document.getElementById('pollSettingsMode');
   mode.value = poll?.mode === 'decathlon' ? 'decathlon' : 'nine_worlds';
   mode.disabled = !!poll;
@@ -706,7 +722,7 @@ function renderPollAdminList() {
   box.innerHTML = pollAdminPolls.map((poll) => `
     <button type="button" onclick="selectPollAdmin('${poll.id}')" class="w-full rounded-xl border px-3 py-2 text-left transition ${poll.id === pollAdminId ? 'border-red-500 bg-red-600/10' : 'border-[#1f293d] bg-[#07090e] hover:border-white/20'}">
       <p class="text-xs font-black text-white">${pollEsc(poll.title)}</p>
-      <p class="text-[10px] ${poll.open ? 'text-emerald-400' : 'text-gray-500'}">${pollEsc(pollModeLabel(poll.mode))} · ${poll.open ? 'Ouvert' : 'Fermé'}</p>
+      <p class="text-[10px] ${poll.open ? 'text-emerald-400' : 'text-gray-500'}">${pollEsc(pollModeLabel(poll.mode))} · ${pollEsc(pollPriceLabel(poll.price_cents))} · ${poll.open ? 'Ouvert' : 'Fermé'}</p>
     </button>`).join('');
 }
 
@@ -725,11 +741,17 @@ async function savePollSettings(event) {
   event.preventDefault();
   const db = pollDb();
   if (!db) return;
+  const priceCents = pollPriceCentsFromInput();
   const payload = {
     title: document.getElementById('pollSettingsTitle').value.trim(),
     intro: document.getElementById('pollSettingsIntro').value.trim(),
-    open: !!document.getElementById('pollSettingsOpen').checked
+    open: !!document.getElementById('pollSettingsOpen').checked,
+    price_cents: priceCents
   };
+  if (priceCents === null) {
+    pollNotify('Indique un prix positif, ou 0 pour gratuit.', true);
+    return;
+  }
   if (!payload.title) {
     pollNotify('Indique un titre.', true);
     return;
@@ -796,7 +818,7 @@ async function loadPollAdmin() {
   const db = pollDb();
   const list = document.getElementById('pollAdminList');
   if (!db || !list) return;
-  const { data, error } = await db.from('nvg_polls').select('id,title,intro,mode,open,created_at').order('created_at', { ascending: false });
+  const { data, error } = await db.from('nvg_polls').select('id,title,intro,mode,open,price_cents,created_at').order('created_at', { ascending: false });
   if (pollErrorCode(error) === 'missing') {
     list.innerHTML = `<p class="text-xs text-red-300">${pollEsc(pollMessage('missing'))}</p>`;
     return;
